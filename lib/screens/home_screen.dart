@@ -1,5 +1,8 @@
+import 'package:e_bricole/shared/category_item.dart';
 import 'package:e_bricole/shared/notifications.dart';
+import 'package:e_bricole/shared/styled_button.dart';
 import 'package:e_bricole/shared/styled_text.dart';
+import 'package:e_bricole/theme.dart';
 import 'package:flutter/material.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -8,40 +11,67 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        actionsPadding: EdgeInsets.only(right: 10.0),
-        title: StyledHeading("Bonjour John Doe"),
-        actions: [Notifications()],
-      ),
-      body: Column(
-        children: [
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 25, vertical: 15),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE0E0E0),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                StyledText("what you want to search for today !"),
-                SizedBox(height: 20,),
-                TextField(
-                  decoration: InputDecoration(
-                    prefixIcon: Icon(Icons.search),
-                    hintText: 'search for somthing ...',
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+      body: Container(
+      
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color.fromARGB(255, 255, 255, 255),
+            borderRadius: BorderRadius.circular(8),
           ),
-          Center(child: StyledText("Hello world")),
-        ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              StyledHeading(text: "Popular Categories"),
+              SizedBox(height: 14),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CategorieItem(
+                      image: 'assets/icons/jardinier.png',
+                      name: 'Gardener',
+                    ),
+                    CategorieItem(
+                      image: 'assets/icons/menage.png',
+                      name: 'Cleaner',
+                    ),
+                    CategorieItem(
+                      image: 'assets/icons/plombier.png',
+                      name: 'Plumber',
+                    ),
+                    CategorieItem(
+                      image: 'assets/icons/electricien.png',
+                      name: 'Electrician',
+                    ),
+                    CategorieItem(
+                      image: 'assets/icons/menuisier.png',
+                      name: 'Joiner',
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 14),
+              StyledButton(
+                onPressed: () {},
+                child: Row(
+                  children: [
+                    Icon(Icons.menu, size: 30, color: AppColors.whiteColor),
+                    SizedBox(width: 10),
+                    StyledHeading(
+                      text: 'explore all categories',
+                      color: AppColors.whiteColor,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

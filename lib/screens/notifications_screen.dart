@@ -26,11 +26,11 @@ class NotificationsScreen extends StatelessWidget {
                 children: [
                   Icon(Icons.arrow_back, size: 20),
                   SizedBox(width: 6),
-                  StyledText("go back"),
+                  StyledText(text: "go back"),
                 ],
               ),
             ),
-            Center(child: StyledText("notifications")),
+            Center(child: StyledText(text: "notifications")),
           ],
         ),
       ),
