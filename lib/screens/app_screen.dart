@@ -3,7 +3,6 @@ import 'package:e_bricole/screens/home_screen.dart';
 import 'package:e_bricole/screens/messages_screen.dart';
 import 'package:e_bricole/screens/profil_screen.dart';
 import 'package:e_bricole/shared/notifications.dart';
-import 'package:e_bricole/shared/styled_bottom_bar.dart';
 import 'package:e_bricole/shared/styled_text.dart';
 import 'package:e_bricole/theme.dart';
 import 'package:flutter/material.dart';
@@ -45,11 +44,44 @@ class _AppScreenState extends State<AppScreen> {
         ),
         actions: [Notifications()],
       ),
-      body: Column(
-        children: [
-          Expanded(child: _pages[_selectedIndex]),
-           StyledBottomBar(),
-        ],
+
+      body: _pages[_selectedIndex],
+
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {},
+        backgroundColor: AppColors.primaryColor,
+        child: Icon(Icons.add, size: 32, color: AppColors.whiteColor),
+        shape: CircleBorder(),
+        elevation: 2,
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: Theme(
+        data: Theme.of(context).copyWith(
+          splashFactory: NoSplash.splashFactory,
+          highlightColor: Colors.transparent,
+        ),
+        child: BottomNavigationBar(
+          items: const <BottomNavigationBarItem>[
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home, size: 30),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.view_list_rounded, size: 30),
+              label: 'Requests',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.message, size: 30),
+              label: 'Messages',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person, size: 30),
+              label: 'Profile',
+            ),
+          ],
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+        ),
       ),
     );
   }

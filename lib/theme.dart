@@ -19,7 +19,7 @@ class AppColors {
   static const Color textPrimaryColor = Color(0xFF000000);
 
   /// Texte secondaire (sous-titres, détails)
-  static const Color textSecondaryColor = Color(0xFF8E8E93);
+  static const Color textSecondaryColor = Color.fromARGB(255, 140, 136, 136);
 
   /// Fond d’écran (derrière les cartes)
   static const Color backgroundColor = Color.fromARGB(246, 244, 244, 255);

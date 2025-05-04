@@ -1,3 +1,5 @@
+import 'package:e_bricole/models/category.dart';
+import 'package:e_bricole/screens/categories_screen.dart';
 import 'package:e_bricole/shared/category_item.dart';
 import 'package:e_bricole/shared/notifications.dart';
 import 'package:e_bricole/shared/styled_button.dart';
@@ -12,7 +14,6 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-      
         padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         child: Container(
           width: double.infinity,
@@ -31,33 +32,23 @@ class HomeScreen extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CategorieItem(
-                      image: 'assets/icons/jardinier.png',
-                      name: 'Gardener',
-                    ),
-                    CategorieItem(
-                      image: 'assets/icons/menage.png',
-                      name: 'Cleaner',
-                    ),
-                    CategorieItem(
-                      image: 'assets/icons/plombier.png',
-                      name: 'Plumber',
-                    ),
-                    CategorieItem(
-                      image: 'assets/icons/electricien.png',
-                      name: 'Electrician',
-                    ),
-                    CategorieItem(
-                      image: 'assets/icons/menuisier.png',
-                      name: 'Joiner',
-                    ),
-                  ],
+                  children:
+                      Category.categories.map((item) {
+                        return CategorieItem(
+                          image: item.image,
+                          name: item.name,
+                        );
+                      }).toList(),
                 ),
               ),
               SizedBox(height: 14),
               StyledButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => CategoriesScreen()),
+                  );
+                },
                 child: Row(
                   children: [
                     Icon(Icons.menu, size: 30, color: AppColors.whiteColor),
