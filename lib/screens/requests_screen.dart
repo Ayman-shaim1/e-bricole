@@ -1,3 +1,4 @@
+import 'package:e_bricole/shared/styled_text.dart';
 import 'package:flutter/material.dart';
 
 class RequestsScreen extends StatelessWidget {
@@ -5,6 +6,6 @@ class RequestsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(body: Center(child: Text("hello world")));
+    return Scaffold(body: Center(child: StyledHeading(text: "requests")));
   }
 }

@@ -30,7 +30,7 @@ class CategoriesScreen extends StatelessWidget {
                 ],
               ),
             ),
-            Center(child: StyledText(text: "categories")),
+            Center(child: StyledHeading(text: "categories")),
           ],
         ),
       ),

@@ -30,7 +30,7 @@ class NotificationsScreen extends StatelessWidget {
                 ],
               ),
             ),
-            Center(child: StyledText(text: "notifications")),
+          Center(child: StyledHeading(text: "notifications")),
           ],
         ),
       ),

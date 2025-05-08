@@ -3,6 +3,7 @@ import 'package:e_bricole/screens/categories_screen.dart';
 import 'package:e_bricole/shared/category_item.dart';
 import 'package:e_bricole/shared/notifications.dart';
 import 'package:e_bricole/shared/styled_button.dart';
+import 'package:e_bricole/shared/styled_card.dart';
 import 'package:e_bricole/shared/styled_text.dart';
 import 'package:e_bricole/theme.dart';
 import 'package:flutter/material.dart';
@@ -15,13 +16,7 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       body: Container(
         padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color.fromARGB(255, 255, 255, 255),
-            borderRadius: BorderRadius.circular(8),
-          ),
+        child: StyledCard(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

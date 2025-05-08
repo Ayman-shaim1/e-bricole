@@ -37,6 +37,7 @@ class _AppScreenState extends State<AppScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: AppColors.primaryColor,
         actionsPadding: EdgeInsets.only(right: 10.0),
         title: StyledHeading(
           text: "Bonjour John Doe",
@@ -50,9 +51,9 @@ class _AppScreenState extends State<AppScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {},
         backgroundColor: AppColors.primaryColor,
-        child: Icon(Icons.add, size: 32, color: AppColors.whiteColor),
         shape: CircleBorder(),
         elevation: 2,
+        child: Icon(Icons.add, size: 40, color: AppColors.whiteColor),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: Theme(
@@ -61,6 +62,8 @@ class _AppScreenState extends State<AppScreen> {
           highlightColor: Colors.transparent,
         ),
         child: BottomNavigationBar(
+
+     
           items: const <BottomNavigationBarItem>[
             BottomNavigationBarItem(
               icon: Icon(Icons.home, size: 30),
