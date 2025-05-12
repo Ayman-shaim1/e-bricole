@@ -1,20 +1,20 @@
-import 'package:e_bricole/screens/requests_screen.dart';
-import 'package:e_bricole/screens/home_screen.dart';
+import 'package:e_bricole/screens/client/requests_screen.dart';
+import 'package:e_bricole/screens/client/home_screen.dart';
 import 'package:e_bricole/screens/messages_screen.dart';
-import 'package:e_bricole/screens/profil_screen.dart';
+import 'package:e_bricole/screens/client/profil_screen.dart';
 import 'package:e_bricole/shared/notifications.dart';
 import 'package:e_bricole/shared/styled_text.dart';
 import 'package:e_bricole/theme.dart';
 import 'package:flutter/material.dart';
 
-class AppScreen extends StatefulWidget {
-  const AppScreen({super.key});
+class AppLayout extends StatefulWidget {
+  const AppLayout({super.key});
 
   @override
-  State<AppScreen> createState() => _AppScreenState();
+  State<AppLayout> createState() => _AppLayoutState();
 }
 
-class _AppScreenState extends State<AppScreen> {
+class _AppLayoutState extends State<AppLayout> {
   // 1. Track which tab is selected
   int _selectedIndex = 0;
 

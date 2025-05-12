@@ -1,4 +1,4 @@
-import 'package:e_bricole/ThemeProvider.dart';
+import 'package:e_bricole/providers/ThemeProvider.dart';
 import 'package:e_bricole/shared/styled_button.dart';
 import 'package:e_bricole/shared/styled_card.dart';
 import 'package:e_bricole/shared/styled_dialog.dart';

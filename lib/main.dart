@@ -1,5 +1,6 @@
-import 'package:e_bricole/ThemeProvider.dart';
-import 'package:e_bricole/screens/app_screen.dart';
+import 'package:e_bricole/layouts/login_layout.dart';
+import 'package:e_bricole/providers/ThemeProvider.dart';
+import 'package:e_bricole/layouts/app_layout.dart';
 import 'package:e_bricole/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -15,7 +16,6 @@ void main() {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     final themeMode = Provider.of<ThemeProvider>(context).mode;
@@ -25,7 +25,7 @@ class MyApp extends StatelessWidget {
       theme: lightTheme, // votre thème clair
       darkTheme: darkTheme,
       themeMode: themeMode,
-      home: AppScreen(),
+      home: LoginLayout(),
     );
   }
 }
