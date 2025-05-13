@@ -9,7 +9,7 @@ class AppColors {
   static const Color primaryAccent = Color(0xFF5AC8FA); // iOS system light blue
 
   static const Color secondaryColor = Color.fromARGB(216, 62, 60, 60);
-  static const Color lightGrayColor = Color.fromARGB(215, 207, 203, 203);
+  static const Color lightGrayColor = Color.fromARGB(214, 243, 242, 242);
   /// Texte sur fond principal (blanc sur bouton bleu)
   static const Color onPrimaryColor = Color(0xFFFFFFFF);
 

@@ -77,7 +77,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
             SizedBox(height: 20),
-            _renderForm(),
+            // _renderForm(),
           ],
         ),
       ),
