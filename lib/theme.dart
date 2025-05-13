@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
   /// Accent principal (bouton “Reschedule”, icônes actives…)
@@ -9,8 +8,8 @@ class AppColors {
   /// Accent secondaire (états survolés, ripple, boutons secondaires…)
   static const Color primaryAccent = Color(0xFF5AC8FA); // iOS system light blue
 
-  static const Color secondaryColor = Color(0xFF333333);
-
+  static const Color secondaryColor = Color.fromARGB(216, 62, 60, 60);
+  static const Color lightGrayColor = Color.fromARGB(215, 207, 203, 203);
   /// Texte sur fond principal (blanc sur bouton bleu)
   static const Color onPrimaryColor = Color(0xFFFFFFFF);
 
@@ -36,7 +35,6 @@ class AppColors {
 }
 
 ThemeData lightTheme = ThemeData(
-  fontFamily: 'SF Pro Text', // ou 'SF Pro Display' selon le style
   // seed color :
   colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primaryColor),
   // scaffold color :
@@ -49,19 +47,13 @@ ThemeData lightTheme = ThemeData(
   ),
   // text theme :
   textTheme: const TextTheme().copyWith(
-    bodyMedium: TextStyle(
-      // color: AppColors.textColor,
-      fontSize: 16,
-      letterSpacing: 0.5,
-    ),
+    bodyMedium: TextStyle(fontSize: 16, letterSpacing: 0.5),
     headlineMedium: TextStyle(
-      // color: AppColors.titleColor,
       fontSize: 16,
       letterSpacing: 0.5,
       fontWeight: FontWeight.bold,
     ),
     titleMedium: TextStyle(
-      // color: AppColors.titleColor,
       fontSize: 18,
       letterSpacing: 1,
       fontWeight: FontWeight.bold,
@@ -69,21 +61,36 @@ ThemeData lightTheme = ThemeData(
   ),
 
   // card theme :
-  cardTheme: CardTheme(
-    // color: AppColors.secondaryColor.withOpacity(0.5),
-    // surfaceTintColor: Colors.transparent,
-    // shape: const RoundedRectangleBorder(),
-    // shadowColor: Colors.transparent,
-    // margin: const EdgeInsets.only(bottom: 16),
-  ),
+  cardTheme: CardTheme(),
 
   // input decoration theme :
   inputDecorationTheme: InputDecorationTheme(
     filled: true,
-    // fillColor: AppColors.secondaryColor.withOpacity(0.5),
-    border: InputBorder.none,
-    // labelStyle: TextStyle(color: AppColors.textColor),
-    // prefixIconColor: AppColors.textColor
+
+    prefixIconColor: AppColors.secondaryColor,
+    labelStyle: GoogleFonts.montserrat(color: AppColors.textPrimaryColor),
+    hintStyle: GoogleFonts.montserrat(),
+    contentPadding: EdgeInsets.symmetric(vertical: 18, horizontal: 10),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide.none,
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide.none,
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide.none,
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide.none,
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide.none,
+    ),
   ),
 
   // dialog theme  :
@@ -93,7 +100,6 @@ ThemeData lightTheme = ThemeData(
   ),
   bottomNavigationBarTheme: BottomNavigationBarThemeData(
     backgroundColor: Colors.white,
-    // elevation: 8,
     type: BottomNavigationBarType.fixed,
     selectedItemColor: AppColors.primaryColor,
     unselectedItemColor: Colors.grey.shade500,
@@ -104,7 +110,6 @@ ThemeData lightTheme = ThemeData(
 );
 
 ThemeData darkTheme = ThemeData(
-  fontFamily: 'SF Pro Text', // ou 'SF Pro Display' selon le style
   // seed color :
   colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primaryColor),
   // scaffold color :
@@ -117,19 +122,13 @@ ThemeData darkTheme = ThemeData(
   ),
   // text theme :
   textTheme: const TextTheme().copyWith(
-    bodyMedium: TextStyle(
-      // color: AppColors.textColor,
-      fontSize: 16,
-      letterSpacing: 0.5,
-    ),
+    bodyMedium: TextStyle(fontSize: 16, letterSpacing: 0.5),
     headlineMedium: TextStyle(
-      // color: AppColors.titleColor,
       fontSize: 16,
       letterSpacing: 0.5,
       fontWeight: FontWeight.bold,
     ),
     titleMedium: TextStyle(
-      // color: AppColors.titleColor,
       fontSize: 18,
       letterSpacing: 1,
       fontWeight: FontWeight.bold,
@@ -137,13 +136,7 @@ ThemeData darkTheme = ThemeData(
   ),
 
   // card theme :
-  cardTheme: CardTheme(
-    // color: AppColors.secondaryColor.withOpacity(0.5),
-    // surfaceTintColor: Colors.transparent,
-    // shape: const RoundedRectangleBorder(),
-    // shadowColor: Colors.transparent,
-    // margin: const EdgeInsets.only(bottom: 16),
-  ),
+  cardTheme: CardTheme(),
 
   // input decoration theme :
   inputDecorationTheme: InputDecorationTheme(

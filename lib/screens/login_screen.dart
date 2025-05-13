@@ -1,5 +1,6 @@
+import 'package:e_bricole/screens/register_screen.dart';
 import 'package:e_bricole/shared/styled_button.dart';
-import 'package:e_bricole/shared/styled_card.dart';
+import 'package:e_bricole/shared/styled_container.dart';
 import 'package:e_bricole/shared/styled_text.dart';
 import 'package:e_bricole/theme.dart';
 import 'package:flutter/material.dart';
@@ -18,17 +19,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(top: 75),
-      child: StyledCard(
-        height: 650,
+    return Scaffold(
+      body: StyledContainer(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(
-              child: Image.asset("assets/images/main_logo.png", width: 80),
+              child: Image.asset("assets/images/main_logo.png", width: 100),
             ),
-            Center(child: StyledHeading(text: "Login here !")),
+            Center(child: StyledTitle(text: "Login here !")),
             SizedBox(height: 10),
             Center(child: StyledText(text: "Welcome back to e-bricole")),
             SizedBox(height: 30),
@@ -65,28 +64,79 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-            SizedBox(height: 20),
-            StyledButton(
-              onPressed: () {},
-              child: StyledHeading(text: "login", color: AppColors.whiteColor),
-            ),
             SizedBox(height: 5),
-            Divider(),
-            SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () {},
+                  child: StyledText(
+                    text: 'forget password ?',
+                    color: AppColors.primaryColor,
+                  ),
+                ),
+              ],
+            ),
             StyledButton(
               onPressed: () {},
-              child: StyledHeading(
-                text: "login with google account",
-                color: AppColors.whiteColor,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset("assets/icons/connexion.png", width: 22),
+                  SizedBox(width: 8),
+                  StyledHeading(text: "login", color: AppColors.whiteColor),
+                ],
               ),
             ),
-            SizedBox(height: 20),
+            SizedBox(height: 15),
+            Row(
+              children: [
+                Expanded(
+                  child: Divider(color: Colors.grey.shade300, thickness: 1),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: StyledText(text: 'Or Login with'),
+                ),
+                Expanded(
+                  child: Divider(color: Colors.grey.shade300, thickness: 1),
+                ),
+              ],
+            ),
+            SizedBox(height: 15),
             StyledButton(
+              color: AppColors.whiteColor,
               onPressed: () {},
-              child: StyledHeading(
-                text: "login with facebook account",
-                color: AppColors.whiteColor,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset("assets/images/google-logo.png", width: 20),
+                  SizedBox(width: 8),
+                  StyledHeading(
+                    text: "login with google account",
+                    color: AppColors.textPrimaryColor,
+                  ),
+                ],
               ),
+            ),
+            SizedBox(height: 15),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                StyledText(text: "Don't have an account?"),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => RegisterScreen()),
+                    );
+                  },
+                  child: StyledText(
+                    text: "Create an account",
+                    color: AppColors.primaryColor,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 
 class StyledButton extends StatelessWidget {
   final double? width;
+  final Color? color;
   StyledButton({
     super.key,
     required this.onPressed,
     required this.child,
     this.width,
+    this.color,
   });
 
   final Function() onPressed;
@@ -23,8 +25,15 @@ class StyledButton extends StatelessWidget {
         margin: EdgeInsets.zero,
         padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
         decoration: BoxDecoration(
-          color: AppColors.primaryColor,
-          borderRadius: const BorderRadius.all(Radius.circular(5)),
+          color: color ?? AppColors.primaryColor,
+          borderRadius: const BorderRadius.all(Radius.circular(8)),
+          border: Border.all(
+            color:
+                color == AppColors.whiteColor
+                    ? AppColors.textPrimaryColor
+                    : color ?? AppColors.whiteColor,
+            width: 1,
+          ),
         ),
         child: Center(child: child),
       ),
