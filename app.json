@@ -1,5 +1,6 @@
 {
   "expo": {
+    "scheme": "ebricole",
     "name": "e-bricole",
     "slug": "e-bricole",
     "version": "1.0.0",
@@ -24,6 +25,15 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your friends."
+        }
+      ]
+    ]
   }
 }
