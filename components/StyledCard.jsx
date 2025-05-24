@@ -1,11 +1,25 @@
-import React, { useState } from "react";
-import { Pressable, StyleSheet, useColorScheme } from "react-native";
-import { styles as mystyles } from "../constants/styles";
+import React from "react";
+import { Pressable, StyleSheet } from "react-native";
 import { colors } from "../constants/colors";
+import { styles as mystyles } from "../constants/styles";
+import { useTheme } from "../context/ThemeContext";
 
-export default function StyledCard({ onPress, style, children }) {
+export default function StyledCard({ children, style, onPress }) {
+  const { getCurrentTheme } = useTheme();
+  const theme = getCurrentTheme();
+
   return (
-    <Pressable style={[styles.card, style]} onPress={onPress}>
+    <Pressable
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme.cardColor,
+          borderColor: colors.gray,
+        },
+        style,
+      ]}
+      onPress={onPress}
+    >
       {children}
     </Pressable>
   );
@@ -13,13 +27,19 @@ export default function StyledCard({ onPress, style, children }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#fff",
     borderRadius: mystyles.borderRadius,
     overflow: "hidden",
     paddingVertical: mystyles.paddingVertical,
     paddingHorizontal: 15,
     marginVertical: 20,
     borderWidth: 1,
-    borderColor: colors.gray,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 });

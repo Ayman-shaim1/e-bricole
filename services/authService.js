@@ -1,22 +1,52 @@
 import { account, databases } from "../config/appwrite";
 import { ID } from "appwrite";
 import settings from "../config/settings";
+import { uploadFile } from "./uploadService";
 
-export async function registerUser({ name, email, password, isClient }) {
+export async function registerUser({ name, email, password, isClient, profileImage, skills, serviceType, profession, experienceYears }) {
   try {
+    // Step 1: Create the user account
     const user = await account.create(ID.unique(), email, password, name);
+    
+    // Step 2: Upload profile image if provided
+    let profileImageUrl = null;
+    let profileImageId = null;
+    
+    if (profileImage) {
+      const uploadResult = await uploadFile(profileImage);
+      if (uploadResult.success) {
+        profileImageUrl = uploadResult.fileUrl;
+        profileImageId = uploadResult.fileId;
+      } else {
+        console.log("Warning: Failed to upload profile image:", uploadResult.error);
+      }
+    }
+    
+    // Step 3: Create the user document with all provided information
+    const userData = {
+      name,
+      email,
+      isClient,
+      profileImageUrl,
+      profileImageId
+    };
+    
+    // Add artisan-specific fields if the user is an artisan
+    if (!isClient) {
+      if (skills && skills.length > 0) userData.skills = skills;
+      if (serviceType) userData.serviceType = serviceType;
+      if (profession) userData.profession = profession;
+      if (experienceYears) userData.experienceYears = experienceYears;
+    }
+    
     await databases.createDocument(
       settings.dataBaseId,
       settings.usersId,
       user.$id,
-      {
-        name,
-        email,
-        isClient,
-      }
+      userData
     );
 
-    return { success: true };
+    return { success: true, userId: user.$id };
   } catch (error) {
     console.log("Erreur inscription Appwrite :", error.message);
     return { success: false, error: error.message };

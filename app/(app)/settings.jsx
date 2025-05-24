@@ -5,7 +5,6 @@ import {
   Switch,
   TouchableOpacity,
   Text,
-  Modal,
   Alert,
 } from "react-native";
 import React, { useState } from "react";
@@ -16,16 +15,13 @@ import StyledButton from "../../components/StyledButton";
 import { colors } from "../../constants/colors";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import StyledHeading from "../../components/StyledHeading";
-import BottomModal from "../../components/BottomModal";
 import { useRouter } from "expo-router";
 import { logoutUser } from "../../services/authService";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function Settings() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [currentTheme, setCurrentTheme] = useState("default");
-  const [currentLanguage, setCurrentLanguage] = useState("anglais");
-  const [isThemeModalVisible, setIsThemeModalVisible] = useState(false);
-
+  const { theme, changeTheme } = useTheme();
   const router = useRouter();
 
   // Dummy handler functions
@@ -40,17 +36,9 @@ export default function Settings() {
     // Logic to update notification settings
   };
 
-  const handleThemeChange = (theme) => {
-    setCurrentTheme(theme);
-    console.log("Theme changed to:", theme);
-    setIsThemeModalVisible(false);
-    // Theme change logic here
-  };
-
-  const handleLanguageChange = (language) => {
-    setCurrentLanguage(language);
-    console.log("Language changed to:", language);
-    // Language change logic here
+  const handleThemeToggle = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    changeTheme(newTheme);
   };
 
   const handleLogout = async () => {
@@ -66,20 +54,10 @@ export default function Settings() {
         );
       }
     } catch (error) {
-      Alert.alert(
-        "Error",
-        "An unexpected error occurred. Please try again.",
-        [{ text: "OK" }]
-      );
+      Alert.alert("Error", "An unexpected error occurred. Please try again.", [
+        { text: "OK" },
+      ]);
     }
-  };
-
-  const handleOpenThemeModal = () => {
-    setIsThemeModalVisible(true);
-  };
-
-  const handleCloseThemeModal = () => {
-    setIsThemeModalVisible(false);
   };
 
   // Helper component for a single settings item row
@@ -91,6 +69,7 @@ export default function Settings() {
     switchValue,
     onSwitchChange,
     isLast = false,
+    value,
   }) => (
     <TouchableOpacity
       style={[styles.settingItem, isLast && styles.noBorderBottom]}
@@ -108,6 +87,7 @@ export default function Settings() {
         )}
         <StyledLabel text={label} style={styles.settingLabel} />
       </View>
+
       <View style={styles.settingRight}>
         {isSwitch ? (
           <Switch
@@ -164,13 +144,11 @@ export default function Settings() {
           />
 
           <SettingItem
-            iconName="color-palette-outline"
-            label="Theme"
-            onPress={handleOpenThemeModal}
-          />
-          <BottomModal
-            visible={isThemeModalVisible}
-            onClose={() => setIsThemeModalVisible(false)}
+            iconName={theme === 'dark' ? "moon-outline" : "sunny-outline"}
+            label={theme === 'dark' ? "Dark Mode" : "Light Mode"}
+            isSwitch={true}
+            switchValue={theme === 'dark'}
+            onSwitchChange={handleThemeToggle}
           />
 
           <SettingItem
@@ -207,7 +185,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.gray,
-    backgroundColor: colors.white, // Match background
+    backgroundColor: colors.white,
   },
   headerTitle: {
     fontSize: 20,
@@ -250,7 +228,7 @@ const styles = StyleSheet.create({
     color: colors.black,
   },
   settingRight: {
-    // For alignment of chevron or switch
+    flexDirection: "row",
   },
   signOutButton: {
     marginTop: 25,

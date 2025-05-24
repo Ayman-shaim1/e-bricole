@@ -1,8 +1,9 @@
-import { Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import React, { useState } from "react";
 import StyledLabel from "./StyledLabel";
 import { styles as mystyles } from "../constants/styles";
 import { colors } from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 
 export default function StyledUiSwitch({
   text1 = "1",
@@ -11,8 +12,8 @@ export default function StyledUiSwitch({
   activeTab,
   setActiveTab,
 }) {
-  const colorScheme = useColorScheme();
-  const theme = colors[colorScheme] ?? theme.light;
+  const { getCurrentTheme } = useTheme();
+  const theme = getCurrentTheme();
 
   const handlePress = (text) => {
     setActiveTab(text);
@@ -51,7 +52,6 @@ const styles = StyleSheet.create({
   },
   toggleContainer: {
     flexDirection: "row",
-
     borderRadius: mystyles.borderRadius,
     padding: 3,
     width: 250,

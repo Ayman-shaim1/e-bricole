@@ -1,11 +1,12 @@
-import { StyleSheet, View, useColorScheme, SafeAreaView, Platform, StatusBar as RNStatusBar } from "react-native";
+import { StyleSheet, View, SafeAreaView, Platform, StatusBar as RNStatusBar } from "react-native";
 import React from "react";
 import { colors } from "../constants/colors";
 import { StatusBar } from "expo-status-bar";
+import { useTheme } from "../context/ThemeContext";
 
 export default function ThemedView({ style, children, ...props }) {
-  const colorScheme = useColorScheme();
-  const theme = colors[colorScheme] ?? colors.light;
+  const { getCurrentTheme } = useTheme();
+  const theme = getCurrentTheme();
 
   return (
     <SafeAreaView
@@ -18,7 +19,7 @@ export default function ThemedView({ style, children, ...props }) {
       ]}
       {...props}
     >
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style={theme === colors.dark ? 'light' : 'dark'} />
       <View style={styles.container}>{children}</View>
     </SafeAreaView>
   );

@@ -4,8 +4,8 @@ import { checkSession } from "../../services/authService";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, View } from "react-native";
-
 import { colors } from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 
 // Custom component to style the Add tab icon
 function AddTabIcon({ size }) {
@@ -18,6 +18,8 @@ function AddTabIcon({ size }) {
 
 export default function AppLayout() {
   const router = useRouter();
+  const { getCurrentTheme } = useTheme();
+  const theme = getCurrentTheme();
 
   useEffect(() => {
     const verify = async () => {
@@ -33,7 +35,16 @@ export default function AppLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: theme.iconColor,
         headerShown: false,
+        tabBarStyle: {
+          backgroundColor: theme.cardColor,
+          borderTopColor: theme.iconColor + '20',
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontFamily: 'Poppins-Regular',
+        },
       }}
     >
       <Tabs.Screen
@@ -85,15 +96,6 @@ export default function AppLayout() {
 }
 
 const styles = StyleSheet.create({
-  tabBarStyle: {
-    height: 60,
-    paddingBottom: 5,
-    paddingTop: 5,
-    backgroundColor: colors.white,
-  },
-  tabBarLabelStyle: {
-    fontSize: 12,
-  },
   addTabButton: {
     backgroundColor: colors.primary,
     borderRadius: 30,

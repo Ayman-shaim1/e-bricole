@@ -1,12 +1,13 @@
 import { StyleSheet } from "react-native";
 import React, { useEffect } from "react";
-import { Slot } from 'expo-router'; // 👈 pour charger le layout du groupe
+import { Stack } from 'expo-router';
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
+import { ThemeProvider } from '../context/ThemeContext';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+export default function Layout() {
   const [fontsLoaded] = useFonts({
     "Poppins-Regular": require("../assets/fonts/Poppins-Regular.ttf"),
     "Poppins-Bold": require("../assets/fonts/Poppins-Bold.ttf"),
@@ -23,7 +24,15 @@ export default function RootLayout() {
     return null;
   }
 
-  return <Slot />; // 👈 Laisse expo-router router vers le bon groupe (auth/app)
+  return (
+    <ThemeProvider>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+        }}
+      />
+    </ThemeProvider>
+  );
 }
 
 const styles = StyleSheet.create({});

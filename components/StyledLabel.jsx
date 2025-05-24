@@ -1,10 +1,11 @@
-import { StyleSheet, Text, useColorScheme } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import React from "react";
 import { colors } from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 
 export default function StyledLabel({ text, color, style }) {
-  const colorSheme = useColorScheme();
-  const theme = colors[colorSheme] ?? colors.light;
+  const { getCurrentTheme } = useTheme();
+  const theme = getCurrentTheme();
   return (
     <Text
       style={[
