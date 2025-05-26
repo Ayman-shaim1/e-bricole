@@ -1,16 +1,19 @@
-import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
-import React, { useState } from "react";
+import { Image, StyleSheet, TouchableOpacity, View, Alert } from "react-native";
+import React from "react";
 import ThemedView from "../../components/ThemedView";
 import StyledText from "../../components/StyledText";
 import StyledHeading from "../../components/StyledHeading";
-import StyledTextInput from "../../components/StyledTextInput";
 import StyledLabel from "../../components/StyledLabel";
 import StyledButton from "../../components/StyledButton";
 import StyledLink from "../../components/StyledLink";
 import DividerWithText from "../../components/DividerWithText";
 import { useRouter } from "expo-router";
 import { loginUser } from "../../services/authService";
-import { Alert } from "react-native";
+import FormikForm from "../../components/FormikForm";
+import FormInput from "../../components/FormInput";
+import FormButton from "../../components/FormButton";
+import { loginSchema } from "../../utils/validators";
+import { useAuth } from "../../context/AuthContext";
 
 const LOGO = require("../../assets/images/logo.png");
 const GOOGLE_LOGO = require("../../assets/icons/google-logo.png");
@@ -19,29 +22,53 @@ const PASSWORD_ICON = require("../../assets/icons/key.png");
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { setUser, setIsAuthenticated, setUserRole } = useAuth();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const initialValues = {
+    email: "",
+    password: ""
+  };
 
-  const loginHandler = async () => {
-    const result = await loginUser({ email, password });
+  const loginHandler = async (values, { setSubmitting }) => {
+    try {
+      const result = await loginUser({
+        email: values.email,
+        password: values.password
+      });
 
-    if (result.success) {
-      router.replace("/home");
-    } else {
+      if (result.success) {
+        // Update authentication state before navigation
+        setUser({...result.user, isClient: result.isClient});
+        setIsAuthenticated(true);
+        setUserRole(result.isClient);
+
+        // Navigate based on user type
+        if (result.isClient) {
+          router.replace("/(client)/home");
+        } else {
+          router.replace("/(artisan)/dashboard");
+        }
+      } else {
+        Alert.alert(
+          "Login Error",
+          result.error,
+          [
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+          ],
+          { cancelable: true }
+        );
+      }
+    } catch (error) {
       Alert.alert(
-        "Login Error",
-        result.error,
-        [
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-        ],
-        { cancelable: true }
+        "Connection Error",
+        "Unable to connect to the server. Please try again.",
+        [{ text: "OK" }]
       );
-
-      // alert("Erreur de connexion : " + result.error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -50,7 +77,7 @@ export default function LoginScreen() {
       <Image source={LOGO} style={styles.logo} />
       <View style={styles.texts}>
         <StyledHeading text={"Welcome back to e-bricole"} />
-        <StyledText text={"Please Sing-up here !"} />
+        <StyledText text={"Please Sign-in here !"} />
       </View>
 
       <TouchableOpacity
@@ -64,32 +91,47 @@ export default function LoginScreen() {
           style={{ marginLeft: 5 }}
         />
       </TouchableOpacity>
-      <StyledLabel text={"email :"} />
-      <StyledTextInput
-        placeholder={"e.g. j.doe@example.com"}
-        icon={EMAIL_ICON}
-        keyboardType="email-address"
-        textContentType="emailAddress"
-        value={email}
-        onChangeText={(text) => setEmail(text)}
-      />
-      <StyledLabel text={"passoword :"} />
-      <StyledTextInput
-        placeholder={"***********"}
-        icon={PASSWORD_ICON}
-        secureTextEntry={true}
-        textContentType="password"
-        value={password}
-        onChangeText={(text) => setPassword(text)}
-      />
-      <StyledButton text={"login"} onPress={loginHandler} />
-      <StyledLink to="/">forget password ?</StyledLink>
-      <DividerWithText text="or" />
-      <StyledButton
-        text={"login with google account"}
-        color="white"
-        image={GOOGLE_LOGO}
-      />
+
+      <FormikForm
+        initialValues={initialValues}
+        validationSchema={loginSchema}
+        onSubmit={loginHandler}
+      >
+        {({ isSubmitting }) => (
+          <>
+            <FormInput
+              name="email"
+              label="email :"
+              placeholder="e.g. j.doe@example.com"
+              icon={EMAIL_ICON}
+              keyboardType="email-address"
+              textContentType="emailAddress"
+            />
+
+            <FormInput
+              name="password"
+              label="password :"
+              placeholder="***********"
+              icon={PASSWORD_ICON}
+              secureTextEntry={true}
+              textContentType="password"
+            />
+
+            <FormButton
+              text={isSubmitting ? "logging in..." : "login"}
+              disabled={isSubmitting}
+            />
+
+            <StyledLink to="/">forget password ?</StyledLink>
+            <DividerWithText text="or" />
+            <StyledButton
+              text={"login with google account"}
+              color="white"
+              image={GOOGLE_LOGO}
+            />
+          </>
+        )}
+      </FormikForm>
     </ThemedView>
   );
 }

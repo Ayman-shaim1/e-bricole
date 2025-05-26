@@ -5,22 +5,19 @@ const settings = {
     dataBaseId: "682cdbba00195948bbf9",
     usersId: "682cdbc3001f92934aa7",
     servicesTypesId: "682cdbd9002d1fd1dc00",
-    professionsId: "professions", // Update this with your actual collection ID
-    bucketId: "682cdbba00195948bbf9_profiles", // Bucket for profile images
+    bucketId: "682cdbfe0034f6665cf5",
   },
   staging: {
     dataBaseId: "682cdbba00195948bbf9",
     usersId: "682cdbc3001f92934aa7",
     servicesTypesId: "682cdbd9002d1fd1dc00",
-    professionsId: "professions", // Update this with your actual collection ID
-    bucketId: "682cdbba00195948bbf9_profiles", // Bucket for profile images
+    bucketId: "682cdbfe0034f6665cf5",
   },
   prod: {
     dataBaseId: "682cdbba00195948bbf9",
     usersId: "682cdbc3001f92934aa7",
     servicesTypesId: "682cdbd9002d1fd1dc00",
-    professionsId: "professions", // Update this with your actual collection ID
-    bucketId: "682cdbba00195948bbf9_profiles", // Bucket for profile images
+    bucketId: "682cdbfe0034f6665cf5",
   },
 };
 

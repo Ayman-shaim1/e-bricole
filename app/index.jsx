@@ -7,8 +7,24 @@ export default function Index() {
 
   useEffect(() => {
     (async () => {
-      const session = await checkSession();
-      setTarget(session.loggedIn ? "/home" : "/login");
+      try {
+        const session = await checkSession();
+        if (session.loggedIn) {
+          // Redirect based on user type
+          const isClient = session.isClient === true;
+          
+          if (isClient) {
+            setTarget("/(client)/home");
+          } else {
+            setTarget("/(artisan)/dashboard");
+          }
+        }
+        else {
+          setTarget("/(auth)/login");
+        }
+      } catch (error) {
+        setTarget("/(auth)/login");
+      }
     })();
   }, []);
 

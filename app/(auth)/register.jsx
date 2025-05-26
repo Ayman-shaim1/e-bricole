@@ -1,18 +1,21 @@
-import { Image, ScrollView, StyleSheet, View, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, Dimensions } from "react-native";
+import { Image, ScrollView, StyleSheet, View, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, Dimensions, Alert, Text } from "react-native";
 import React, { useState, useEffect } from "react";
 import ThemedView from "../../components/ThemedView";
 import StyledText from "../../components/StyledText";
 import StyledHeading from "../../components/StyledHeading";
-import StyledTextInput from "../../components/StyledTextInput";
 import StyledLabel from "../../components/StyledLabel";
-import StyledButton from "../../components/StyledButton";
-import GoBackButton from "../../components/GoBackButton";
-import StyledImagePicker from "../../components/StyledImagePicker";
 import StyledUiSwitch from "../../components/StyledUiSwitch";
-import SkillsInput from "../../components/SkillsInput";
-import { registerUser } from "../../services/authService";
 import StyledDropdown from "../../components/StyledDropDown";
+import SkillsInput from "../../components/SkillsInput";
+import StyledImagePicker from "../../components/StyledImagePicker";
+import GoBackButton from "../../components/GoBackButton";
+import { registerUser } from "../../services/authService";
 import { getServicesTypes } from "../../services/serviceTypesService";
+import FormikForm from "../../components/FormikForm";
+import FormInput from "../../components/FormInput";
+import FormButton from "../../components/FormButton";
+import { getRegisterSchema } from "../../utils/validators";
+import { useFormikContext } from "formik";
 
 const LOGO = require("../../assets/images/logo.png");
 
@@ -25,18 +28,79 @@ const PROFESION_ICON = require("../../assets/icons/professions-et-emplois.png");
 const SKILLS_ICON = require("../../assets/icons/competences.png");
 const SERVICE_ICON = require("../../assets/icons/service.png");
 
+// Custom FormikDropdown component to integrate StyledDropdown with Formik
+const FormikDropdown = ({ name, label, icon, options }) => {
+  const { values, setFieldValue, errors, touched } = useFormikContext();
+  return (
+    <View style={{ width: '100%' }}>
+      {label && <StyledLabel text={label} />}
+      <StyledDropdown
+        icon={icon}
+        options={options}
+        selectedOption={values[name]}
+        setOption={(value) => setFieldValue(name, value)}
+      />
+      {touched[name] && errors[name] ? (
+        <Text style={styles.errorText}>{errors[name]}</Text>
+      ) : null}
+    </View>
+  );
+};
+
+// Custom FormikSkillsInput component to integrate SkillsInput with Formik
+const FormikSkillsInput = ({ name, label, icon, placeholder }) => {
+  const { values, setFieldValue, errors, touched } = useFormikContext();
+  return (
+    <View style={{ width: '100%' }}>
+      {label && <StyledLabel text={label} />}
+      <SkillsInput
+        placeholder={placeholder}
+        icon={icon}
+        value={values[name]}
+        onChange={(newSkills) => setFieldValue(name, newSkills)}
+      />
+      {touched[name] && errors[name] ? (
+        <Text style={styles.errorText}>{errors[name]}</Text>
+      ) : null}
+    </View>
+  );
+};
+
+// Custom FormikImagePicker component to integrate StyledImagePicker with Formik
+const FormikImagePicker = ({ name, label, customLabel }) => {
+  const { values, setFieldValue, errors, touched } = useFormikContext();
+  return (
+    <View style={{ width: '100%' }}>
+      {label && <StyledLabel text={label} />}
+      <StyledImagePicker
+        image={values[name]}
+        onImageChange={(image) => setFieldValue(name, image)}
+        customLabel={customLabel}
+      />
+      {touched[name] && errors[name] ? (
+        <Text style={styles.errorText}>{errors[name]}</Text>
+      ) : null}
+    </View>
+  );
+};
+
 export default function Register() {
   const [activeTab, setActiveTab] = useState("artisan");
-
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [passoword, setPassword] = useState("");
-  const [skills, setSkills] = useState([]);
-  const [serviceType, setServiceType] = useState("-- select option --");
-  const [profession, setProfession] = useState("");
-  const [experienceYears, setExperienceYears] = useState("");
-  const [profileImage, setProfileImage] = useState(null);
   const [serviceTypes, setServiceTypes] = useState([]);
+
+  // Initial values for the form
+  const getInitialValues = () => ({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    profileImage: null,
+    serviceType: "-- select option --",
+    profession: "",
+    experienceYears: "",
+    skills: [],
+    diploma: "",
+  });
 
   useEffect(() => {
     const fetchServiceTypes = async () => {
@@ -52,62 +116,46 @@ export default function Register() {
         }
       } catch (error) {
         console.error("Error fetching service types:", error);
+        Alert.alert("Error", "Failed to load service types. Please try again.");
       }
     };
 
     fetchServiceTypes();
   }, []);
-  const handleRegister = async () => {
-    // Form validation
-    if (!name.trim()) {
-      alert("Please enter your name");
-      return;
-    }
-    if (!email.trim()) {
-      alert("Please enter your email");
-      return;
-    }
-    if (!passoword.trim() || passoword.length < 8) {
-      alert("Please enter a password (minimum 8 characters)");
-      return;
-    }
-    
-    // Additional validation for artisans
-    if (activeTab === "artisan") {
-      if (serviceType === "-- select option --") {
-        alert("Please select a service type");
-        return;
-      }
-      if (!profession.trim()) {
-        alert("Please enter your profession");
-        return;
-      }
-    }
-    
+
+  const handleRegister = async (values, { setSubmitting, resetForm }) => {
     try {
-      // Show loading indicator or disable button here if needed
-      
       const result = await registerUser({
-        name: name,
-        email: email,
-        password: passoword,
+        name: values.name,
+        email: values.email,
+        password: values.password,
         isClient: activeTab === "client",
-        profileImage: profileImage, // Pass the profile image URI
-        skills: skills,
-        serviceType: serviceType !== "-- select option --" ? serviceType : null,
-        profession: profession,
-        experienceYears: experienceYears
+        profileImage: values.profileImage,
+        skills: values.skills,
+        serviceType: values.serviceType !== "-- select option --" ? values.serviceType : null,
+        profession: values.profession,
+        experienceYears: values.experienceYears,
+        diploma: values.diploma,
       });
 
       if (result.success) {
-        alert("Registration successful!");
+        Alert.alert(
+          "Success", 
+          "Registration successful!", 
+          [{ text: "OK", onPress: () => resetForm() }]
+        );
         // You could navigate to login or home screen here
       } else {
-        alert("Error: " + result.error);
+        Alert.alert("Registration Error", result.error);
       }
     } catch (error) {
       console.error("Registration error:", error);
-      alert("An unexpected error occurred. Please try again.");
+      Alert.alert(
+        "Error", 
+        "An error occurred during registration. Please try again."
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -116,17 +164,12 @@ export default function Register() {
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
-        enabled
       >
         <ScrollView
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          style={{ flex: 1 }}
           contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
         >
           <GoBackButton />
-
           <Image source={LOGO} style={styles.logo} />
           <View style={styles.texts}>
             <StyledHeading text={"Welcome to e-bricole"} />
@@ -142,95 +185,112 @@ export default function Register() {
             text1="client"
             text2={"artisan"}
           />
-          <StyledLabel text={"photo :"} />
-          <StyledImagePicker
-            image={profileImage}
-            onImageChange={setProfileImage}
-            customLabel={{
-              title: "Profile Photo",
-              subtitle: "Tap to select a profile picture"
-            }}
-          />
-          <StyledLabel text={"name :"} />
-          <StyledTextInput
-            placeholder={"e.g. jhon doe"}
-            icon={USER_ICON}
-            value={name}
-            onChangeText={(text) => setName(text)}
-          />
-          <StyledLabel text={"email :"} />
-          <StyledTextInput
-            placeholder={"e.g. j.doe@example.com"}
-            icon={EMAIL_ICON}
-            onChangeText={(text) => setEmail(text)}
-            value={email}
-          />
-
-          {activeTab === "artisan" && (
-            <>
-              <StyledLabel text={"service type :"} />
-              <StyledDropdown
-                icon={SERVICE_ICON}
-                options={serviceTypes.length > 0 ? serviceTypes : ["-- select option --"]}
-                selectedOption={serviceType}
-                setOption={setServiceType}
-              />
-
-              <StyledLabel text={"profession :"} />
-              <StyledTextInput
-                placeholder={"e.g. electrician"}
-                icon={PROFESION_ICON}
-                value={profession}
-                onChangeText={(text) => setProfession(text)}
-              />
-
-              <StyledLabel text={"experience Years :"} />
-              <StyledTextInput
-                placeholder={"e.g. 3"}
-                icon={CALANDRIER_ICON}
-                keyboardType="numeric"
-                value={experienceYears}
-                onChangeText={(text) => {
-                  // Only allow numeric input
-                  const numericText = text.replace(/[^0-9]/g, '');
-                  setExperienceYears(numericText);
-                }}
-              />
-
-              <StyledLabel text={"diploma/certficat :"} />
-              <StyledTextInput
-                placeholder={"e.g. plumbing Qualification Certificate"}
-                icon={DIPLOME_ICON}
-              />
-
-              <StyledLabel text={"skills :"} />
-              <SkillsInput
-                placeholder={"Type a skill and press space"}
-                icon={SKILLS_ICON}
-                value={skills}
-                onChange={setSkills}
-              />
-            </>
-          )}
-
-          <StyledLabel text={"passoword :"} />
-          <StyledTextInput
-            placeholder={"***********"}
-            icon={PASSWORD_ICON}
-            value={passoword}
-            onChangeText={(text) => setPassword(text)}
-            secureTextEntry={true}
-          />
-
-          <StyledLabel text={"confirm passoword :"} />
-          <StyledTextInput
-            placeholder={"***********"}
-            icon={PASSWORD_ICON}
-            secureTextEntry={true}
-          />
-
-          <View style={{ height: 10 }} />
-          <StyledButton text={"register"} onPress={handleRegister} />
+          <FormikForm
+            initialValues={getInitialValues()}
+            validationSchema={getRegisterSchema(activeTab)}
+            onSubmit={handleRegister}
+            enableReinitialize={true} // Re-initialize when activeTab changes
+          >
+            {({ isSubmitting, setFieldValue }) => (
+              <>
+                <FormikImagePicker
+                  name="profileImage"
+                  label="photo :"
+                  customLabel={{
+                    title: "Profile Photo",
+                    subtitle: "Tap to select a profile picture"
+                  }}
+                />
+                
+                <FormInput
+                  name="name"
+                  label="name :"
+                  placeholder="e.g. jhon doe"
+                  icon={USER_ICON}
+                />
+                
+                <FormInput
+                  name="email"
+                  label="email :"
+                  placeholder="e.g. j.doe@example.com"
+                  icon={EMAIL_ICON}
+                  keyboardType="email-address"
+                  textContentType="emailAddress"
+                />
+                
+                {activeTab === "artisan" && (
+                  <>
+                    <FormikDropdown
+                      name="serviceType"
+                      label="service type :"
+                      icon={SERVICE_ICON}
+                      options={serviceTypes.length > 0 ? serviceTypes : ["-- select option --"]}
+                    />
+                    
+                    <FormInput
+                      name="profession"
+                      label="profession :"
+                      placeholder="e.g. electrician"
+                      icon={PROFESION_ICON}
+                    />
+                    
+                    <FormInput
+                      name="experienceYears"
+                      label="experience Years :"
+                      placeholder="e.g. 3"
+                      icon={CALANDRIER_ICON}
+                      keyboardType="numeric"
+                      inputProps={{
+                        onChangeText: (text) => {
+                          // Only allow numeric input
+                          const numericText = text.replace(/[^0-9]/g, '');
+                          setFieldValue("experienceYears", numericText);
+                        }
+                      }}
+                    />
+                    
+                    <FormInput
+                      name="diploma"
+                      label="diploma/certficat :"
+                      placeholder="e.g. plumbing Qualification Certificate"
+                      icon={DIPLOME_ICON}
+                    />
+                    
+                    <FormikSkillsInput
+                      name="skills"
+                      label="skills :"
+                      placeholder="Type a skill and press space"
+                      icon={SKILLS_ICON}
+                    />
+                  </>
+                )}
+                
+                <FormInput
+                  name="password"
+                  label="password :"
+                  placeholder="***********"
+                  icon={PASSWORD_ICON}
+                  secureTextEntry={true}
+                  textContentType="password"
+                />
+                
+                <FormInput
+                  name="confirmPassword"
+                  label="confirm password :"
+                  placeholder="***********"
+                  icon={PASSWORD_ICON}
+                  secureTextEntry={true}
+                  textContentType="password"
+                />
+                
+                <View style={{ height: 10 }} />
+                <FormButton 
+                  text={isSubmitting ? "registering..." : "register"} 
+                  disabled={isSubmitting}
+                />
+              </>
+            )}
+          </FormikForm>
         </ScrollView>
       </KeyboardAvoidingView>
     </ThemedView>
@@ -256,5 +316,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     marginBottom: 7,
+  },
+  errorText: {
+    color: "#FF3B30",
+    fontSize: 12,
+    marginTop: -5,
+    marginBottom: 5,
+    paddingHorizontal: 5,
+    fontFamily: "Poppins-Regular",
   },
 });

@@ -1,35 +1,24 @@
 import { Tabs, useRouter } from "expo-router";
 import { useEffect } from "react";
-import { checkSession } from "../../services/authService";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { colors } from "../../constants/colors";
 import { useTheme } from "../../context/ThemeContext";
-
-// Custom component to style the Add tab icon
-function AddTabIcon({ size }) {
-  return (
-    <View style={styles.addTabButton}>
-      <Ionicons name="add" size={size + 5} color={colors.white} />
-    </View>
-  );
-}
+import { useAuth } from "../../context/AuthContext";
 
 export default function AppLayout() {
   const router = useRouter();
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
+  const { isAuthenticated, user } = useAuth();
 
   useEffect(() => {
-    const verify = async () => {
-      const session = await checkSession();
-      if (!session.loggedIn) {
-        router.replace("/login");
-      }
-    };
-    verify();
-  }, []);
+    // Redirect if not authenticated
+    if (!isAuthenticated) {
+      router.replace("/(auth)/login");
+    }
+  }, [isAuthenticated]);
 
   return (
     <Tabs
@@ -61,16 +50,19 @@ export default function AppLayout() {
         options={{
           title: "Requests",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list" size={size} color={color} />
+            <Ionicons name="list-outline" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="add"
         options={{
-          title: "Add",
-          tabBarIcon: AddTabIcon,
-          tabBarLabel: () => null,
+          title: "",
+          tabBarIcon: ({ size }) => (
+            <View style={styles.addTabButton}>
+              <Ionicons name="add" size={size + 5} color={colors.white} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen

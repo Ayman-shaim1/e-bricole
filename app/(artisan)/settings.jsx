@@ -18,10 +18,12 @@ import StyledHeading from "../../components/StyledHeading";
 import { useRouter } from "expo-router";
 import { logoutUser } from "../../services/authService";
 import { useTheme } from "../../context/ThemeContext";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Settings() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const { theme, changeTheme } = useTheme();
+  const { setUser, setIsAuthenticated } = useAuth();
   const router = useRouter();
 
   // Dummy handler functions
@@ -45,7 +47,12 @@ export default function Settings() {
     try {
       const result = await logoutUser();
       if (result.success) {
-        router.replace("/login");
+        // Clear authentication state
+        setUser(null);
+        setIsAuthenticated(false);
+        
+        // Navigate to login screen
+        router.replace("/(auth)/login");
       } else {
         Alert.alert(
           "Logout Failed",
@@ -54,6 +61,7 @@ export default function Settings() {
         );
       }
     } catch (error) {
+      console.error("Logout error:", error);
       Alert.alert("Error", "An unexpected error occurred. Please try again.", [
         { text: "OK" },
       ]);

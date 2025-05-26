@@ -9,7 +9,7 @@ export default function AuthLayout() {
     const verify = async () => {
       const session = await checkSession();
       if (session.loggedIn) {
-        router.replace("/home");
+        router.replace("/(client)/home");
       }
     };
     verify();

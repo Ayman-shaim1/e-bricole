@@ -1,23 +1,21 @@
 import {
-  Image,
   Platform,
   StyleSheet,
-  Text,
   TouchableOpacity,
-  View,
 } from "react-native";
 import React from "react";
 import { useRouter } from "expo-router";
-import StyledLabel from "./StyledLabel";
-
-const ARROW_LEFT = require("../assets/icons/arrow-left.png");
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useTheme } from "../context/ThemeContext";
 
 export default function GoBackButton() {
   const router = useRouter();
+  const { getCurrentTheme } = useTheme();
+  const theme = getCurrentTheme();
+
   return (
     <TouchableOpacity style={styles.bouton} onPress={() => router.back()}>
-      <Image source={ARROW_LEFT} style={styles.icon} />
-      <StyledLabel text={"go back"} color={"primary"} />
+     <MaterialIcons name="arrow-back-ios" size={24} color={theme.iconColor} />  
     </TouchableOpacity>
   );
 }

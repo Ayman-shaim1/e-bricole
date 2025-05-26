@@ -7,7 +7,7 @@ import {
   Platform,
   Image,
 } from "react-native";
-import Icon from "react-native-vector-icons/Feather";
+import Ionicons from "react-native-vector-icons/Ionicons";
 import { colors } from "../constants/colors";
 import StyledText from "./StyledText";
 import StyledHeading from "./StyledHeading";
@@ -30,9 +30,9 @@ export default function Header() {
           <View>
             <StyledHeading text="John Doe" style={styles.userName} />
             <View style={styles.locationContainer}>
-              <Icon
-                name="map-pin"
-                size={16}
+              <Ionicons
+                name="location-sharp"
+                size={18}
                 color={colors.primary}
                 style={styles.locationIcon}
               />
@@ -43,7 +43,7 @@ export default function Header() {
       </View>
       <TouchableOpacity style={styles.notificationButton}>
         <View style={styles.notificationIconContainer}>
-          <Icon name="bell" size={24} color={colors.primary} />
+          <Ionicons name="notifications" size={24} color={colors.primary} />
           <View style={styles.notificationBadge}>
             <Text style={styles.notificationCount}>2</Text>
           </View>

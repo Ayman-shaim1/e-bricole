@@ -2,11 +2,22 @@ import { StyleSheet, View, SafeAreaView, Platform, StatusBar as RNStatusBar } fr
 import React from "react";
 import { colors } from "../constants/colors";
 import { StatusBar } from "expo-status-bar";
-import { useTheme } from "../context/ThemeContext";
 
 export default function ThemedView({ style, children, ...props }) {
-  const { getCurrentTheme } = useTheme();
-  const theme = getCurrentTheme();
+  // Use a try-catch to handle cases where ThemeProvider might not be available yet
+  let theme = colors.light; // Default fallback theme
+  
+  try {
+    // Dynamically import to avoid the error during initial load
+    const { useTheme } = require("../context/ThemeContext");
+    const themeContext = useTheme();
+    if (themeContext && themeContext.getCurrentTheme) {
+      theme = themeContext.getCurrentTheme();
+    }
+  } catch (error) {
+    // Silently fallback to default theme
+    console.log("Theme not available yet, using fallback");
+  }
 
   return (
     <SafeAreaView
