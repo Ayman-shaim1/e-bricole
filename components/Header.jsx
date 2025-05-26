@@ -9,13 +9,16 @@ import {
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { colors } from "../constants/colors";
-import StyledText from "./StyledText";
 import StyledHeading from "./StyledHeading";
-import { useTheme } from "../context/ThemeContext";
+import StyledLabel from "./StyledLabel";
+import useGeolocation from "../hooks/useGeolocation";
+import { useAuth } from "../context/AuthContext";
+import useSplit from "../hooks/useSplit";
 
 export default function Header() {
-  const { getCurrentTheme } = useTheme();
-  const theme = getCurrentTheme();
+
+  const { user } = useAuth();
+  const { error, isLoading, address } = useGeolocation();
 
   return (
     <View style={styles.headerContent}>
@@ -23,12 +26,16 @@ export default function Header() {
         <View style={styles.userInfoTop}>
           <TouchableOpacity style={styles.avatarContainer}>
             <Image
-              source={{ uri: "https://randomuser.me/api/portraits/men/32.jpg" }}
+              source={user?.profileImage ? { uri: user.profileImage } : require('../assets/icons/default_user.png')}
               style={styles.avatar}
+              onError={(error) => {
+                console.log('Error loading profile image:', error);
+              }}
+              defaultSource={require('../assets/icons/default_user.png')}
             />
           </TouchableOpacity>
           <View>
-            <StyledHeading text="John Doe" style={styles.userName} />
+            <StyledHeading text={user?.name} style={styles.userName} />
             <View style={styles.locationContainer}>
               <Ionicons
                 name="location-sharp"
@@ -36,7 +43,9 @@ export default function Header() {
                 color={colors.primary}
                 style={styles.locationIcon}
               />
-              <StyledText text="New York, USA" style={styles.position} />
+              {error ? <StyledLabel text={error} color={"danger"} /> :
+                <StyledLabel text={isLoading ? "loading..." : address ? useSplit(address.address.road + ", " + address.address.city + ", " + address.address.country, 35) : "location failed "} style={styles.position} />
+              }
             </View>
           </View>
         </View>
@@ -85,6 +94,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: "100%",
     height: "100%",
+    borderRadius: 22.5,
   },
   userName: {
     fontSize: 22,
@@ -97,7 +107,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   locationIcon: {
-    marginRight: 6,
+    marginRight: 1,
   },
   position: {
     fontSize: 14,

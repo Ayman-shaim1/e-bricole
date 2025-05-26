@@ -23,7 +23,7 @@ export function AuthProvider({ children }) {
         if (session.loggedIn) {
           // Store the user object
           setUser({...session.user, isClient: session.isClient});
-          setUserRole(session.isClient); // Store whether the user is a client
+          setUserRole(session.isClient); 
           setIsAuthenticated(true);
         } else {
           setUser(null);

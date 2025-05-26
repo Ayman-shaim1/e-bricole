@@ -1,4 +1,4 @@
-import { Tabs, useRouter } from "expo-router";
+import { Tabs, useRouter, Stack } from "expo-router";
 import { useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
@@ -14,7 +14,6 @@ export default function AppLayout() {
   const { isAuthenticated, user } = useAuth();
 
   useEffect(() => {
-    // Redirect if not authenticated
     if (!isAuthenticated) {
       router.replace("/(auth)/login");
     }
@@ -83,6 +82,7 @@ export default function AppLayout() {
           ),
         }}
       />
+
     </Tabs>
   );
 }

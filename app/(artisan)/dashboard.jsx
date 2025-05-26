@@ -2,6 +2,7 @@ import { StyleSheet, View, Text } from "react-native";
 import React from "react";
 import ThemedView from "../../components/ThemedView";
 import { useTheme } from "../../context/ThemeContext";
+import Header from "../../components/Header";
 
 export default function DashboardScreen() {
   const { getCurrentTheme } = useTheme();
@@ -9,6 +10,7 @@ export default function DashboardScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      <Header />
       <View style={styles.content}>
         <Text style={[styles.title, { color: theme.textColor }]}>Dashboard</Text>
       </View>

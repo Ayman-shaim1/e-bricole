@@ -85,7 +85,7 @@ const FormikImagePicker = ({ name, label, customLabel }) => {
 };
 
 export default function Register() {
-  const [activeTab, setActiveTab] = useState("artisan");
+  const [activeTab, setActiveTab] = useState("client");
   const [serviceTypes, setServiceTypes] = useState([]);
 
   // Initial values for the form

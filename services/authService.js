@@ -169,8 +169,15 @@ export async function checkSession() {
 
       // Check if the user is a client or artisan
       const isClient = userDoc.isClient === true;
+      
+      // Merge the user document data with the account data
+      const userWithProfile = {
+        ...user,
+        ...userDoc,
+        profileImage: userDoc.profileImage || null
+      };
 
-      return { loggedIn: true, user, isClient };
+      return { loggedIn: true, user: userWithProfile, isClient };
     } catch (dbError) {
       console.error('Error fetching user document:', dbError);
       // If we can't determine the role, default to client

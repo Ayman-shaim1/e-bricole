@@ -27,9 +27,6 @@ export async function uploadFile(uri, fileType = 'image/jpeg') {
     
     console.log('File exists, size:', fileInfo.size);
     
-    // Generate a unique file ID
-    const fileId = ID.unique();
-    
     // For React Native, we need to use a direct fetch approach
     // Get the Appwrite endpoint and project ID from the client
     const endpoint = client.config.endpoint;
@@ -38,13 +35,16 @@ export async function uploadFile(uri, fileType = 'image/jpeg') {
     // Construct the URL for the Appwrite Storage API
     const url = `${endpoint}/storage/buckets/${settings.bucketId}/files`;
     
+    // Generate a unique file ID
+    const fileId = ID.unique();
+    
     // Create a FormData object
     const formData = new FormData();
     
     // Extract the filename from the URI
     const filename = uri.split('/').pop() || `file-${Date.now()}.jpg`;
     
-    // Append the file to the FormData
+    // Append the file and fileId to the FormData
     formData.append('fileId', fileId);
     formData.append('file', {
       uri: uri,
@@ -86,15 +86,14 @@ export async function uploadFile(uri, fileType = 'image/jpeg') {
     
     console.log('File uploaded successfully, result:', result);
     
-    // Construct the file URL
-    const fileUrl = `${endpoint}/storage/buckets/${settings.bucketId}/files/${fileId}/view`;
+    // Get the file ID from the response
+    const responseFileId = result.$id || fileId;
     
-    return {
-      success: true,
-      fileUrl,
-      fileId,
-      error: null
-    };
+    // Return the file URL for viewing with project and mode parameters
+    const fileUrl = `${endpoint}/storage/buckets/${settings.bucketId}/files/${responseFileId}/view?project=${projectId}&mode=admin`;
+    
+    console.log('File uploaded successfully, URL:', fileUrl);
+    return { success: true, fileUrl, fileId, error: null };
   } catch (error) {
     console.error('Error uploading file:', error);
     return {
