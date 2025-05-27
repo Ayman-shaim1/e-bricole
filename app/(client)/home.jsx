@@ -1,4 +1,4 @@
-import { StyleSheet, View, FlatList, Image, ScrollView } from "react-native";
+import { StyleSheet, View, ScrollView, TouchableOpacity } from "react-native";
 import React, { useEffect, useState } from "react";
 import ThemedView from "../../components/ThemedView";
 import Header from "../../components/Header";
@@ -6,7 +6,6 @@ import StyledCard from "../../components/StyledCard";
 import StyledHeading from "../../components/StyledHeading";
 import StyledLabel from "../../components/StyledLabel";
 import StyledText from "../../components/StyledText";
-import StyledButton from "../../components/StyledButton";
 import { getServicesTypes } from "../../services/serviceTypesService";
 
 export default function HomeScreen() {
@@ -17,7 +16,7 @@ export default function HomeScreen() {
     setLoading(true);
     const fetchServices = async () => {
       try {
-        const data = await getServicesTypes()
+        const data = await getServicesTypes();
         setServices(data);
       } catch (error) {
         console.error("Error loading services:", error);
@@ -36,6 +35,7 @@ export default function HomeScreen() {
         showsHorizontalScrollIndicator={false}
       >
         <Header />
+        {/* <StyledAddressPicker useLabel={false} /> */}
         <View style={styles.content}>
           <StyledCard>
             <StyledHeading text="Popular Services" style={styles.heading} />
@@ -44,33 +44,47 @@ export default function HomeScreen() {
             ) : (
               <View style={styles.servicesContainer}>
                 {services.map((service) => (
-                  <View key={service.$id} style={styles.serviceItem}>
-                    <StyledText text={service.title} />
-                  </View>
+                  <TouchableOpacity key={service.$id} style={styles.serviceItem}>
+                    <StyledLabel text={service.title} />
+                  </TouchableOpacity>
                 ))}
               </View>
             )}
-
           </StyledCard>
           <StyledCard>
             <StyledHeading text="Last requests" style={styles.heading} />
             <View style={styles.requestItem}>
-              <View style={[styles.statusDot, { backgroundColor: '#4CAF50' }]} />
+              <View
+                style={[styles.statusDot, { backgroundColor: "#4CAF50" }]}
+              />
               <View style={styles.requestInfo}>
-                <StyledLabel text="Plumbing Repair" style={styles.requestTitle} />
-                <StyledLabel text="Today, 10:30 AM" style={styles.requestDate} />
+                <StyledLabel
+                  text="Plumbing Repair"
+                  style={styles.requestTitle}
+                />
+                <StyledLabel
+                  text="Today, 10:30 AM"
+                  style={styles.requestDate}
+                />
               </View>
               <StyledLabel text="$85" style={styles.requestPrice} />
             </View>
             <View style={styles.requestItem}>
-              <View style={[styles.statusDot, { backgroundColor: '#FFC107' }]} />
+              <View
+                style={[styles.statusDot, { backgroundColor: "#FFC107" }]}
+              />
               <View style={styles.requestInfo}>
-                <StyledLabel text="Electrical Wiring" style={styles.requestTitle} />
-                <StyledLabel text="Yesterday, 2:15 PM" style={styles.requestDate} />
+                <StyledLabel
+                  text="Electrical Wiring"
+                  style={styles.requestTitle}
+                />
+                <StyledLabel
+                  text="Yesterday, 2:15 PM"
+                  style={styles.requestDate}
+                />
               </View>
               <StyledLabel text="$120" style={styles.requestPrice} />
             </View>
-
           </StyledCard>
           <StyledCard>
             <StyledHeading text="Artisan Suggestions" style={styles.heading} />
@@ -98,7 +112,6 @@ export default function HomeScreen() {
                 </View>
               </View>
             </View>
-
           </StyledCard>
         </View>
       </ScrollView>
@@ -122,17 +135,17 @@ const styles = StyleSheet.create({
   serviceItem: {
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderBottomColor: "#eee",
+    flexDirection: "row",
+    alignItems: "center",
   },
   // Request item styles
   requestItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: "#f0f0f0",
   },
   statusDot: {
     width: 12,
@@ -144,57 +157,57 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   requestTitle: {
-    fontWeight: '500',
+    fontWeight: "500",
     marginBottom: 4,
   },
   requestDate: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
   },
   requestPrice: {
-    fontWeight: '600',
-    color: '#2e7d32',
+    fontWeight: "600",
+    color: "#2e7d32",
   },
   // Artisan item styles
   artisanItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: "#f0f0f0",
   },
   artisanAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#e3f2fd',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#e3f2fd",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   avatarText: {
-    color: '#1976d2',
-    fontWeight: '600',
+    color: "#1976d2",
+    fontWeight: "600",
   },
   artisanInfo: {
     flex: 1,
   },
   artisanName: {
-    fontWeight: '500',
+    fontWeight: "500",
     marginBottom: 2,
   },
   ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   rating: {
-    color: '#FFA000',
-    fontWeight: '600',
+    color: "#FFA000",
+    fontWeight: "600",
     marginRight: 4,
     fontSize: 12,
   },
   ratingText: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
   },
 });

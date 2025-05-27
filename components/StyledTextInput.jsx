@@ -14,6 +14,7 @@ export default function StyledTextInput({
   secureTextEntry,
   editable,
   onPress,
+  width,
 }) {
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
@@ -44,7 +45,7 @@ export default function StyledTextInput({
         secureTextEntry={secureTextEntry}
         textContentType={textContentType}
         editable={editable}
-        pointerEvents={onPress ? 'none' : 'auto'}
+        pointerEvents={onPress ? "none" : "auto"}
       />
     </>
   );
@@ -60,6 +61,7 @@ export default function StyledTextInput({
           backgroundColor: theme.textInputBg,
           color: theme === colors.light ? colors.black : colors.white,
           opacity: pressed && onPress ? 0.8 : 1,
+          width: width ? width : "100%",
         },
       ]}
     >
@@ -72,11 +74,11 @@ const styles = StyleSheet.create({
   inputContainer: {
     borderRadius: mystyle.borderRadius,
     paddingHorizontal: mystyle.paddingHorizontal,
-    width: "100%",
     borderWidth: 0.5,
     marginVertical: mystyle.marginVertical,
     flexDirection: "row",
     alignItems: "center",
+    zIndex: 100,
   },
   input: {
     paddingVertical: mystyle.paddingVertical,

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -10,15 +10,31 @@ import {
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { colors } from "../constants/colors";
 import StyledHeading from "./StyledHeading";
-import StyledLabel from "./StyledLabel";
-import useGeolocation from "../hooks/useGeolocation";
 import { useAuth } from "../context/AuthContext";
-import useSplit from "../hooks/useSplit";
+import StyledAddressPicker from "./StyledAddressPicker";
+import useGeolocation from "../hooks/useGeolocation";
 
 export default function Header() {
-
   const { user } = useAuth();
-  const { error, isLoading, address } = useGeolocation();
+  const { location, error, isLoading } = useGeolocation();
+
+  const [pickedLocation, setPickerLocation] = useState(null);
+
+  const handlePickAddress = (newPosition) => {
+    setPickerLocation({
+      latitude: newPosition?.latitude,
+      longitude: newPosition?.longitude,
+    });
+  };
+
+  useEffect(() => {
+    if (location) {
+      setPickerLocation({
+        latitude: location.latitude,
+        longitude: location.longitude,
+      });
+    }
+  }, [location]);
 
   return (
     <View style={styles.headerContent}>
@@ -26,27 +42,27 @@ export default function Header() {
         <View style={styles.userInfoTop}>
           <TouchableOpacity style={styles.avatarContainer}>
             <Image
-              source={user?.profileImage ? { uri: user.profileImage } : require('../assets/icons/default_user.png')}
+              source={
+                user?.profileImage
+                  ? { uri: user.profileImage }
+                  : require("../assets/icons/default_user.png")
+              }
               style={styles.avatar}
               onError={(error) => {
-                console.log('Error loading profile image:', error);
+                console.log("Error loading profile image:", error);
               }}
-              defaultSource={require('../assets/icons/default_user.png')}
+              defaultSource={require("../assets/icons/default_user.png")}
             />
           </TouchableOpacity>
           <View>
             <StyledHeading text={user?.name} style={styles.userName} />
-            <View style={styles.locationContainer}>
-              <Ionicons
-                name="location-sharp"
-                size={18}
-                color={colors.primary}
-                style={styles.locationIcon}
-              />
-              {error ? <StyledLabel text={error} color={"danger"} /> :
-                <StyledLabel text={isLoading ? "loading..." : address ? useSplit(address.address.road + ", " + address.address.city + ", " + address.address.country, 35) : "location failed "} style={styles.position} />
-              }
-            </View>
+            <StyledAddressPicker
+              useLabel={true}
+              coordinates={pickedLocation}
+              error={error}
+              isLoading={isLoading}
+              onPick={handlePickAddress}
+            />
           </View>
         </View>
       </View>

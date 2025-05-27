@@ -1,36 +1,5 @@
-import { useState, useEffect } from 'react';
-import * as Location from 'expo-location';
-
-/**
- * Récupère l'adresse à partir des coordonnées GPS en utilisant l'API Nominatim
- * @param {number} lat - Latitude
- * @param {number} lon - Longitude
- * @returns {Promise<Object>} Les données d'adresse
- */
-const reverseGeocode = async (lat, lon) => {
-  try {
-    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`;
-    
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'e-bricole-app/1.0 (contact@votredomaine.com)',
-        'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7'
-      }
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Erreur de l\'API Nominatim:', response.status, errorText);
-      throw new Error(`Erreur ${response.status} lors de la récupération de l'adresse`);
-    }
-    
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Erreur de géocodage inverse:', error.message);
-    throw error;
-  }
-};
+import { useState, useEffect } from "react";
+import * as Location from "expo-location";
 
 /**
  * Hook personnalisé pour obtenir la position géographique actuelle de l'appareil
@@ -49,14 +18,14 @@ export default function useGeolocation() {
   useEffect(() => {
     let isMounted = true;
 
-    const getLocationAndAddress = async () => {
+    const getLocation = async () => {
       try {
         // Vérifier les autorisations
         const { status } = await Location.requestForegroundPermissionsAsync();
-        
-        if (status !== 'granted') {
+
+        if (status !== "granted") {
           if (isMounted) {
-            setError('La permission d\'accès à la localisation a été refusée');
+            setError("La permission d'accès à la localisation a été refusée");
             setIsLoading(false);
           }
           return;
@@ -70,7 +39,7 @@ export default function useGeolocation() {
         if (!isMounted) return;
 
         const { latitude, longitude } = currentLocation.coords;
-        
+
         // Mettre à jour l'emplacement
         const locationData = {
           latitude,
@@ -81,22 +50,9 @@ export default function useGeolocation() {
           heading: currentLocation.coords.heading,
           speed: currentLocation.coords.speed,
         };
-        
+
         setLocation(locationData);
-        
-        // Récupérer l'adresse
-        try {
-          const addressData = await reverseGeocode(latitude, longitude);
-          if (isMounted) {
-            setAddress(addressData);
-          }
-        } catch (err) {
-          console.warn('Impossible de récupérer l\'adresse:', err.message);
-          if (isMounted) {
-            setError(`Erreur: ${err.message}`);
-          }
-        }
-        
+
         if (isMounted) {
           setIsLoading(false);
         }
@@ -108,7 +64,7 @@ export default function useGeolocation() {
       }
     };
 
-    getLocationAndAddress();
+    getLocation();
 
     // Nettoyage lors du démontage du composant
     return () => {
