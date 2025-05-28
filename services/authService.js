@@ -9,12 +9,22 @@ const DATABASE_ID = settings.dataBaseId;
 const USERS_COLLECTION_ID = settings.usersId;
 /**
  * Register a new user with Appwrite
- * 
+ *
  * This function takes a two-phase approach:
  * 1. First, it validates and prepares all data (including uploading the profile image)
  * 2. Only after all preparations are successful, it creates the user account
  */
-export async function registerUser({ name, email, password, isClient, profileImage, skills, serviceType, profession, experienceYears }) {
+export async function registerUser({
+  name,
+  email,
+  password,
+  isClient,
+  profileImage,
+  skills,
+  serviceType,
+  profession,
+  experienceYears,
+}) {
   try {
     console.log("Starting registration process...");
 
@@ -31,7 +41,8 @@ export async function registerUser({ name, email, password, isClient, profileIma
     // Add artisan-specific fields if the user is an artisan
     if (!isClient) {
       if (skills && skills.length > 0) userData.skills = skills;
-      if (serviceType && serviceType !== "-- select option --") userData.serviceType = serviceType;
+      if (serviceType && serviceType !== "-- select option --")
+        userData.serviceType = serviceType;
       if (profession) userData.profession = profession;
       if (experienceYears) userData.experienceYears = experienceYears;
     }
@@ -56,11 +67,17 @@ export async function registerUser({ name, email, password, isClient, profileIma
           // If the user specifically provided a profile image but upload failed,
           // we should abort the registration process
           console.error("Error uploading profile image:", uploadResult.error);
-          return { success: false, error: `Profile image upload failed: ${uploadResult.error}` };
+          return {
+            success: false,
+            error: `Profile image upload failed: ${uploadResult.error}`,
+          };
         }
       } catch (uploadError) {
         console.error("Error uploading profile image:", uploadError.message);
-        return { success: false, error: `Profile image upload failed: ${uploadError.message}` };
+        return {
+          success: false,
+          error: `Profile image upload failed: ${uploadError.message}`,
+        };
       }
     }
 
@@ -117,7 +134,10 @@ export async function registerUser({ name, email, password, isClient, profileIma
         await account.deleteSelf();
         console.log("Rolled back user creation due to database error");
       } catch (rollbackError) {
-        console.error("Failed to rollback user creation:", rollbackError.message);
+        console.error(
+          "Failed to rollback user creation:",
+          rollbackError.message
+        );
       }
 
       return { success: false, error: dbError.message };
@@ -144,9 +164,9 @@ export async function loginUser({ email, password }) {
       // Check if the user is a client or artisan
       const isClient = userDoc.isClient === true;
       console.log("userDoc:", userDoc);
-      return { success: true, user, isClient };
+      return { success: true, user, isClient, ...userDoc };
     } catch (dbError) {
-      console.error('Error fetching user document:', dbError);
+      console.error("Error fetching user document:", dbError);
       // If we can't determine the role, default to client
       return { success: true, user, isClient: true };
     }
@@ -169,17 +189,17 @@ export async function checkSession() {
 
       // Check if the user is a client or artisan
       const isClient = userDoc.isClient === true;
-      
+
       // Merge the user document data with the account data
       const userWithProfile = {
         ...user,
         ...userDoc,
-        profileImage: userDoc.profileImage || null
+        profileImage: userDoc.profileImage || null,
       };
 
       return { loggedIn: true, user: userWithProfile, isClient };
     } catch (dbError) {
-      console.error('Error fetching user document:', dbError);
+      console.error("Error fetching user document:", dbError);
       // If we can't determine the role, default to client
       return { loggedIn: true, user, isClient: true };
     }

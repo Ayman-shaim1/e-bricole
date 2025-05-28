@@ -15,7 +15,7 @@ import FormButton from "../../components/FormButton";
 import { loginSchema } from "../../utils/validators";
 import { useAuth } from "../../context/AuthContext";
 
-const LOGO = require("../../assets/images/logo.png");
+// const LOGO = require("../../assets/images/logo.png");
 const GOOGLE_LOGO = require("../../assets/icons/google-logo.png");
 const EMAIL_ICON = require("../../assets/icons/email.png");
 const PASSWORD_ICON = require("../../assets/icons/key.png");
@@ -26,21 +26,23 @@ export default function LoginScreen() {
 
   const initialValues = {
     email: "",
-    password: ""
+    password: "",
   };
 
   const loginHandler = async (values, { setSubmitting }) => {
     try {
       const result = await loginUser({
         email: values.email,
-        password: values.password
+        password: values.password,
       });
 
       if (result.success) {
         // Update authentication state before navigation
-        setUser({...result.user, isClient: result.isClient});
+        // Merge user account data with database document data (including profileImage)
+        const { success, user, isClient, ...userDocData } = result;
+        setUser({ ...user, ...userDocData });
         setIsAuthenticated(true);
-        setUserRole(result.isClient);
+        setUserRole(isClient);
 
         // Navigate based on user type
         if (result.isClient) {
@@ -74,7 +76,7 @@ export default function LoginScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <Image source={LOGO} style={styles.logo} />
+      {/* <Image source={LOGO} style={styles.logo} /> */}
       <View style={styles.texts}>
         <StyledHeading text={"Welcome back to e-bricole"} />
         <StyledText text={"Please Sign-in here !"} />
@@ -145,7 +147,11 @@ const styles = StyleSheet.create({
     marginTop: 50,
     marginBottom: 20,
   },
-  texts: { marginBottom: 26, alignItems: "center" },
+  texts: {
+    marginTop: "25%",
+    marginBottom: 26,
+    alignItems: "center",
+  },
   singUpBtnText: {
     alignItems: "center",
     flexDirection: "row",

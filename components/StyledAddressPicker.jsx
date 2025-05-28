@@ -30,12 +30,12 @@ export default function StyledAddressPicker({
   const formatAddress = () => {
     if (!data) return "";
     const { road, city, country } = data.address;
-    return `${road}, ${city}, ${country}`;
+    return `${road}, ${city && city + ","} ${country && country}`;
   };
 
   // Use value prop or geolocation address
   const displayAddress = value || formatAddress();
-  const addressText = useSplit(displayAddress, 34);
+  const addressText = useSplit(displayAddress, 30);
 
   // Handle navigation to address picker screen
   const handleAddressPickerPress = () => {

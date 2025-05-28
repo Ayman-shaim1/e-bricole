@@ -1,4 +1,16 @@
-import { Image, ScrollView, StyleSheet, View, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, Dimensions, Alert, Text } from "react-native";
+import {
+  Image,
+  ScrollView,
+  StyleSheet,
+  View,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Dimensions,
+  Alert,
+  Text,
+} from "react-native";
 import React, { useState, useEffect } from "react";
 import ThemedView from "../../components/ThemedView";
 import StyledText from "../../components/StyledText";
@@ -17,7 +29,7 @@ import FormButton from "../../components/FormButton";
 import { getRegisterSchema } from "../../utils/validators";
 import { useFormikContext } from "formik";
 
-const LOGO = require("../../assets/images/logo.png");
+// const LOGO = require("../../assets/images/logo.png");
 
 const EMAIL_ICON = require("../../assets/icons/email.png");
 const PASSWORD_ICON = require("../../assets/icons/key.png");
@@ -32,7 +44,7 @@ const SERVICE_ICON = require("../../assets/icons/service.png");
 const FormikDropdown = ({ name, label, icon, options }) => {
   const { values, setFieldValue, errors, touched } = useFormikContext();
   return (
-    <View style={{ width: '100%' }}>
+    <View style={{ width: "100%" }}>
       {label && <StyledLabel text={label} />}
       <StyledDropdown
         icon={icon}
@@ -51,7 +63,7 @@ const FormikDropdown = ({ name, label, icon, options }) => {
 const FormikSkillsInput = ({ name, label, icon, placeholder }) => {
   const { values, setFieldValue, errors, touched } = useFormikContext();
   return (
-    <View style={{ width: '100%' }}>
+    <View style={{ width: "100%" }}>
       {label && <StyledLabel text={label} />}
       <SkillsInput
         placeholder={placeholder}
@@ -70,7 +82,7 @@ const FormikSkillsInput = ({ name, label, icon, placeholder }) => {
 const FormikImagePicker = ({ name, label, customLabel }) => {
   const { values, setFieldValue, errors, touched } = useFormikContext();
   return (
-    <View style={{ width: '100%' }}>
+    <View style={{ width: "100%" }}>
       {label && <StyledLabel text={label} />}
       <StyledImagePicker
         image={values[name]}
@@ -110,7 +122,7 @@ export default function Register() {
           // Transform data for dropdown
           const formattedServiceTypes = [
             "-- select option --",
-            ...data.map(item => item.title)
+            ...data.map((item) => item.title),
           ];
           setServiceTypes(formattedServiceTypes);
         }
@@ -132,18 +144,19 @@ export default function Register() {
         isClient: activeTab === "client",
         profileImage: values.profileImage,
         skills: values.skills,
-        serviceType: values.serviceType !== "-- select option --" ? values.serviceType : null,
+        serviceType:
+          values.serviceType !== "-- select option --"
+            ? values.serviceType
+            : null,
         profession: values.profession,
         experienceYears: values.experienceYears,
         diploma: values.diploma,
       });
 
       if (result.success) {
-        Alert.alert(
-          "Success", 
-          "Registration successful!", 
-          [{ text: "OK", onPress: () => resetForm() }]
-        );
+        Alert.alert("Success", "Registration successful!", [
+          { text: "OK", onPress: () => resetForm() },
+        ]);
         // You could navigate to login or home screen here
       } else {
         Alert.alert("Registration Error", result.error);
@@ -151,7 +164,7 @@ export default function Register() {
     } catch (error) {
       console.error("Registration error:", error);
       Alert.alert(
-        "Error", 
+        "Error",
         "An error occurred during registration. Please try again."
       );
     } finally {
@@ -170,7 +183,7 @@ export default function Register() {
           keyboardShouldPersistTaps="handled"
         >
           <GoBackButton />
-          <Image source={LOGO} style={styles.logo} />
+          {/* <Image source={LOGO} style={styles.logo} /> */}
           <View style={styles.texts}>
             <StyledHeading text={"Welcome to e-bricole"} />
             <StyledText
@@ -198,17 +211,17 @@ export default function Register() {
                   label="photo :"
                   customLabel={{
                     title: "Profile Photo",
-                    subtitle: "Tap to select a profile picture"
+                    subtitle: "Tap to select a profile picture",
                   }}
                 />
-                
+
                 <FormInput
                   name="name"
                   label="name :"
                   placeholder="e.g. jhon doe"
                   icon={USER_ICON}
                 />
-                
+
                 <FormInput
                   name="email"
                   label="email :"
@@ -217,23 +230,27 @@ export default function Register() {
                   keyboardType="email-address"
                   textContentType="emailAddress"
                 />
-                
+
                 {activeTab === "artisan" && (
                   <>
                     <FormikDropdown
                       name="serviceType"
                       label="service type :"
                       icon={SERVICE_ICON}
-                      options={serviceTypes.length > 0 ? serviceTypes : ["-- select option --"]}
+                      options={
+                        serviceTypes.length > 0
+                          ? serviceTypes
+                          : ["-- select option --"]
+                      }
                     />
-                    
+
                     <FormInput
                       name="profession"
                       label="profession :"
                       placeholder="e.g. electrician"
                       icon={PROFESION_ICON}
                     />
-                    
+
                     <FormInput
                       name="experienceYears"
                       label="experience Years :"
@@ -243,19 +260,19 @@ export default function Register() {
                       inputProps={{
                         onChangeText: (text) => {
                           // Only allow numeric input
-                          const numericText = text.replace(/[^0-9]/g, '');
+                          const numericText = text.replace(/[^0-9]/g, "");
                           setFieldValue("experienceYears", numericText);
-                        }
+                        },
                       }}
                     />
-                    
+
                     <FormInput
                       name="diploma"
                       label="diploma/certficat :"
                       placeholder="e.g. plumbing Qualification Certificate"
                       icon={DIPLOME_ICON}
                     />
-                    
+
                     <FormikSkillsInput
                       name="skills"
                       label="skills :"
@@ -264,7 +281,7 @@ export default function Register() {
                     />
                   </>
                 )}
-                
+
                 <FormInput
                   name="password"
                   label="password :"
@@ -273,7 +290,7 @@ export default function Register() {
                   secureTextEntry={true}
                   textContentType="password"
                 />
-                
+
                 <FormInput
                   name="confirmPassword"
                   label="confirm password :"
@@ -282,10 +299,10 @@ export default function Register() {
                   secureTextEntry={true}
                   textContentType="password"
                 />
-                
+
                 <View style={{ height: 10 }} />
-                <FormButton 
-                  text={isSubmitting ? "registering..." : "register"} 
+                <FormButton
+                  text={isSubmitting ? "registering..." : "register"}
                   disabled={isSubmitting}
                 />
               </>
@@ -310,7 +327,12 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginTop: 50,
   },
-  texts: { marginBottom: 26, justifyContent: "center", alignItems: "center" },
+  texts: {
+    marginTop: "25%",
+    marginBottom: 26,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   singUpBtnText: {
     alignItems: "center",
     flexDirection: "row",

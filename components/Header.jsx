@@ -42,6 +42,7 @@ export default function Header() {
         <View style={styles.userInfoTop}>
           <TouchableOpacity style={styles.avatarContainer}>
             <Image
+              key={user?.profileImage || 'default'}
               source={
                 user?.profileImage
                   ? { uri: user.profileImage }

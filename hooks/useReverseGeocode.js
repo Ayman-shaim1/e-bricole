@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
+import settings from '../config/settings';
 
 /**
- * Hook pour récupérer l'adresse à partir des coordonnées GPS en utilisant l'API Nominatim
+ * Hook pour récupérer l'adresse à partir des coordonnées GPS en utilisant l'API OpenRouteService
  * @returns {Object} { data, loading, error, reverseGeocode }
  */
 const useReverseGeocode = () => {
@@ -19,26 +20,46 @@ const useReverseGeocode = () => {
     setError(null);
     
     try {
-      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`;
+      const apiUrl = `https://api.openrouteservice.org/geocode/reverse?api_key=${settings.openRouteApiKey}&point.lon=${lon}&point.lat=${lat}&size=1`;
 
-      const response = await fetch(url, {
+      const response = await fetch(apiUrl, {
         headers: {
-          "User-Agent": "e-bricole-app/1.0 (contact@votredomaine.com)",
-          "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
         },
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Erreur de l'API Nominatim:", response.status, errorText);
+        console.error("Erreur de l'API OpenRouteService:", response.status, errorText);
         throw new Error(
           `Erreur ${response.status} lors de la récupération de l'adresse`
         );
       }
 
       const result = await response.json();
-      setData(result);
-      return result;
+      
+      if (result.features && result.features.length > 0) {
+        const feature = result.features[0];
+        const formattedData = {
+          display_name: feature.properties.label,
+          address: {
+            road: feature.properties.street || feature.properties.name,
+            city: feature.properties.locality || feature.properties.localadmin,
+            country: feature.properties.country,
+            house_number: feature.properties.housenumber,
+            postcode: feature.properties.postalcode,
+          },
+          lat: feature.geometry.coordinates[1],
+          lon: feature.geometry.coordinates[0],
+        };
+        
+        setData(formattedData);
+        return formattedData;
+      } else {
+        setData(null);
+        return null;
+      }
     } catch (err) {
       console.error("Erreur de géocodage inverse:", err.message);
       setError(err);

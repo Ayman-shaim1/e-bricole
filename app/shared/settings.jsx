@@ -22,7 +22,7 @@ import { useAuth } from "../../context/AuthContext";
 export default function Settings() {
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const { theme, changeTheme } = useTheme();
-    const { setUser, setIsAuthenticated } = useAuth();
+    const { setUser, setIsAuthenticated, setUserRole } = useAuth();
     const router = useRouter();
 
     // Dummy handler functions
@@ -49,6 +49,7 @@ export default function Settings() {
                 // Clear authentication state
                 setUser(null);
                 setIsAuthenticated(false);
+                setUserRole(null);
 
                 // Navigate to login screen
                 router.replace("/(auth)/login");

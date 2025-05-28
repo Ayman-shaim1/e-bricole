@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import * as Location from "expo-location";
+import { Platform } from "react-native";
 
 /**
  * Hook personnalisé pour obtenir la position géographique actuelle de l'appareil
@@ -50,7 +51,7 @@ export default function useGeolocation() {
           heading: currentLocation.coords.heading,
           speed: currentLocation.coords.speed,
         };
-
+        console.log("locationData on (" + Platform.OS + "): ", locationData);
         setLocation(locationData);
 
         if (isMounted) {
