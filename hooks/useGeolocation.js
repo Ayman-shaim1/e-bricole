@@ -51,7 +51,6 @@ export default function useGeolocation() {
           heading: currentLocation.coords.heading,
           speed: currentLocation.coords.speed,
         };
-        console.log("locationData on (" + Platform.OS + "): ", locationData);
         setLocation(locationData);
 
         if (isMounted) {
