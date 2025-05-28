@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import { Modal, StyleSheet, View, PanResponder, Platform, Dimensions, StatusBar } from "react-native";
+import { Modal, StyleSheet, View, PanResponder, Platform, Dimensions, StatusBar, Animated } from "react-native";
 import CloseButton from "./CloseButton";
 import { colors } from "../constants/colors";
 import { styles as mystyles } from "../constants/styles";
@@ -14,6 +14,7 @@ export default function BottomModal({
   style,
 }) {
   const [dragY, setDragY] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
 
@@ -38,19 +39,30 @@ export default function BottomModal({
   useEffect(() => {
     if (visible) {
       setDragY(0);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
     }
   }, [visible]);
 
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="none"
       transparent={true}
       onRequestClose={onClose}
       statusBarTranslucent={true}
     >
       <StatusBar backgroundColor="rgba(0, 0, 0, 0.5)" translucent={true} />
-      <View style={styles.overlay}>
+      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
         <View 
           style={[
             styles.modalWrapper,
@@ -71,7 +83,7 @@ export default function BottomModal({
           <CloseButton style={styles.btnClose} onPress={onClose} />
           <View style={[styles.contentContainer, style]}>{children}</View>
         </View>
-      </View>
+      </Animated.View>
     </Modal>
   );
 }

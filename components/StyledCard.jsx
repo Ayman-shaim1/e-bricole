@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     borderRadius: mystyles.borderRadius,
     overflow: "hidden",
     paddingVertical: mystyles.paddingVertical,
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
     marginTop: 22,
     borderWidth: 1,
   },

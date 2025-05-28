@@ -15,19 +15,17 @@ import React, { useState, useEffect } from "react";
 import ThemedView from "../../components/ThemedView";
 import StyledText from "../../components/StyledText";
 import StyledHeading from "../../components/StyledHeading";
-import StyledLabel from "../../components/StyledLabel";
 import StyledUiSwitch from "../../components/StyledUiSwitch";
-import StyledDropdown from "../../components/StyledDropDown";
-import SkillsInput from "../../components/SkillsInput";
-import StyledImagePicker from "../../components/StyledImagePicker";
 import GoBackButton from "../../components/GoBackButton";
 import { registerUser } from "../../services/authService";
 import { getServicesTypes } from "../../services/serviceTypesService";
 import FormikForm from "../../components/FormikForm";
 import FormInput from "../../components/FormInput";
 import FormButton from "../../components/FormButton";
+import FormikDropdown from "../../components/FormikDropdown";
+import FormikSkills from "../../components/FormikSkills";
+import FormikImagePicker from "../../components/FormikImagePicker";
 import { getRegisterSchema } from "../../utils/validators";
-import { useFormikContext } from "formik";
 
 // const LOGO = require("../../assets/images/logo.png");
 
@@ -39,62 +37,6 @@ const CALANDRIER_ICON = require("../../assets/icons/calendrier.png");
 const PROFESION_ICON = require("../../assets/icons/professions-et-emplois.png");
 const SKILLS_ICON = require("../../assets/icons/competences.png");
 const SERVICE_ICON = require("../../assets/icons/service.png");
-
-// Custom FormikDropdown component to integrate StyledDropdown with Formik
-const FormikDropdown = ({ name, label, icon, options }) => {
-  const { values, setFieldValue, errors, touched } = useFormikContext();
-  return (
-    <View style={{ width: "100%" }}>
-      {label && <StyledLabel text={label} />}
-      <StyledDropdown
-        icon={icon}
-        options={options}
-        selectedOption={values[name]}
-        setOption={(value) => setFieldValue(name, value)}
-      />
-      {touched[name] && errors[name] ? (
-        <Text style={styles.errorText}>{errors[name]}</Text>
-      ) : null}
-    </View>
-  );
-};
-
-// Custom FormikSkillsInput component to integrate SkillsInput with Formik
-const FormikSkillsInput = ({ name, label, icon, placeholder }) => {
-  const { values, setFieldValue, errors, touched } = useFormikContext();
-  return (
-    <View style={{ width: "100%" }}>
-      {label && <StyledLabel text={label} />}
-      <SkillsInput
-        placeholder={placeholder}
-        icon={icon}
-        value={values[name]}
-        onChange={(newSkills) => setFieldValue(name, newSkills)}
-      />
-      {touched[name] && errors[name] ? (
-        <Text style={styles.errorText}>{errors[name]}</Text>
-      ) : null}
-    </View>
-  );
-};
-
-// Custom FormikImagePicker component to integrate StyledImagePicker with Formik
-const FormikImagePicker = ({ name, label, customLabel }) => {
-  const { values, setFieldValue, errors, touched } = useFormikContext();
-  return (
-    <View style={{ width: "100%" }}>
-      {label && <StyledLabel text={label} />}
-      <StyledImagePicker
-        image={values[name]}
-        onImageChange={(image) => setFieldValue(name, image)}
-        customLabel={customLabel}
-      />
-      {touched[name] && errors[name] ? (
-        <Text style={styles.errorText}>{errors[name]}</Text>
-      ) : null}
-    </View>
-  );
-};
 
 export default function Register() {
   const [activeTab, setActiveTab] = useState("client");
@@ -202,7 +144,7 @@ export default function Register() {
             initialValues={getInitialValues()}
             validationSchema={getRegisterSchema(activeTab)}
             onSubmit={handleRegister}
-            enableReinitialize={true} // Re-initialize when activeTab changes
+            enableReinitialize={true} 
           >
             {({ isSubmitting, setFieldValue }) => (
               <>
@@ -273,7 +215,7 @@ export default function Register() {
                       icon={DIPLOME_ICON}
                     />
 
-                    <FormikSkillsInput
+                    <FormikSkills
                       name="skills"
                       label="skills :"
                       placeholder="Type a skill and press space"
@@ -338,13 +280,5 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     marginBottom: 7,
-  },
-  errorText: {
-    color: "#FF3B30",
-    fontSize: 12,
-    marginTop: -5,
-    marginBottom: 5,
-    paddingHorizontal: 5,
-    fontFamily: "Poppins-Regular",
   },
 });
