@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: colors.error || "#FF3B30",
     fontSize: 12,
-    marginTop: -5,
+    marginTop: 0,
     marginBottom: 5,
     paddingHorizontal: 5,
     fontFamily: "Poppins-Regular",

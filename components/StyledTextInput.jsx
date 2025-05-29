@@ -39,38 +39,48 @@ export default function StyledTextInput({
     else setBorderColor(colors.gray);
   }, [theme]);
 
- 
-
-  return (
-    <View
-      style={[
-        styles.container,
-        {
-          borderColor: borderColor,
-          backgroundColor: theme.textInputBg,
-          width: width || "100%",
-        },
-      ]}
-    >
-      <View style={styles.inputWrapper}>
-        {icon && <Image source={icon} style={styles.icon} />}
-        <TextInput
-          style={[styles.input, { ...style }, { color: theme.textInputColor }]}
-          placeholder={placeholder}
-          value={value}
-          onChangeText={onChangeText}
-          placeholderTextColor={theme.placeholderColor}
-          onFocus={onFocusHandler}
-          onBlur={onBlurHandler}
-          keyboardType={keyboardType}
-          secureTextEntry={secureTextEntry}
-          textContentType={textContentType}
-          editable={editable && !onPress}
-          onPress={onPress}
-        />
-      </View>
-    </View>
+  const content = (
+    <>
+      {icon && <Image source={icon} style={styles.icon} />}
+      <TextInput
+        style={[styles.input, { ...style }, { color: theme.textInputColor }]}
+        placeholder={placeholder}
+        value={value}
+        onChangeText={onChangeText}
+        placeholderTextColor={theme.placeholderColor}
+        onFocus={onFocusHandler}
+        onBlur={onBlurHandler}
+        keyboardType={keyboardType}
+        secureTextEntry={secureTextEntry}
+        textContentType={textContentType}
+        editable={editable && !onPress}
+        pointerEvents={onPress ? "none" : "auto"}
+      />
+    </>
   );
+
+  const containerStyle = [
+    styles.container,
+    {
+      borderColor: borderColor,
+      backgroundColor: theme.textInputBg,
+      width: width || "100%",
+    },
+  ];
+
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        style={containerStyle}
+        activeOpacity={0.7}
+      >
+        {content}
+      </TouchableOpacity>
+    );
+  }
+
+  return <View style={containerStyle}>{content}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -79,11 +89,6 @@ const styles = StyleSheet.create({
     borderRadius: mystyle.borderRadius,
     paddingHorizontal: 10,
     paddingVertical: Platform.OS === "ios" ? 12 : 8,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  inputWrapper: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
   },
