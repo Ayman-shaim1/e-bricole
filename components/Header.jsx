@@ -20,11 +20,21 @@ export default function Header() {
 
   const [pickedLocation, setPickerLocation] = useState(null);
 
-  const handlePickAddress = (newPosition) => {
-    setPickerLocation({
-      latitude: newPosition?.latitude,
-      longitude: newPosition?.longitude,
-    });
+  const handlePickAddress = (locationData) => {
+    // Handle both new format (with coordinates object) and legacy format (direct coordinates)
+    if (locationData.coordinates) {
+      // New format: { coordinates: { latitude, longitude }, formattedAddress, timestamp }
+      setPickerLocation({
+        latitude: locationData.coordinates.latitude,
+        longitude: locationData.coordinates.longitude,
+      });
+    } else if (locationData.latitude && locationData.longitude) {
+      // Legacy format: { latitude, longitude }
+      setPickerLocation({
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+      });
+    }
   };
 
   useEffect(() => {
@@ -42,7 +52,7 @@ export default function Header() {
         <View style={styles.userInfoTop}>
           <TouchableOpacity style={styles.avatarContainer}>
             <Image
-              key={user?.profileImage || 'default'}
+              key={user?.profileImage || "default"}
               source={
                 user?.profileImage
                   ? { uri: user.profileImage }

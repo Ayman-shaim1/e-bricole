@@ -27,13 +27,11 @@ export default function Settings() {
 
     // Dummy handler functions
     const handleEditProfile = () => {
-        console.log("Navigate to Edit Profile");
         // Navigation logic here
     };
 
     const handleToggleNotifications = () => {
         setNotificationsEnabled((previousState) => !previousState);
-        console.log("Notifications enabled:", !notificationsEnabled);
         // Logic to update notification settings
     };
 

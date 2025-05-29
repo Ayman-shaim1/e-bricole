@@ -79,12 +79,12 @@ export default function AddressPickerScreen() {
     if (!addressData || !addressData.address) return "";
     const { road, city, country, house_number } = addressData.address;
     let formatted = "";
-    
+
     if (house_number) formatted += house_number + " ";
     if (road) formatted += road;
     if (city) formatted += (formatted ? ", " : "") + city;
     if (country) formatted += (formatted ? ", " : "") + country;
-    
+
     return formatted || "Adresse non trouvée";
   };
 
@@ -97,7 +97,18 @@ export default function AddressPickerScreen() {
   const handleLocationConfirm = () => {
     if (callbackId && callbackRegistry.has(callbackId)) {
       const callback = callbackRegistry.get(callbackId);
-      callback(selectedLocation);
+      
+      // Create a comprehensive address object with both coordinates and formatted address
+      const addressObject = {
+        coordinates: {
+          latitude: selectedLocation.latitude,
+          longitude: selectedLocation.longitude,
+        },
+        address: formatAddress(), // The formatted address string
+        timestamp: Date.now(), // Add timestamp for cache management
+      };
+      
+      callback(addressObject);
       unregisterCallback(callbackId);
     }
     router.back();
@@ -119,15 +130,15 @@ export default function AddressPickerScreen() {
       latitude: suggestion.latitude,
       longitude: suggestion.longitude,
     };
-    
+
     setSelectedLocation(newLocation);
     setSearchQuery(suggestion.formattedAddress);
     setShowSuggestions(false);
     clearSuggestions();
-    
+
     // Effacer les données d'adresse précédentes
     setAddressData(null);
-    
+
     // Animer la carte vers la nouvelle position
     if (mapRef.current) {
       mapRef.current.animateToRegion(
@@ -316,22 +327,25 @@ export default function AddressPickerScreen() {
 
       {/* Zone d'affichage de l'adresse sélectionnée */}
       <StyledCard style={getStyles(theme).addressDisplayZone}>
-        <StyledLabel text="📍 Adresse sélectionnée :" style={getStyles(theme).addressLabel} />
-        <StyledLabel 
+        <StyledLabel
+          text="📍 Adresse sélectionnée :"
+          style={getStyles(theme).addressLabel}
+        />
+        <StyledLabel
           text={
-            rvloading 
-              ? "Recherche de l'adresse en cours..." 
+            rvloading
+              ? "Recherche de l'adresse en cours..."
               : formatAddress() || "Adresse non trouvée"
           }
-          style={getStyles(theme).addressText} 
+          style={getStyles(theme).addressText}
           numberOfLines={3}
         />
         <View style={getStyles(theme).coordinatesDisplay}>
-          <StyledLabel 
+          <StyledLabel
             text={`Lat: ${selectedLocation.latitude.toFixed(6)}`}
             style={getStyles(theme).coordinateText}
           />
-          <StyledLabel 
+          <StyledLabel
             text={`Lng: ${selectedLocation.longitude.toFixed(6)}`}
             style={getStyles(theme).coordinateText}
           />
@@ -347,11 +361,17 @@ export default function AddressPickerScreen() {
           <Ionicons name="locate" size={24} color={theme.iconColorFocused} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={getStyles(theme).controlButton} onPress={handleZoomIn}>
+        <TouchableOpacity
+          style={getStyles(theme).controlButton}
+          onPress={handleZoomIn}
+        >
           <Ionicons name="add" size={24} color={theme.iconColorFocused} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={getStyles(theme).controlButton} onPress={handleZoomOut}>
+        <TouchableOpacity
+          style={getStyles(theme).controlButton}
+          onPress={handleZoomOut}
+        >
           <Ionicons name="remove" size={24} color={theme.iconColorFocused} />
         </TouchableOpacity>
       </View>
@@ -359,145 +379,146 @@ export default function AddressPickerScreen() {
   );
 }
 
-const getStyles = (theme) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.backgroundColor,
-  },
-  header: {
-    position: "absolute",
-    top: Platform.OS === "ios" ? 50 : 30,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  map: {
-    flex: 1,
-  },
-  btnContainer: {
-    position: "absolute",
-    bottom: "7%",
-    width: "100%",
-    padding: 10,
-  },
-  searchContainer: {
-    flex: 1,
-    position: "relative",
-    zIndex: 999,
-  },
-  searchLoader: {
-    position: "absolute",
-    right: 15,
-    top: "50%",
-    transform: [{ translateY: -10 }],
-  },
-  suggestionsContainer: {
-    position: "absolute",
-    top: "100%",
-    left: 0,
-    right: 0,
-    backgroundColor: theme.cardColor,
-    borderWidth: 1,
-    borderColor: theme.iconColor + '40',
-    borderRadius: 8,
-    marginTop: 5,
-    maxHeight: 200,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
+const getStyles = (theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.backgroundColor,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    zIndex: 1002,
-  },
-  suggestionsList: {
-    maxHeight: 200,
-  },
-  suggestionItem: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.iconColor + '20',
-  },
-  suggestionText: {
-    fontSize: 14,
-    color: theme.textColor,
-    lineHeight: 18,
-  },
-  mapControls: {
-    position: "absolute",
-    bottom: "18%",
-    right: 16,
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 8,
-    zIndex: 1000,
-  },
-  controlButton: {
-    backgroundColor: theme.cardColor,
-    borderRadius: 25,
-    width: 50,
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
+    header: {
+      position: "absolute",
+      top: Platform.OS === "ios" ? 50 : 30,
+      left: 0,
+      right: 0,
+      zIndex: 1000,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      flexDirection: "row",
+      alignItems: "center",
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: theme.iconColor + '40',
-  },
-  addressDisplayZone: {
-    position: "absolute",
-    top: '14%',
-    left: 16,
-    right: 16,
-    backgroundColor: theme.cardColor,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
+    map: {
+      flex: 1,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: theme.iconColor + '40',
-    zIndex: 500,
-  },
-  addressLabel: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: theme.textColor,
-    marginBottom: 8,
-  },
-  addressText: {
-    fontSize: 14,
-    color: theme.textColor,
-    lineHeight: 20,
-    marginBottom: 8,
-  },
-  coordinatesDisplay: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: theme.iconColor + '20',
-  },
-  coordinateText: {
-    fontSize: 12,
-    color: theme.iconColor,
-    fontWeight: "500",
-  },
-});
+    btnContainer: {
+      position: "absolute",
+      bottom: "7%",
+      width: "100%",
+      padding: 10,
+    },
+    searchContainer: {
+      flex: 1,
+      position: "relative",
+      zIndex: 999,
+    },
+    searchLoader: {
+      position: "absolute",
+      right: 15,
+      top: "50%",
+      transform: [{ translateY: -10 }],
+    },
+    suggestionsContainer: {
+      position: "absolute",
+      top: "100%",
+      left: 0,
+      right: 0,
+      backgroundColor: theme.cardColor,
+      borderWidth: 1,
+      borderColor: theme.iconColor + "40",
+      borderRadius: 8,
+      marginTop: 5,
+      maxHeight: 200,
+      shadowColor: "#000",
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+      zIndex: 1002,
+    },
+    suggestionsList: {
+      maxHeight: 200,
+    },
+    suggestionItem: {
+      padding: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.iconColor + "20",
+    },
+    suggestionText: {
+      fontSize: 14,
+      color: theme.textColor,
+      lineHeight: 18,
+    },
+    mapControls: {
+      position: "absolute",
+      bottom: "18%",
+      right: 16,
+      flexDirection: "column",
+      alignItems: "center",
+      gap: 8,
+      zIndex: 1000,
+    },
+    controlButton: {
+      backgroundColor: theme.cardColor,
+      borderRadius: 25,
+      width: 50,
+      height: 50,
+      justifyContent: "center",
+      alignItems: "center",
+      shadowColor: "#000",
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+      borderWidth: 1,
+      borderColor: theme.iconColor + "40",
+    },
+    addressDisplayZone: {
+      position: "absolute",
+      top: "14%",
+      left: 16,
+      right: 16,
+      backgroundColor: theme.cardColor,
+      borderRadius: 12,
+      padding: 16,
+      shadowColor: "#000",
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+      borderWidth: 1,
+      borderColor: theme.iconColor + "40",
+      zIndex: 500,
+    },
+    addressLabel: {
+      fontSize: 16,
+      fontWeight: "bold",
+      color: theme.textColor,
+      marginBottom: 8,
+    },
+    addressText: {
+      fontSize: 14,
+      color: theme.textColor,
+      lineHeight: 20,
+      marginBottom: 8,
+    },
+    coordinatesDisplay: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: theme.iconColor + "20",
+    },
+    coordinateText: {
+      fontSize: 12,
+      color: theme.iconColor,
+      fontWeight: "500",
+    },
+  });

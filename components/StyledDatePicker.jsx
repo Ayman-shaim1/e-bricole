@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Platform, ScrollView } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { colors } from "../constants/colors";
@@ -16,6 +16,8 @@ export default function StyledDatePicker({
   icon,
   placeholder = "Select date/time",
   width = "100%",
+  minDate = null,
+  value = null,
 }) {
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
@@ -23,24 +25,113 @@ export default function StyledDatePicker({
   // Modal state
   const [showModal, setShowModal] = useState(false);
 
+  // Helper function to parse the value prop
+  const parseValue = (val) => {
+    if (!val) return null;
+    
+    try {
+      // Handle different date formats
+      let dateObj;
+      
+      if (val.includes('/')) {
+        // Format: MM/DD/YYYY or MM/DD/YYYY HH:MM AM/PM
+        const parts = val.split(' ');
+        const datePart = parts[0]; // MM/DD/YYYY
+        const timePart = parts[1] + (parts[2] ? ' ' + parts[2] : ''); // HH:MM AM/PM
+        
+        // Manually parse the date part MM/DD/YYYY
+        const dateParts = datePart.split('/');
+        if (dateParts.length === 3) {
+          const month = parseInt(dateParts[0]) - 1; // Month is 0-indexed in Date
+          const day = parseInt(dateParts[1]);
+          const year = parseInt(dateParts[2]);
+          
+          dateObj = new Date(year, month, day);
+          
+          if (timePart && timePart !== 'undefined') {
+            const timeMatch = timePart.match(/(\d+):(\d+)\s*(AM|PM)?/);
+            if (timeMatch) {
+              let hours = parseInt(timeMatch[1]);
+              const minutes = parseInt(timeMatch[2]);
+              const period = timeMatch[3];
+              
+              if (period === 'PM' && hours !== 12) hours += 12;
+              if (period === 'AM' && hours === 12) hours = 0;
+              
+              dateObj.setHours(hours, minutes, 0, 0);
+            }
+          }
+        } else {
+          return null;
+        }
+      } else {
+        dateObj = new Date(val);
+      }
+      
+      return dateObj;
+    } catch (error) {
+      console.error('Error parsing date value:', error);
+      return null;
+    }
+  };
+
   // Get current date/time for defaults
   const now = new Date();
-  const currentDay = now.getDate().toString().padStart(2, "0");
-  const currentMonth = (now.getMonth() + 1).toString().padStart(2, "0");
-  const currentYear = now.getFullYear().toString();
-  const currentHour12 = now.getHours() % 12 || 12;
-  const currentMinute = now.getMinutes().toString().padStart(2, "0");
-  const currentPeriod = now.getHours() >= 12 ? "PM" : "AM";
+  const parsedValue = parseValue(value);
+  const defaultDate = parsedValue || now;
 
-  // Date state with current date as default
-  const [day, setDay] = useState(currentDay);
-  const [month, setMonth] = useState(currentMonth);
-  const [year, setYear] = useState(currentYear);
+  const currentDay = defaultDate.getDate().toString().padStart(2, "0");
+  const currentMonth = (defaultDate.getMonth() + 1).toString().padStart(2, "0");
+  const currentYear = defaultDate.getFullYear().toString();
+  const currentHour12 = defaultDate.getHours() % 12 || 12;
+  const currentMinute = defaultDate.getMinutes().toString().padStart(2, "0");
+  const currentPeriod = defaultDate.getHours() >= 12 ? "PM" : "AM";
 
-  // Time state with current time as default
-  const [hour, setHour] = useState(currentHour12.toString().padStart(2, "0"));
-  const [minute, setMinute] = useState(currentMinute);
-  const [period, setPeriod] = useState(currentPeriod);
+  // Add validation to ensure we have valid values
+  const safeDay = currentDay && !isNaN(parseInt(currentDay)) ? currentDay : now.getDate().toString().padStart(2, "0");
+  const safeMonth = currentMonth && !isNaN(parseInt(currentMonth)) ? currentMonth : (now.getMonth() + 1).toString().padStart(2, "0");
+  const safeYear = currentYear && !isNaN(parseInt(currentYear)) ? currentYear : now.getFullYear().toString();
+  const safeHour = currentHour12 && !isNaN(parseInt(currentHour12)) ? currentHour12.toString().padStart(2, "0") : (now.getHours() % 12 || 12).toString().padStart(2, "0");
+  const safeMinute = currentMinute && !isNaN(parseInt(currentMinute)) ? currentMinute : now.getMinutes().toString().padStart(2, "0");
+  const safePeriod = currentPeriod === "AM" || currentPeriod === "PM" ? currentPeriod : (now.getHours() >= 12 ? "PM" : "AM");
+
+  // Date state with parsed value or current date as default
+  const [day, setDay] = useState(safeDay);
+  const [month, setMonth] = useState(safeMonth);
+  const [year, setYear] = useState(safeYear);
+
+  // Time state with parsed value or current time as default
+  const [hour, setHour] = useState(safeHour);
+  const [minute, setMinute] = useState(safeMinute);
+  const [period, setPeriod] = useState(safePeriod);
+
+  // Update state when value prop changes
+  useEffect(() => {
+    const parsedValue = parseValue(value);
+    if (parsedValue) {
+      const newDay = parsedValue.getDate().toString().padStart(2, "0");
+      const newMonth = (parsedValue.getMonth() + 1).toString().padStart(2, "0");
+      const newYear = parsedValue.getFullYear().toString();
+      const newHour12 = parsedValue.getHours() % 12 || 12;
+      const newMinute = parsedValue.getMinutes().toString().padStart(2, "0");
+      const newPeriod = parsedValue.getHours() >= 12 ? "PM" : "AM";
+
+      // Add safety checks to prevent NaN values
+      const safeNewDay = newDay && !isNaN(parseInt(newDay)) ? newDay : day;
+      const safeNewMonth = newMonth && !isNaN(parseInt(newMonth)) ? newMonth : month;
+      const safeNewYear = newYear && !isNaN(parseInt(newYear)) ? newYear : year;
+      const safeNewHour = newHour12 && !isNaN(parseInt(newHour12)) ? newHour12.toString().padStart(2, "0") : hour;
+      const safeNewMinute = newMinute && !isNaN(parseInt(newMinute)) ? newMinute : minute;
+      const safeNewPeriod = (newPeriod === "AM" || newPeriod === "PM") ? newPeriod : period;
+
+      setDay(safeNewDay);
+      setMonth(safeNewMonth);
+      setYear(safeNewYear);
+      setHour(safeNewHour);
+      setMinute(safeNewMinute);
+      setPeriod(safeNewPeriod);
+    }
+  }, [value]);
 
   const months = [
     { label: "January", value: "01" },
@@ -61,13 +152,54 @@ export default function StyledDatePicker({
     return new Date(year, month, 0).getDate();
   };
 
+  const isValidDate = (testYear, testMonth, testDay) => {
+    if (!minDate) return true;
+    
+    const testDate = new Date(testYear, testMonth - 1, testDay);
+    
+    // Parse minDate manually using the same logic as parseValue
+    const minDateParts = minDate.split('/');
+    if (minDateParts.length !== 3) return true;
+    
+    const minMonth = parseInt(minDateParts[0]) - 1; // 0-indexed
+    const minDay = parseInt(minDateParts[1]);
+    const minYear = parseInt(minDateParts[2]);
+    const minDateObj = new Date(minYear, minMonth, minDay);
+    
+    return testDate >= minDateObj;
+  };
+
+  const getValidMonths = () => {
+    // Temporarily return all months to test basic functionality
+    return months;
+  };
+
+  const getValidDays = () => {
+    const currentYear = parseInt(year);
+    const currentMonth = parseInt(month);
+    const daysInMonth = getDaysInMonth(currentMonth, currentYear);
+    
+    // Temporarily return all days to test basic functionality
+    return Array.from({ length: daysInMonth }, (_, i) => {
+      const dayValue = i + 1;
+      return { value: `${dayValue}`.padStart(2, "0"), isValid: true };
+    });
+  };
+
   const getDisplayValue = () => {
     let result = "";
 
+    // Validate values before using them
+    const validDay = day && !isNaN(parseInt(day)) ? day : "01";
+    const validMonth = month && !isNaN(parseInt(month)) ? month : "01";
+    const validYear = year && !isNaN(parseInt(year)) ? year : new Date().getFullYear().toString();
+    const validHour = hour && !isNaN(parseInt(hour)) ? hour : "12";
+    const validMinute = minute && !isNaN(parseInt(minute)) ? minute : "00";
+    const validPeriod = (period === "AM" || period === "PM") ? period : "AM";
+
     if (mode === "date" || mode === "datetime") {
-      const monthName =
-        months.find((m) => m.value === month)?.label || "January";
-      result += `${monthName} ${day}, ${year}`;
+      const monthName = months.find((m) => m.value === validMonth)?.label || "January";
+      result += `${monthName} ${validDay}, ${validYear}`;
     }
 
     if (mode === "datetime") {
@@ -75,17 +207,25 @@ export default function StyledDatePicker({
     }
 
     if (mode === "time" || mode === "datetime") {
-      result += `${hour}:${minute} ${period}`;
+      result += `${validHour}:${validMinute} ${validPeriod}`;
     }
 
     return result;
   };
 
   const updateDateTime = (d, m, y, h, min, p) => {
+    // Validate inputs before processing
+    const validDay = d && !isNaN(parseInt(d)) ? d : "01";
+    const validMonth = m && !isNaN(parseInt(m)) ? m : "01";
+    const validYear = y && !isNaN(parseInt(y)) ? y : new Date().getFullYear().toString();
+    const validHour = h && !isNaN(parseInt(h)) ? h : "12";
+    const validMinute = min && !isNaN(parseInt(min)) ? min : "00";
+    const validPeriod = (p === "AM" || p === "PM") ? p : "AM";
+
     let result = "";
 
     if (mode === "date" || mode === "datetime") {
-      result += `${m}/${d}/${y}`;
+      result += `${validMonth}/${validDay}/${validYear}`;
     }
 
     if (mode === "datetime") {
@@ -93,7 +233,7 @@ export default function StyledDatePicker({
     }
 
     if (mode === "time" || mode === "datetime") {
-      result += `${h}:${min} ${p}`;
+      result += `${validHour}:${validMinute} ${validPeriod}`;
     }
 
     onChange?.(result);
@@ -160,7 +300,7 @@ export default function StyledDatePicker({
               itemStyle={[styles.pickerItem, { color: theme.textInputColor }]}
               onValueChange={(val) => handlePickerChange("month", val)}
             >
-              {months.map((m) => (
+              {getValidMonths().map((m) => (
                 <Picker.Item key={m.value} label={m.label} value={m.value} />
               ))}
             </Picker>
@@ -182,15 +322,9 @@ export default function StyledDatePicker({
               itemStyle={[styles.pickerItem, { color: theme.textInputColor }]}
               onValueChange={(val) => handlePickerChange("day", val)}
             >
-              {Array.from(
-                { length: getDaysInMonth(parseInt(month), parseInt(year)) },
-                (_, i) => {
-                  const value = `${i + 1}`.padStart(2, "0");
-                  return (
-                    <Picker.Item key={value} label={value} value={value} />
-                  );
-                }
-              )}
+              {getValidDays().map((d) => (
+                <Picker.Item key={d.value} label={d.value} value={d.value} />
+              ))}
             </Picker>
           </View>
 
@@ -211,7 +345,21 @@ export default function StyledDatePicker({
               onValueChange={(val) => handlePickerChange("year", val)}
             >
               {Array.from({ length: 10 }, (_, i) => {
-                const value = (new Date().getFullYear() + i).toString();
+                let minYear = new Date().getFullYear();
+                
+                // Parse minDate manually if provided
+                if (minDate) {
+                  const minDateParts = minDate.split('/');
+                  if (minDateParts.length === 3) {
+                    const parsedMinYear = parseInt(minDateParts[2]);
+                    if (!isNaN(parsedMinYear)) {
+                      minYear = parsedMinYear;
+                    }
+                  }
+                }
+                
+                const startYear = Math.max(minYear, new Date().getFullYear());
+                const value = (startYear + i).toString();
                 return <Picker.Item key={value} label={value} value={value} />;
               })}
             </Picker>

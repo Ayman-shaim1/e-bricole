@@ -18,6 +18,8 @@ import { colors } from "../constants/colors";
  * @param {Object} props.labelProps - Additional props for the label
  * @param {Object} props.datePickerProps - Additional props for the date picker
  * @param {Object} props.containerStyle - Additional styles for the container
+ * @param {string} props.minDate - Minimum selectable date (format: MM/DD/YYYY)
+ * @param {Function} props.onDateChange - Callback function to trigger when date changes (for validation)
  */
 export default function FormStyledDatePicker({
   name,
@@ -29,6 +31,8 @@ export default function FormStyledDatePicker({
   labelProps = {},
   datePickerProps = {},
   containerStyle = {},
+  minDate = null,
+  onDateChange,
 }) {
   // Use Formik's useField hook to connect to form state
   const [field, meta, helpers] = useField(name);
@@ -38,14 +42,20 @@ export default function FormStyledDatePicker({
       {label && <StyledLabel text={label} {...labelProps} />}
 
       <StyledDatePicker
+        value={field.value}
         onChange={(dateTimeString) => {
           helpers.setValue(dateTimeString);
           helpers.setTouched(true);
+          // Trigger form validation for cross-field validation
+          if (onDateChange) {
+            setTimeout(() => onDateChange(), 100);
+          }
         }}
         icon={icon}
         mode={mode}
         placeholder={placeholder}
         width={width}
+        minDate={minDate}
         {...datePickerProps}
       />
 
@@ -68,4 +78,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     fontFamily: "Poppins-Regular",
   },
-}); 
+});

@@ -42,7 +42,9 @@ export default function FormikDropdown({
         {...dropdownProps}
       />
 
-      {meta.touched && meta.error ? (
+      {meta.touched &&
+      meta.error &&
+      (!field.value || field.value === "-- select option --") ? (
         <Text style={styles.errorText}>{meta.error}</Text>
       ) : null}
     </View>
@@ -61,4 +63,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     fontFamily: "Poppins-Regular",
   },
-}); 
+});

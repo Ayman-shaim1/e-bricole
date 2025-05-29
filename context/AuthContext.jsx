@@ -19,7 +19,6 @@ export function AuthProvider({ children }) {
       try {
         setIsLoading(true);
         const session = await checkSession();
-        // console.log("Auth session:", JSON.stringify(session));
         if (session.loggedIn) {
           // Store the user object
           setUser({...session.user, isClient: session.isClient});

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { StyleSheet, TouchableOpacity } from "react-native";
 import StyledTextInput from "./StyledTextInput";
 import StyledLabel from "./StyledLabel";
@@ -26,15 +26,38 @@ export default function StyledAddressPicker({
 
   const { data, loading, error: rvError, reverseGeocode } = useReverseGeocode();
 
-  // Format the address string
-  const formatAddress = () => {
-    if (!data) return "";
+  // Format the address string - memoized to recalculate when data changes
+  const formatAddress = useMemo(() => {
+    if (!data || !data.address) return "";
     const { road, city, country } = data.address;
-    return `${road}, ${city && city + ","} ${country && country}`;
-  };
 
-  // Use value prop or geolocation address
-  const displayAddress = value || formatAddress();
+    // Build address parts array and filter out empty/undefined values
+    const addressParts = [road, city, country].filter(
+      (part) => part && part.trim()
+    );
+
+    if (addressParts.length === 0) return "";
+
+    // Join with commas and proper spacing
+    return addressParts.join(", ");
+  }, [data]);
+
+  // Use value prop or geolocation address - recalculates when formatAddress changes
+  const displayAddress = useMemo(() => {
+    if (value && typeof value === "string") {
+      return value;
+    }
+    if (value && value.address) {
+      return value.address;
+    }
+    return formatAddress;
+  }, [value, formatAddress]);
+
+  // Extract coordinates from value prop if available
+  const currentCoordinates = useMemo(() => {
+    return value && value.coordinates ? value.coordinates : coordinates;
+  }, [value, coordinates]);
+
   const addressText = useSplit(displayAddress, 30);
 
   // Handle navigation to address picker screen
@@ -49,8 +72,8 @@ export default function StyledAddressPicker({
       router.push({
         pathname: "/shared/address-picker",
         params: {
-          latitude: coordinates?.latitude,
-          longitude: coordinates?.longitude,
+          latitude: currentCoordinates?.latitude,
+          longitude: currentCoordinates?.longitude,
           callbackId: callbackId,
         },
       });
@@ -58,8 +81,8 @@ export default function StyledAddressPicker({
       router.push({
         pathname: "/shared/address-picker",
         params: {
-          latitude: coordinates?.latitude,
-          longitude: coordinates?.longitude,
+          latitude: currentCoordinates?.latitude,
+          longitude: currentCoordinates?.longitude,
         },
       });
     }
@@ -67,12 +90,16 @@ export default function StyledAddressPicker({
 
   useEffect(() => {
     const getAddress = async () => {
-      if (coordinates)
-        await reverseGeocode(coordinates.latitude, coordinates.longitude);
+      if (currentCoordinates && !value?.address) {
+        await reverseGeocode(
+          currentCoordinates.latitude,
+          currentCoordinates.longitude
+        );
+      }
     };
 
     getAddress();
-  }, [coordinates]);
+  }, [currentCoordinates, value]);
 
   return (
     <TouchableOpacity
@@ -109,7 +136,9 @@ export default function StyledAddressPicker({
               value={addressText}
               onChangeText={onChangeText}
               placeholder={
-                isLoading ? "Loading location..." : "Current address"
+                isLoading
+                  ? "Loading location..."
+                  : "e.g xx street, zz city, oo country"
               }
               icon={MAP_MARKER}
               editable={editable}
