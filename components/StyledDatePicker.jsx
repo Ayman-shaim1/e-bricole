@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Platform, ScrollView } from "react-native";
+import { View, Text, StyleSheet, Platform, ScrollView, TouchableOpacity, Pressable } from "react-native";
 import { Picker } from "@react-native-picker/picker";
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors } from "../constants/colors";
 import { styles as mystyle } from "../constants/styles";
 import { useTheme } from "../context/ThemeContext";
@@ -12,7 +13,7 @@ import StyledButton from "./StyledButton";
 export default function StyledDatePicker({
   label,
   onChange,
-  mode = "datetime",
+  mode = "date",
   icon,
   placeholder = "Select date/time",
   width = "100%",
@@ -21,71 +22,42 @@ export default function StyledDatePicker({
 }) {
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
+  const isAndroid = Platform.OS === 'android';
 
-  // Modal state
+  // Modal state (for iOS)
   const [showModal, setShowModal] = useState(false);
+  // Android native picker state
+  const [showAndroidPicker, setShowAndroidPicker] = useState(false);
 
   // Helper function to parse the value prop
   const parseValue = (val) => {
-    if (!val) return null;
+    if (!val) return new Date();
     
     try {
-      // Handle different date formats
-      let dateObj;
-      
       if (val.includes('/')) {
-        // Format: MM/DD/YYYY or MM/DD/YYYY HH:MM AM/PM
-        const parts = val.split(' ');
-        const datePart = parts[0]; // MM/DD/YYYY
-        const timePart = parts[1] + (parts[2] ? ' ' + parts[2] : ''); // HH:MM AM/PM
-        
-        // Manually parse the date part MM/DD/YYYY
-        const dateParts = datePart.split('/');
-        if (dateParts.length === 3) {
-          const month = parseInt(dateParts[0]) - 1; // Month is 0-indexed in Date
-          const day = parseInt(dateParts[1]);
-          const year = parseInt(dateParts[2]);
-          
-          dateObj = new Date(year, month, day);
-          
-          if (timePart && timePart !== 'undefined') {
-            const timeMatch = timePart.match(/(\d+):(\d+)\s*(AM|PM)?/);
-            if (timeMatch) {
-              let hours = parseInt(timeMatch[1]);
-              const minutes = parseInt(timeMatch[2]);
-              const period = timeMatch[3];
-              
-              if (period === 'PM' && hours !== 12) hours += 12;
-              if (period === 'AM' && hours === 12) hours = 0;
-              
-              dateObj.setHours(hours, minutes, 0, 0);
-            }
-          }
-        } else {
-          return null;
-        }
-      } else {
-        dateObj = new Date(val);
+        const parts = val.split('/');
+        const month = parseInt(parts[0]) - 1;
+        const day = parseInt(parts[1]);
+        const year = parseInt(parts[2]);
+        return new Date(year, month, day);
       }
-      
-      return dateObj;
+      return new Date(val);
     } catch (error) {
       console.error('Error parsing date value:', error);
-      return null;
+      return new Date();
     }
   };
 
   // Get current date/time for defaults
   const now = new Date();
-  const parsedValue = parseValue(value);
-  const defaultDate = parsedValue || now;
+  const [date, setDate] = useState(parseValue(value) || now);
 
-  const currentDay = defaultDate.getDate().toString().padStart(2, "0");
-  const currentMonth = (defaultDate.getMonth() + 1).toString().padStart(2, "0");
-  const currentYear = defaultDate.getFullYear().toString();
-  const currentHour12 = defaultDate.getHours() % 12 || 12;
-  const currentMinute = defaultDate.getMinutes().toString().padStart(2, "0");
-  const currentPeriod = defaultDate.getHours() >= 12 ? "PM" : "AM";
+  const currentDay = date.getDate().toString().padStart(2, "0");
+  const currentMonth = (date.getMonth() + 1).toString().padStart(2, "0");
+  const currentYear = date.getFullYear().toString();
+  const currentHour12 = date.getHours() % 12 || 12;
+  const currentMinute = date.getMinutes().toString().padStart(2, "0");
+  const currentPeriod = date.getHours() >= 12 ? "PM" : "AM";
 
   // Add validation to ensure we have valid values
   const safeDay = currentDay && !isNaN(parseInt(currentDay)) ? currentDay : now.getDate().toString().padStart(2, "0");
@@ -107,29 +79,8 @@ export default function StyledDatePicker({
 
   // Update state when value prop changes
   useEffect(() => {
-    const parsedValue = parseValue(value);
-    if (parsedValue) {
-      const newDay = parsedValue.getDate().toString().padStart(2, "0");
-      const newMonth = (parsedValue.getMonth() + 1).toString().padStart(2, "0");
-      const newYear = parsedValue.getFullYear().toString();
-      const newHour12 = parsedValue.getHours() % 12 || 12;
-      const newMinute = parsedValue.getMinutes().toString().padStart(2, "0");
-      const newPeriod = parsedValue.getHours() >= 12 ? "PM" : "AM";
-
-      // Add safety checks to prevent NaN values
-      const safeNewDay = newDay && !isNaN(parseInt(newDay)) ? newDay : day;
-      const safeNewMonth = newMonth && !isNaN(parseInt(newMonth)) ? newMonth : month;
-      const safeNewYear = newYear && !isNaN(parseInt(newYear)) ? newYear : year;
-      const safeNewHour = newHour12 && !isNaN(parseInt(newHour12)) ? newHour12.toString().padStart(2, "0") : hour;
-      const safeNewMinute = newMinute && !isNaN(parseInt(newMinute)) ? newMinute : minute;
-      const safeNewPeriod = (newPeriod === "AM" || newPeriod === "PM") ? newPeriod : period;
-
-      setDay(safeNewDay);
-      setMonth(safeNewMonth);
-      setYear(safeNewYear);
-      setHour(safeNewHour);
-      setMinute(safeNewMinute);
-      setPeriod(safeNewPeriod);
+    if (value) {
+      setDate(parseValue(value));
     }
   }, [value]);
 
@@ -170,7 +121,6 @@ export default function StyledDatePicker({
   };
 
   const getValidMonths = () => {
-    // Temporarily return all months to test basic functionality
     return months;
   };
 
@@ -179,7 +129,6 @@ export default function StyledDatePicker({
     const currentMonth = parseInt(month);
     const daysInMonth = getDaysInMonth(currentMonth, currentYear);
     
-    // Temporarily return all days to test basic functionality
     return Array.from({ length: daysInMonth }, (_, i) => {
       const dayValue = i + 1;
       return { value: `${dayValue}`.padStart(2, "0"), isValid: true };
@@ -294,7 +243,7 @@ export default function StyledDatePicker({
               },
             ]}
           >
-            <Picker
+            <Pressable
               selectedValue={month}
               style={[styles.picker, { color: theme.textInputColor }]}
               itemStyle={[styles.pickerItem, { color: theme.textInputColor }]}
@@ -303,7 +252,7 @@ export default function StyledDatePicker({
               {getValidMonths().map((m) => (
                 <Picker.Item key={m.value} label={m.label} value={m.value} />
               ))}
-            </Picker>
+            </Pressable>
           </View>
 
           <View
@@ -347,7 +296,6 @@ export default function StyledDatePicker({
               {Array.from({ length: 10 }, (_, i) => {
                 let minYear = new Date().getFullYear();
                 
-                // Parse minDate manually if provided
                 if (minDate) {
                   const minDateParts = minDate.split('/');
                   if (minDateParts.length === 3) {
@@ -447,53 +395,115 @@ export default function StyledDatePicker({
     );
   };
 
+  const formatDate = (date) => {
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
+  };
+
+  const onAndroidDateChange = (event, selectedDate) => {
+    setShowAndroidPicker(false);
+    if (event.type === 'dismissed') {
+      return;
+    }
+    
+    const currentDate = selectedDate || date;
+    setDate(currentDate);
+    
+    if (onChange) {
+      onChange(formatDate(currentDate));
+    }
+  };
+
+  const showPicker = () => {
+    if (isAndroid) {
+      setShowAndroidPicker(true);
+    } else {
+      setShowModal(true);
+    }
+  };
+
   return (
     <View style={[styles.wrapper, { width }]}>
       {label && <StyledLabel text={label} style={styles.label} />}
 
-      <StyledTextInput
-        editable={false}
-        onPress={() => setShowModal(true)}
-        icon={icon}
-        placeholder={placeholder}
-        value={getDisplayValue()}
-        width={width}
-      />
-
-      <BottomModal
-        visible={showModal}
-        onClose={() => setShowModal(false)}
-        style={styles.modalContainer}
-      >
-        <ScrollView
-          style={styles.scrollContainer}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.modalContent}>
-            <StyledLabel text="Select Date & Time" style={styles.modalTitle} />
-
-            {renderDatePickers()}
-            {renderTimePickers()}
-          </View>
-        </ScrollView>
-
-        <View
-          style={[
-            styles.buttonContainer,
-            {
-              backgroundColor: theme.cardColor,
-              borderTopColor: theme.iconColor,
-            },
+      {Platform.OS === 'ios' ? (
+        <Pressable
+          onPress={() => setShowModal(true)}
+          style={({ pressed }) => [
+            styles.pressable,
+            pressed && styles.pressed
           ]}
         >
-          <StyledButton
-            text="Confirm"
-            onPress={() => setShowModal(false)}
-            color="primary"
+          <StyledTextInput
+            value={getDisplayValue()}
+            placeholder={placeholder}
+            icon={icon}
+            editable={false}
+            pointerEvents="none"
           />
-        </View>
-      </BottomModal>
+        </Pressable>
+      ) : (
+        <TouchableOpacity onPress={showPicker}>
+          <StyledTextInput
+            value={value || ''}
+            placeholder={placeholder}
+            icon={icon}
+            editable={false}
+            pointerEvents="none"
+          />
+        </TouchableOpacity>
+      )}
+
+      {/* Android Native Date Picker */}
+      {isAndroid && showAndroidPicker && (
+        <DateTimePicker
+          testID="dateTimePicker"
+          value={date}
+          mode={mode}
+          is24Hour={false}
+          onChange={onAndroidDateChange}
+          minimumDate={minDate ? parseValue(minDate) : undefined}
+        />
+      )}
+
+      {/* iOS Custom Modal Picker */}
+      {!isAndroid && (
+        <BottomModal
+          visible={showModal}
+          onClose={() => setShowModal(false)}
+          style={styles.modalContainer}
+        >
+          <ScrollView
+            style={styles.scrollContainer}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.modalContent}>
+              <StyledLabel text="Select Date & Time" style={styles.modalTitle} />
+              {renderDatePickers()}
+              {renderTimePickers()}
+            </View>
+          </ScrollView>
+
+          <View
+            style={[
+              styles.buttonContainer,
+              {
+                backgroundColor: theme.cardColor,
+                borderTopColor: theme.iconColor,
+              },
+            ]}
+          >
+            <StyledButton
+              text="Confirm"
+              onPress={() => setShowModal(false)}
+              color="primary"
+            />
+          </View>
+        </BottomModal>
+      )}
     </View>
   );
 }
@@ -558,5 +568,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: mystyle.paddingHorizontal,
     paddingVertical: mystyle.paddingVertical,
+  },
+  pressable: {
+    width: '100%',
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

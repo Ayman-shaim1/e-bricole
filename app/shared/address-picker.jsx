@@ -21,7 +21,6 @@ import useAddressSearch from "../../hooks/useAddressSearch";
 import StyledCard from "../../components/StyledCard";
 import StyledLabel from "../../components/StyledLabel";
 import { useTheme } from "../../context/ThemeContext";
-import { colors } from "../../constants/colors";
 
 const callbackRegistry = new Map();
 
@@ -40,10 +39,7 @@ export default function AddressPickerScreen() {
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
 
-  // Get params from navigation
   const { latitude, longitude, callbackId } = params;
-
-  // Use passed coordinates or default coordinates
   const initialCoordinates = {
     latitude: latitude ? parseFloat(latitude) : 37.78825,
     longitude: longitude ? parseFloat(longitude) : -122.4324,
@@ -79,12 +75,10 @@ export default function AddressPickerScreen() {
     if (!addressData || !addressData.address) return "";
     const { road, city, country, house_number } = addressData.address;
     let formatted = "";
-
     if (house_number) formatted += house_number + " ";
     if (road) formatted += road;
     if (city) formatted += (formatted ? ", " : "") + city;
     if (country) formatted += (formatted ? ", " : "") + country;
-
     return formatted || "Adresse non trouvée";
   };
 
@@ -97,17 +91,14 @@ export default function AddressPickerScreen() {
   const handleLocationConfirm = () => {
     if (callbackId && callbackRegistry.has(callbackId)) {
       const callback = callbackRegistry.get(callbackId);
-      
-      // Create a comprehensive address object with both coordinates and formatted address
       const addressObject = {
         coordinates: {
           latitude: selectedLocation.latitude,
           longitude: selectedLocation.longitude,
         },
-        address: formatAddress(), // The formatted address string
-        timestamp: Date.now(), // Add timestamp for cache management
+        address: formatAddress(),
+        timestamp: Date.now(),
       };
-      
       callback(addressObject);
       unregisterCallback(callbackId);
     }
@@ -130,39 +121,26 @@ export default function AddressPickerScreen() {
       latitude: suggestion.latitude,
       longitude: suggestion.longitude,
     };
-
     setSelectedLocation(newLocation);
     setSearchQuery(suggestion.formattedAddress);
     setShowSuggestions(false);
     clearSuggestions();
-
-    // Effacer les données d'adresse précédentes
     setAddressData(null);
-
-    // Animer la carte vers la nouvelle position
-    if (mapRef.current) {
-      mapRef.current.animateToRegion(
-        {
-          latitude: suggestion.latitude,
-          longitude: suggestion.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        },
-        1000
-      );
-    }
+    mapRef.current?.animateToRegion(
+      {
+        ...newLocation,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      },
+      1000
+    );
   };
 
   const handleInputFocus = () => {
-    if (suggestions.length > 0) {
-      setShowSuggestions(true);
-    }
+    if (suggestions.length > 0) setShowSuggestions(true);
   };
-
   const handleInputBlur = () => {
-    setTimeout(() => {
-      setShowSuggestions(false);
-    }, 200);
+    setTimeout(() => setShowSuggestions(false), 200);
   };
 
   const renderSuggestion = ({ item }) => (
@@ -186,93 +164,71 @@ export default function AddressPickerScreen() {
         );
         return;
       }
-
       let location = await Location.getCurrentPositionAsync({});
       const newLocation = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       };
-
       setSelectedLocation(newLocation);
-      setSearchQuery(""); // Effacer la recherche
-
-      if (mapRef.current) {
-        mapRef.current.animateToRegion(
-          {
-            latitude: newLocation.latitude,
-            longitude: newLocation.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          },
-          1000
-        );
-      }
-    } catch (error) {
+      setSearchQuery("");
+      mapRef.current?.animateToRegion(
+        { ...newLocation, latitudeDelta: 0.01, longitudeDelta: 0.01 },
+        1000
+      );
+    } catch {
       Alert.alert("Erreur", "Impossible d'obtenir la position actuelle");
     }
   };
 
   const handleZoomIn = () => {
-    if (mapRef.current) {
-      const newRegion = {
-        ...currentRegion,
-        latitudeDelta: currentRegion.latitudeDelta * 0.5,
-        longitudeDelta: currentRegion.longitudeDelta * 0.5,
-      };
-      setCurrentRegion(newRegion);
-      mapRef.current.animateToRegion(newRegion, 300);
-    }
+    const newRegion = {
+      ...currentRegion,
+      latitudeDelta: currentRegion.latitudeDelta * 0.5,
+      longitudeDelta: currentRegion.longitudeDelta * 0.5,
+    };
+    setCurrentRegion(newRegion);
+    mapRef.current?.animateToRegion(newRegion, 300);
   };
 
   const handleZoomOut = () => {
-    if (mapRef.current) {
-      const newRegion = {
-        ...currentRegion,
-        latitudeDelta: currentRegion.latitudeDelta * 2,
-        longitudeDelta: currentRegion.longitudeDelta * 2,
-      };
-      setCurrentRegion(newRegion);
-      mapRef.current.animateToRegion(newRegion, 300);
-    }
+    const newRegion = {
+      ...currentRegion,
+      latitudeDelta: currentRegion.latitudeDelta * 2,
+      longitudeDelta: currentRegion.longitudeDelta * 2,
+    };
+    setCurrentRegion(newRegion);
+    mapRef.current?.animateToRegion(newRegion, 300);
   };
 
-  const handleRegionChange = (region) => {
-    setCurrentRegion(region);
-  };
+  const handleRegionChange = (region) => setCurrentRegion(region);
 
   useEffect(() => {
-    const getAddress = async () => {
-      if (selectedLocation) {
-        const result = await reverseGeocode(
-          selectedLocation.latitude,
-          selectedLocation.longitude
-        );
-        if (result) {
-          setAddressData(result);
-        }
-      }
-    };
-    getAddress();
+    (async () => {
+      const result = await reverseGeocode(
+        selectedLocation.latitude,
+        selectedLocation.longitude
+      );
+      result && setAddressData(result);
+    })();
   }, [selectedLocation]);
 
   useEffect(() => {
-    if (addressData && !searchQuery) {
-      setSearchQuery(formatAddress());
-    }
+    if (addressData && !searchQuery) setSearchQuery(formatAddress());
   }, [addressData]);
 
   return (
     <View style={getStyles(theme).container}>
+      {/* Header + barre de recherche */}
       <View style={getStyles(theme).header}>
         <GoBackButton />
         <View style={getStyles(theme).searchContainer}>
           <StyledTextInput
-            placeholder={"Rechercher une adresse..."}
+            placeholder="Rechercher une adresse..."
             value={searchQuery}
             onChangeText={handleSearchChange}
             onFocus={handleInputFocus}
             onBlur={handleInputBlur}
-            width={"99%"}
+            width="99%"
           />
           {searchLoading && (
             <ActivityIndicator
@@ -281,31 +237,36 @@ export default function AddressPickerScreen() {
               style={getStyles(theme).searchLoader}
             />
           )}
-          {showSuggestions && suggestions.length > 0 && (
-            <View style={getStyles(theme).suggestionsContainer}>
-              <FlatList
-                data={suggestions}
-                renderItem={renderSuggestion}
-                keyExtractor={(item) => item.id.toString()}
-                style={getStyles(theme).suggestionsList}
-                keyboardShouldPersistTaps="handled"
-              />
-            </View>
-          )}
         </View>
       </View>
+
+      {/* Suggestions */}
+      {showSuggestions && suggestions.length > 0 && (
+        <View style={getStyles(theme).suggestionsContainer}>
+          <FlatList
+            data={suggestions}
+            renderItem={renderSuggestion}
+            keyExtractor={(item) => item.id.toString()}
+            style={getStyles(theme).suggestionsList}
+            keyboardShouldPersistTaps="handled"
+            removeClippedSubviews
+          />
+        </View>
+      )}
+
+      {/* Carte */}
       <MapView
         ref={mapRef}
         style={getStyles(theme).map}
         initialRegion={{
           latitude: initialCoordinates.latitude,
           longitude: initialCoordinates.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
+          latitudeDelta: 0.0025,
+          longitudeDelta: 0.0025,
         }}
         onPress={handleMapPress}
         onRegionChangeComplete={handleRegionChange}
-        showsUserLocation={true}
+        showsUserLocation
         showsMyLocationButton={false}
       >
         <Marker
@@ -313,19 +274,21 @@ export default function AddressPickerScreen() {
           title="Selected Location"
           description={searchQuery || formatAddress()}
           pinColor="red"
-          draggable={true}
+          draggable
           onDragEnd={(e) => {
             const { latitude, longitude } = e.nativeEvent.coordinate;
             setSelectedLocation({ latitude, longitude });
             setSearchQuery("");
           }}
         />
-        <View style={getStyles(theme).btnContainer}>
-          <StyledButton onPress={handleLocationConfirm} text={"confirm"} />
-        </View>
       </MapView>
 
-      {/* Zone d'affichage de l'adresse sélectionnée */}
+      {/* → Bouton de confirmation en overlay ← */}
+      <View style={getStyles(theme).btnContainer}>
+        <StyledButton onPress={handleLocationConfirm} text="confirm" />
+      </View>
+
+      {/* Affichage de l'adresse sélectionnée */}
       <StyledCard style={getStyles(theme).addressDisplayZone}>
         <StyledLabel
           text="📍 Adresse sélectionnée :"
@@ -352,7 +315,7 @@ export default function AddressPickerScreen() {
         </View>
       </StyledCard>
 
-      {/* Boutons de contrôle de la carte */}
+      {/* Contrôles zoom / localisation */}
       <View style={getStyles(theme).mapControls}>
         <TouchableOpacity
           style={getStyles(theme).controlButton}
@@ -360,14 +323,12 @@ export default function AddressPickerScreen() {
         >
           <Ionicons name="locate" size={24} color={theme.iconColorFocused} />
         </TouchableOpacity>
-
         <TouchableOpacity
           style={getStyles(theme).controlButton}
           onPress={handleZoomIn}
         >
           <Ionicons name="add" size={24} color={theme.iconColorFocused} />
         </TouchableOpacity>
-
         <TouchableOpacity
           style={getStyles(theme).controlButton}
           onPress={handleZoomOut}
@@ -396,15 +357,6 @@ const getStyles = (theme) =>
       flexDirection: "row",
       alignItems: "center",
     },
-    map: {
-      flex: 1,
-    },
-    btnContainer: {
-      position: "absolute",
-      bottom: "7%",
-      width: "100%",
-      padding: 10,
-    },
     searchContainer: {
       flex: 1,
       position: "relative",
@@ -418,9 +370,9 @@ const getStyles = (theme) =>
     },
     suggestionsContainer: {
       position: "absolute",
-      top: "100%",
-      left: 0,
-      right: 0,
+      top: Platform.OS === "ios" ? 100 : 80,
+      left: 16,
+      right: 16,
       backgroundColor: theme.cardColor,
       borderWidth: 1,
       borderColor: theme.iconColor + "40",
@@ -428,10 +380,7 @@ const getStyles = (theme) =>
       marginTop: 5,
       maxHeight: 200,
       shadowColor: "#000",
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
+      shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.25,
       shadowRadius: 3.84,
       elevation: 5,
@@ -450,32 +399,15 @@ const getStyles = (theme) =>
       color: theme.textColor,
       lineHeight: 18,
     },
-    mapControls: {
-      position: "absolute",
-      bottom: "18%",
-      right: 16,
-      flexDirection: "column",
-      alignItems: "center",
-      gap: 8,
-      zIndex: 1000,
+    map: {
+      flex: 1,
     },
-    controlButton: {
-      backgroundColor: theme.cardColor,
-      borderRadius: 25,
-      width: 50,
-      height: 50,
-      justifyContent: "center",
-      alignItems: "center",
-      shadowColor: "#000",
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
-      shadowOpacity: 0.25,
-      shadowRadius: 3.84,
-      elevation: 5,
-      borderWidth: 1,
-      borderColor: theme.iconColor + "40",
+    btnContainer: {
+      position: "absolute",
+      bottom: "7%",
+      width: "100%",
+      paddingHorizontal: 16,
+      zIndex: 1001,
     },
     addressDisplayZone: {
       position: "absolute",
@@ -486,10 +418,7 @@ const getStyles = (theme) =>
       borderRadius: 12,
       padding: 16,
       shadowColor: "#000",
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
+      shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.25,
       shadowRadius: 3.84,
       elevation: 5,
@@ -520,5 +449,29 @@ const getStyles = (theme) =>
       fontSize: 12,
       color: theme.iconColor,
       fontWeight: "500",
+    },
+    mapControls: {
+      position: "absolute",
+      bottom: "18%",
+      right: 16,
+      flexDirection: "column",
+      alignItems: "center",
+      gap: 8,
+      zIndex: 1000,
+    },
+    controlButton: {
+      backgroundColor: theme.cardColor,
+      borderRadius: 25,
+      width: 50,
+      height: 50,
+      justifyContent: "center",
+      alignItems: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+      borderWidth: 1,
+      borderColor: theme.iconColor + "40",
     },
   });

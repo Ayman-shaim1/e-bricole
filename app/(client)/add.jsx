@@ -163,7 +163,13 @@ export default function AddScreen() {
               enableReinitialize={false}
               innerRef={formRef}
             >
-              {({ isSubmitting, setFieldValue, values, validateForm, validateField }) => (
+              {({
+                isSubmitting,
+                setFieldValue,
+                values,
+                validateForm,
+                validateField,
+              }) => (
                 <>
                   <StyledCard>
                     <FormInput
@@ -182,15 +188,17 @@ export default function AddScreen() {
                     />
 
                     {/* Address picker - defaults to current location if available */}
-                    <FormAddressPicker
-                      name="address"
-                      useLabel={false}
-                      label="Adresse"
-                      isLoading={locationLoading}
-                      onPick={(selectedAddress) => {
-                        setFieldValue("address", selectedAddress);
-                      }}
-                    />
+                    <View style={styles.addressPickerContainer}>
+                      <FormAddressPicker
+                        name="address"
+                        useLabel={false}
+                        label="Adresse"
+                        isLoading={locationLoading}
+                        onPick={(selectedAddress) => {
+                          setFieldValue("address", selectedAddress);
+                        }}
+                      />
+                    </View>
 
                     <FormikDropdown
                       name="serviceType"
@@ -257,13 +265,12 @@ export default function AddScreen() {
                       keyboardType="decimal-pad"
                       onChangeText={(text) => {
                         // Only allow numbers and one comma
-                        const formatted = text.replace(/[^0-9,]/g, '').replace(/(,.*),/g, '$1');
-                        setFieldValue('totalPrice', formatted);
+                        const formatted = text
+                          .replace(/[^0-9,]/g, "")
+                          .replace(/(,.*),/g, "$1");
+                        setFieldValue("totalPrice", formatted);
                       }}
                     />
-                  </StyledCard>
-
-                  <StyledCard style={{ marginBottom: 50 }}>
                     <FormButton
                       text={isSubmitting ? "registering..." : "register"}
                       disabled={isSubmitting}
@@ -296,5 +303,9 @@ const styles = StyleSheet.create({
   },
   datePickerHalf: {
     flex: 1,
+  },
+  addressPickerContainer: {
+    width: "100%",
+    marginVertical: 8,
   },
 });

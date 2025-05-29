@@ -1,5 +1,13 @@
-import { Image, Pressable, StyleSheet, TextInput, View } from "react-native";
-import React, { useState } from "react";
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+  Platform,
+  TouchableOpacity,
+} from "react-native";
+import React, { useState, useCallback } from "react";
 import { colors } from "../constants/colors";
 import { styles as mystyle } from "../constants/styles";
 import { useTheme } from "../context/ThemeContext";
@@ -12,9 +20,10 @@ export default function StyledTextInput({
   keyboardType,
   textContentType,
   secureTextEntry,
-  editable,
+  editable = true,
   onPress,
   width,
+  style,
 }) {
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
@@ -22,74 +31,71 @@ export default function StyledTextInput({
   const [borderColor, setBorderColor] = useState(
     theme === colors.dark ? colors.darkGray : colors.gray
   );
-  const onFocusHandler = () => setBorderColor(colors.primary);
 
-  const onBlurHandler = () => {
+  const onFocusHandler = useCallback(() => setBorderColor(colors.primary), []);
+
+  const onBlurHandler = useCallback(() => {
     if (theme === colors.dark) setBorderColor(colors.darkGray);
     else setBorderColor(colors.gray);
-  };
+  }, [theme]);
 
-  // If onPress is provided, wrap the input in a Pressable
-  const content = (
-    <>
-      {icon && <Image source={icon} style={styles.icon} />}
-      <TextInput
-        style={[styles.input, { color: theme.textInputColor }]}
-        placeholder={placeholder}
-        value={value}
-        onChangeText={onChangeText}
-        placeholderTextColor={theme.placeholderColor}
-        onFocus={onFocusHandler}
-        onBlur={onBlurHandler}
-        keyboardType={keyboardType}
-        secureTextEntry={secureTextEntry}
-        textContentType={textContentType}
-        editable={editable}
-        pointerEvents={onPress ? "none" : "auto"}
-      />
-    </>
-  );
+ 
 
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={!onPress}
-      style={({ pressed }) => [
-        styles.inputContainer,
+    <View
+      style={[
+        styles.container,
         {
           borderColor: borderColor,
           backgroundColor: theme.textInputBg,
-          color: theme === colors.light ? colors.black : colors.white,
-          opacity: pressed && onPress ? 0.8 : 1,
-          width: width ? width : "100%",
+          width: width || "100%",
         },
       ]}
     >
-      {content}
-    </Pressable>
+      <View style={styles.inputWrapper}>
+        {icon && <Image source={icon} style={styles.icon} />}
+        <TextInput
+          style={[styles.input, { ...style }, { color: theme.textInputColor }]}
+          placeholder={placeholder}
+          value={value}
+          onChangeText={onChangeText}
+          placeholderTextColor={theme.placeholderColor}
+          onFocus={onFocusHandler}
+          onBlur={onBlurHandler}
+          keyboardType={keyboardType}
+          secureTextEntry={secureTextEntry}
+          textContentType={textContentType}
+          editable={editable && !onPress}
+          onPress={onPress}
+        />
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  inputContainer: {
+  container: {
+    borderWidth: 1,
     borderRadius: mystyle.borderRadius,
-    paddingHorizontal: mystyle.paddingHorizontal,
-    borderWidth: 0.5,
-    marginVertical: mystyle.marginVertical,
+    paddingHorizontal: 10,
+    paddingVertical: Platform.OS === "ios" ? 12 : 8,
     flexDirection: "row",
     alignItems: "center",
-    zIndex: 100,
   },
-  input: {
-    paddingVertical: mystyle.paddingVertical,
-
-    fontSize: mystyle.fontSize,
-    fontFamily: "Poppins-Regular",
-    width: "100%",
+  inputWrapper: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
   },
   icon: {
-    width: 17,
-    height: 17,
+    width: 20,
+    height: 20,
     marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    fontFamily: "Poppins-Regular",
+    fontSize: mystyle.fontSize,
+    padding: 0,
   },
 });

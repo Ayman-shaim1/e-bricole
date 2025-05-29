@@ -24,6 +24,9 @@ const styles = StyleSheet.create({
   bouton: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent:'center',
+    width:30,
+    height:50,
   },
   icon: {
     width: 16,

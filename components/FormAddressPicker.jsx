@@ -40,8 +40,6 @@ export default function FormAddressPicker({
 
   // Handle address pick from the picker
   const handleAddressPick = (selectedAddress) => {
-
-    // Update the field value immediately
     helpers.setValue(selectedAddress);
     helpers.setTouched(true);
 

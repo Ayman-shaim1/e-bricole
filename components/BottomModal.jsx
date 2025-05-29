@@ -13,6 +13,7 @@ export default function BottomModal({
   onClose,
   style,
 }) {
+  const [isReady, setIsReady] = useState(false);
   const [dragY, setDragY] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const { getCurrentTheme } = useTheme();
@@ -28,7 +29,7 @@ export default function BottomModal({
       },
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dy > 100 || gestureState.vy > 0.5) {
-          onClose();
+          onClose?.();
         } else {
           setDragY(0);
         }
@@ -37,6 +38,14 @@ export default function BottomModal({
   ).current;
 
   useEffect(() => {
+    // Ensure component is mounted before starting animations
+    setIsReady(true);
+    return () => setIsReady(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isReady) return;
+
     if (visible) {
       setDragY(0);
       Animated.timing(fadeAnim, {
@@ -51,23 +60,38 @@ export default function BottomModal({
         useNativeDriver: true,
       }).start();
     }
-  }, [visible]);
+  }, [visible, isReady]);
+
+  if (!isReady) return null;
 
   return (
     <Modal
       visible={visible}
       animationType="none"
       transparent={true}
-      onRequestClose={onClose}
-      statusBarTranslucent={true}
-    >
-      <StatusBar backgroundColor="rgba(0, 0, 0, 0.5)" translucent={true} />
-      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-        <View 
+      onRequestClose={() => onClose?.()}
+      statusBarTranslucent={Platform.OS === 'android'}
+    >w
+      <StatusBar 
+        backgroundColor="rgba(0, 0, 0, 0.5)" 
+        translucent={Platform.OS === 'android'} 
+      />
+      <Animated.View 
+        style={[
+          styles.overlay,
+          { opacity: fadeAnim }
+        ]}
+      >
+        <Animated.View 
           style={[
             styles.modalWrapper,
             {
-              transform: [{ translateY: Math.max(dragY, 0) }],
+              transform: [{ 
+                translateY: Animated.add(fadeAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [SCREEN_HEIGHT, 0]
+                }), dragY) 
+              }],
               backgroundColor: theme.cardColor,
             },
           ]}
@@ -80,9 +104,14 @@ export default function BottomModal({
               style={[styles.line, { backgroundColor: theme.iconColor }]}
             />
           </View>
-          <CloseButton style={styles.btnClose} onPress={onClose} />
-          <View style={[styles.contentContainer, style]}>{children}</View>
-        </View>
+          <CloseButton 
+            style={styles.btnClose} 
+            onPress={() => onClose?.()} 
+          />
+          <View style={[styles.contentContainer, style]}>
+            {children}
+          </View>
+        </Animated.View>
       </Animated.View>
     </Modal>
   );
@@ -93,7 +122,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: 'flex-end',
-    paddingTop: StatusBar.currentHeight || 0,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
   },
   modalWrapper: {
     height: Platform.OS === 'android' ? SCREEN_HEIGHT * 0.5 : SCREEN_HEIGHT * 0.5,

@@ -23,7 +23,6 @@ export default function StyledAddressPicker({
   onPick,
 }) {
   const router = useRouter();
-
   const { data, loading, error: rvError, reverseGeocode } = useReverseGeocode();
 
   // Format the address string - memoized to recalculate when data changes
@@ -101,6 +100,15 @@ export default function StyledAddressPicker({
     getAddress();
   }, [currentCoordinates, value]);
 
+  // Helper function to get error message from error object or string
+  const getErrorMessage = (err) => {
+    if (!err) return "";
+    if (typeof err === "string") return err;
+    if (err instanceof Error) return err.message;
+    if (typeof err === "object" && err.error) return err.error;
+    return "An error occurred";
+  };
+
   return (
     <TouchableOpacity
       style={[styles.container, style]}
@@ -114,14 +122,18 @@ export default function StyledAddressPicker({
           style={styles.locationIcon}
         />
       )}
-      {rvError || error ? (
+      {(rvError || error) ? (
         <>
           {error && (
-            <StyledLabel text={error} color="danger" style={styles.errorText} />
+            <StyledLabel 
+              text={getErrorMessage(error)} 
+              color="danger" 
+              style={styles.errorText} 
+            />
           )}
           {rvError && (
             <StyledLabel
-              text={rvError}
+              text={getErrorMessage(rvError)}
               color="danger"
               style={styles.errorText}
             />
@@ -130,10 +142,10 @@ export default function StyledAddressPicker({
       ) : (
         <>
           {useLabel ? (
-            <StyledLabel text={addressText} style={styles.label} />
+            <StyledLabel text={addressText || ""} style={styles.label} />
           ) : (
             <StyledTextInput
-              value={addressText}
+              value={addressText || ""}
               onChangeText={onChangeText}
               placeholder={
                 isLoading
@@ -143,6 +155,7 @@ export default function StyledAddressPicker({
               icon={MAP_MARKER}
               editable={editable}
               onPress={handleAddressPickerPress}
+              style={styles.inputText}
             />
           )}
         </>
@@ -165,6 +178,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     zIndex: 9999,
+  },
+  inputText: {
+    zIndex: 10,
   },
   label: {
     marginBottom: 8,
