@@ -68,7 +68,38 @@ export const artisanRegisterSchema = Yup.object().shape({
     .oneOf([Yup.ref("password")], "Passwords must match"),
 });
 
-export const addRequestSchema = Yup.object().shape({});
+export const addRequestSchema = Yup.object().shape({
+  title: Yup.string()
+    .required("Title is required")
+    .min(3, "Title must be at least 3 characters")
+    .max(100, "Title must be less than 100 characters"),
+  description: Yup.string()
+    .required("Description is required")
+    .min(10, "Description must be at least 10 characters")
+    .max(1000, "Description must be less than 1000 characters"),
+  address: Yup.object()
+    .shape({
+      coordinates: Yup.object()
+        .shape({
+          latitude: Yup.number().required("Latitude is required"),
+          longitude: Yup.number().required("Longitude is required"),
+        })
+        .required("Coordinates are required"),
+    })
+    .nullable() // Allow null during loading
+    .required("Please select an address for your service"),
+  serviceType: Yup.string()
+    .required("Service type is required")
+    .notOneOf(["-- select option --"], "Please select a service type"),
+  startDate: Yup.string()
+    .required("Start date is required"),
+  endDate: Yup.string()
+    .required("End date is required"),
+  totalPrice: Yup.number()
+    .required("Total price is required")
+    .positive("Price must be a positive number")
+    .min(1, "Price must be at least 1 MAD"),
+});
 
 // Fonction pour obtenir le schéma approprié en fonction du type d'utilisateur
 export const getRegisterSchema = (userType) => {

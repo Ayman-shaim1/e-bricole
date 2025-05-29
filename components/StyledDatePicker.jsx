@@ -15,6 +15,7 @@ export default function StyledDatePicker({
   mode = "datetime",
   icon,
   placeholder = "Select date/time",
+  width = "100%",
 }) {
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
@@ -299,7 +300,7 @@ export default function StyledDatePicker({
   };
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, { width }]}>
       {label && <StyledLabel text={label} style={styles.label} />}
 
       <StyledTextInput
@@ -308,6 +309,7 @@ export default function StyledDatePicker({
         icon={icon}
         placeholder={placeholder}
         value={getDisplayValue()}
+        width={width}
       />
 
       <BottomModal

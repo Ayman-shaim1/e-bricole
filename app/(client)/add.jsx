@@ -11,14 +11,38 @@ import FormRichTextBox from "../../components/FormRichTextBox";
 import FormButton from "../../components/FormButton";
 import { getServicesTypes } from "../../services/serviceTypesService";
 import FormikDropdown from "../../components/FormikDropdown";
-import StyledDatePicker from "../../components/StyledDatePicker";
+import FormStyledDatePicker from "../../components/FormStyledDatePicker";
+import FormStyledAddressPicker from "../../components/FormStyledAddressPicker";
+import useGeolocation from "../../hooks/useGeolocation";
+
+const EMAIL_ICON = require("../../assets/icons/email.png");
+const PASSWORD_ICON = require("../../assets/icons/key.png");
+const USER_ICON = require("../../assets/icons/user.png");
+const DIPLOME_ICON = require("../../assets/icons/diplome.png");
+const CALANDRIER_ICON = require("../../assets/icons/calendrier.png");
+const PROFESION_ICON = require("../../assets/icons/professions-et-emplois.png");
+const SKILLS_ICON = require("../../assets/icons/competences.png");
+const SERVICE_ICON = require("../../assets/icons/service.png");
 
 export default function AddScreen() {
   const [serviceTypes, setServiceTypes] = useState({});
+  
+  // Get user's current location
+  const { location, error: locationError, isLoading: locationLoading } = useGeolocation();
+  
   const getInitialValues = () => ({
     title: "",
     description: "",
-    serviceTypes: "",
+    serviceType: "",
+    address: location ? {
+      coordinates: {
+        latitude: location.latitude,
+        longitude: location.longitude,
+      },
+      timestamp: Date.now(),
+    } : null,
+    startDate: "",
+    endDate: "",
     totalPrice: 0.0,
   });
 
@@ -70,6 +94,7 @@ export default function AddScreen() {
         </View>
 
         <FormikForm
+          key={location ? 'with-location' : 'no-location'}
           initialValues={getInitialValues()}
           validationSchema={addRequestSchema}
           onSubmit={handleRegister}
@@ -92,6 +117,22 @@ export default function AddScreen() {
                   maxLength={1000}
                   numberOfLines={8}
                 />
+                
+                {/* Address picker - defaults to current location if available */}
+                <FormStyledAddressPicker 
+                  name="address"
+                  label="address :"
+                  useLabel={false}
+                  addressPickerProps={{
+                    coordinates: location ? {
+                      latitude: location.latitude,
+                      longitude: location.longitude,
+                    } : null,
+                    error: locationError,
+                    isLoading: locationLoading,
+                  }}
+                />
+
                 <FormikDropdown
                   name="serviceType"
                   label="service type :"
@@ -102,11 +143,30 @@ export default function AddScreen() {
                   }
                 />
 
-                <StyledDatePicker />
+                <View style={styles.dateRowContainer}>
+                  <FormStyledDatePicker
+                    name="startDate"
+                    label="start date :"
+                    mode="date"
+                    placeholder="Select start date"
+                    icon={CALANDRIER_ICON}
+                    width="100%"
+                    containerStyle={styles.datePickerHalf}
+                  />
+                  <FormStyledDatePicker
+                    name="endDate"
+                    label="end date :"
+                    mode="date"
+                    placeholder="Select end date"
+                    icon={CALANDRIER_ICON}
+                    width="100%"
+                    containerStyle={styles.datePickerHalf}
+                  />
+                </View>
 
                 <FormInput
                   name="totalPrice"
-                  label="totla price (MAD) :"
+                  label="total price (MAD) :"
                   placeholder="e.g. 20 MAD"
                   keyboardType="numeric"
                 />
@@ -126,6 +186,14 @@ export default function AddScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  dateRowContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  datePickerHalf: {
     flex: 1,
   },
 });
