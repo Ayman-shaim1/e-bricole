@@ -1,35 +1,26 @@
 import { useRef, useEffect, useState } from "react";
-import { Modal, StyleSheet, View, PanResponder, Platform, Dimensions, StatusBar, Animated } from "react-native";
+import { Modal, StyleSheet, View, PanResponder } from "react-native";
 import CloseButton from "./CloseButton";
 import { colors } from "../constants/colors";
 import { styles as mystyles } from "../constants/styles";
-import { useTheme } from "../context/ThemeContext";
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function BottomModal({
   visible = false,
   children,
   onClose,
-  style,
+  top = 45,
 }) {
-  const [isReady, setIsReady] = useState(false);
   const [dragY, setDragY] = useState(0);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const { getCurrentTheme } = useTheme();
-  const theme = getCurrentTheme();
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) { // Only allow dragging down
-          setDragY(gestureState.dy);
-        }
+        setDragY(gestureState.dy);
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 100 || gestureState.vy > 0.5) {
-          onClose?.();
+        if (gestureState.dy >= 300) {
+          onClose();
         } else {
           setDragY(0);
         }
@@ -38,119 +29,68 @@ export default function BottomModal({
   ).current;
 
   useEffect(() => {
-    // Ensure component is mounted before starting animations
-    setIsReady(true);
-    return () => setIsReady(false);
-  }, []);
-
-  useEffect(() => {
-    if (!isReady) return;
-
     if (visible) {
       setDragY(0);
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
     }
-  }, [visible, isReady]);
-
-  if (!isReady) return null;
+  }, [visible]);
 
   return (
     <Modal
       visible={visible}
-      animationType="none"
+      style={styles.modal}
+      animationType="fade"
       transparent={true}
-      onRequestClose={() => onClose?.()}
-      statusBarTranslucent={Platform.OS === 'android'}
-    >w
-      <StatusBar 
-        backgroundColor="rgba(0, 0, 0, 0.5)" 
-        translucent={Platform.OS === 'android'} 
-      />
-      <Animated.View 
-        style={[
-          styles.overlay,
-          { opacity: fadeAnim }
-        ]}
-      >
-        <Animated.View 
+    >
+      <View style={styles.overlay}>
+        <View
           style={[
             styles.modalWrapper,
             {
-              transform: [{ 
-                translateY: Animated.add(fadeAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [SCREEN_HEIGHT, 0]
-                }), dragY) 
-              }],
-              backgroundColor: theme.cardColor,
+              transform: [{ translateY: Math.max(dragY, 0) }],
+              top: `${top}%`,
             },
           ]}
+          {...panResponder.panHandlers}
         >
-          <View 
-            {...panResponder.panHandlers}
-            style={styles.dragHandle}
-          >
-            <View
-              style={[styles.line, { backgroundColor: theme.iconColor }]}
-            />
-          </View>
-          <CloseButton 
-            style={styles.btnClose} 
-            onPress={() => onClose?.()} 
-          />
-          <View style={[styles.contentContainer, style]}>
+          <View style={styles.modalContent}>
+            <View style={styles.line}></View>
+            <CloseButton style={styles.btnClose} onPress={onClose} />
             {children}
           </View>
-        </Animated.View>
-      </Animated.View>
+        </View>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  modal: {
+    marginTop: "100%",
+    backgroundColor: colors.primary,
+  },
   overlay: {
-    flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: 'flex-end',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
+    flex: 1,
   },
   modalWrapper: {
-    height: Platform.OS === 'android' ? SCREEN_HEIGHT * 0.5 : SCREEN_HEIGHT * 0.5,
-    width: '100%',
-    backgroundColor: 'white',
-    borderTopLeftRadius: mystyles.borderRadius,
-    borderTopRightRadius: mystyles.borderRadius,
-    overflow: 'hidden',
-  },
-  dragHandle: {
-    width: '100%',
-    paddingVertical: 10,
-    alignItems: 'center',
+    paddingTop: 5,
+    height: "100%",
+    borderRadius: mystyles.borderRadius,
   },
   btnClose: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    zIndex: 10,
+    alignSelf: "flex-end",
   },
-  contentContainer: {
-    flex: 1,
-    paddingHorizontal: 0,
+  modalContent: {
+    backgroundColor: colors.white,
+    height: "100%",
+    padding: 10,
+    borderRadius: mystyles.borderRadius,
   },
   line: {
     height: 4,
-    width: 40,
+    width: 70,
     backgroundColor: colors.gray,
-    borderRadius: 10,
+    alignSelf: "center",
+    borderRadius: mystyles.borderRadius,
   },
 });

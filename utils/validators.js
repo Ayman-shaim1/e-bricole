@@ -175,6 +175,52 @@ export const addRequestSchema = Yup.object().shape({
       const numberValue = Number(value.replace(',', '.'));
       return numberValue >= 1;
     }),
+  images: Yup.array()
+    .of(Yup.string().required("Image URI is required"))
+    .max(5, "Maximum 5 images allowed")
+    .nullable(),
+  taskForms: Yup.array()
+    .of(
+      Yup.object().shape({
+        id: Yup.number().required(),
+        title: Yup.string()
+          .required("Task title is required")
+          .min(3, "Task title must be at least 3 characters")
+          .max(100, "Task title must be less than 100 characters"),
+        description: Yup.string()
+          .required("Task description is required")
+          .min(10, "Task description must be at least 10 characters")
+          .max(500, "Task description must be less than 500 characters"),
+        price: Yup.string()
+          .required("Task price is required")
+          .test("is-number", "Please enter a valid number", function(value) {
+            if (!value) return false;
+            const numberValue = Number(value.replace(',', '.'));
+            return !isNaN(numberValue);
+          })
+          .test("is-positive", "Price must be a positive number", function(value) {
+            if (!value) return false;
+            const numberValue = Number(value.replace(',', '.'));
+            return numberValue > 0;
+          })
+          .test("min-value", "Price must be at least 1 MAD", function(value) {
+            if (!value) return false;
+            const numberValue = Number(value.replace(',', '.'));
+            return numberValue >= 1;
+          }),
+      })
+    )
+    .min(1, "At least one task is required")
+    .test("all-tasks-valid", "All tasks must be valid", function(value) {
+      if (!value || value.length === 0) return false;
+      return value.every(task => 
+        task.title && 
+        task.description && 
+        task.price && 
+        !isNaN(Number(task.price.replace(',', '.'))) && 
+        Number(task.price.replace(',', '.')) > 0
+      );
+    })
 });
 
 // Fonction pour obtenir le schéma approprié en fonction du type d'utilisateur
