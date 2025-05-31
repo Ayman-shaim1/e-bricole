@@ -3,6 +3,7 @@ import { Modal, StyleSheet, View, PanResponder } from "react-native";
 import CloseButton from "./CloseButton";
 import { colors } from "../constants/colors";
 import { styles as mystyles } from "../constants/styles";
+import { useTheme } from "../context/ThemeContext";
 
 export default function BottomModal({
   visible = false,
@@ -10,7 +11,10 @@ export default function BottomModal({
   onClose,
   top = 45,
 }) {
+  const { getCurrentTheme } = useTheme();
+  const theme = getCurrentTheme();
   const [dragY, setDragY] = useState(0);
+
 
   const panResponder = useRef(
     PanResponder.create({
@@ -52,7 +56,7 @@ export default function BottomModal({
           ]}
           {...panResponder.panHandlers}
         >
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent,{backgroundColor:theme.backgroundColor}]}>
             <View style={styles.line}></View>
             <CloseButton style={styles.btnClose} onPress={onClose} />
             {children}
@@ -81,7 +85,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
   },
   modalContent: {
-    backgroundColor: colors.white,
+  
     height: "100%",
     padding: 10,
     borderRadius: mystyles.borderRadius,
