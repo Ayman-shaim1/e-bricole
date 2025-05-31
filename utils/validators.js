@@ -93,88 +93,78 @@ export const addRequestSchema = Yup.object().shape({
     .notOneOf(["-- select option --"], "Please select a service type"),
   startDate: Yup.string()
     .required("Start date is required")
-    .test("is-today-or-future", "Start date cannot be in the past", function(value) {
-      if (!value) return false;
-      
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      // Parse the date string (format: MM/DD/YYYY)
-      const dateParts = value.split('/');
-      if (dateParts.length !== 3) return false;
-      
-      const month = parseInt(dateParts[0]) - 1; // Month is 0-indexed
-      const day = parseInt(dateParts[1]);
-      const year = parseInt(dateParts[2]);
-      
-      const selectedDate = new Date(year, month, day);
-      selectedDate.setHours(0, 0, 0, 0);
-      
-      return selectedDate >= today;
-    }),
+    .test(
+      "is-today-or-future",
+      "Start date cannot be in the past",
+      function (value) {
+        if (!value) return false;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Parse the date string (format: MM/DD/YYYY)
+        const dateParts = value.split("/");
+        if (dateParts.length !== 3) return false;
+
+        const month = parseInt(dateParts[0]) - 1; // Month is 0-indexed
+        const day = parseInt(dateParts[1]);
+        const year = parseInt(dateParts[2]);
+
+        const selectedDate = new Date(year, month, day);
+        selectedDate.setHours(0, 0, 0, 0);
+
+        return selectedDate >= today;
+      }
+    ),
   endDate: Yup.string()
     .required("End date is required")
-    .test("is-after-today", "End date must be after today", function(value) {
+    .test("is-after-today", "End date must be after today", function (value) {
       if (!value) return false;
-      
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       // Parse the date string (format: MM/DD/YYYY)
-      const dateParts = value.split('/');
+      const dateParts = value.split("/");
       if (dateParts.length !== 3) return false;
-      
+
       const month = parseInt(dateParts[0]) - 1; // Month is 0-indexed
       const day = parseInt(dateParts[1]);
       const year = parseInt(dateParts[2]);
-      
+
       const selectedDate = new Date(year, month, day);
       selectedDate.setHours(0, 0, 0, 0);
-      
+
       return selectedDate > today;
     })
-    .test("is-after-start-date", "End date must be after start date", function(value) {
-      const { startDate } = this.parent;
-      if (!value || !startDate) return true;
-      
-      // Parse start date (format: MM/DD/YYYY)
-      const startParts = startDate.split('/');
-      if (startParts.length !== 3) return true;
-      
-      const startMonth = parseInt(startParts[0]) - 1;
-      const startDay = parseInt(startParts[1]);
-      const startYear = parseInt(startParts[2]);
-      const startDateObj = new Date(startYear, startMonth, startDay);
-      
-      // Parse end date (format: MM/DD/YYYY)
-      const endParts = value.split('/');
-      if (endParts.length !== 3) return true;
-      
-      const endMonth = parseInt(endParts[0]) - 1;
-      const endDay = parseInt(endParts[1]);
-      const endYear = parseInt(endParts[2]);
-      const endDateObj = new Date(endYear, endMonth, endDay);
-      
-      return endDateObj > startDateObj;
-    }),
-  totalPrice: Yup.string()
-    .required("Total price is required")
-    .test("is-number", "Please enter a valid number", function(value) {
-      if (!value) return false;
-      // Replace comma with dot and try to convert to number
-      const numberValue = Number(value.replace(',', '.'));
-      return !isNaN(numberValue);
-    })
-    .test("is-positive", "Price must be a positive number", function(value) {
-      if (!value) return false;
-      const numberValue = Number(value.replace(',', '.'));
-      return numberValue > 0;
-    })
-    .test("min-value", "Price must be at least 1 MAD", function(value) {
-      if (!value) return false;
-      const numberValue = Number(value.replace(',', '.'));
-      return numberValue >= 1;
-    }),
+    .test(
+      "is-after-start-date",
+      "End date must be after start date",
+      function (value) {
+        const { startDate } = this.parent;
+        if (!value || !startDate) return true;
+
+        // Parse start date (format: MM/DD/YYYY)
+        const startParts = startDate.split("/");
+        if (startParts.length !== 3) return true;
+
+        const startMonth = parseInt(startParts[0]) - 1;
+        const startDay = parseInt(startParts[1]);
+        const startYear = parseInt(startParts[2]);
+        const startDateObj = new Date(startYear, startMonth, startDay);
+
+        // Parse end date (format: MM/DD/YYYY)
+        const endParts = value.split("/");
+        if (endParts.length !== 3) return true;
+
+        const endMonth = parseInt(endParts[0]) - 1;
+        const endDay = parseInt(endParts[1]);
+        const endYear = parseInt(endParts[2]);
+        const endDateObj = new Date(endYear, endMonth, endDay);
+
+        return endDateObj > startDateObj;
+      }
+    ),
   images: Yup.array()
     .of(Yup.string().required("Image URI is required"))
     .max(5, "Maximum 5 images allowed")
@@ -193,34 +183,40 @@ export const addRequestSchema = Yup.object().shape({
           .max(500, "Task description must be less than 500 characters"),
         price: Yup.string()
           .required("Task price is required")
-          .test("is-number", "Please enter a valid number", function(value) {
+          .test("is-number", "Please enter a valid number", function (value) {
             if (!value) return false;
-            const numberValue = Number(value.replace(',', '.'));
+            const numberValue = Number(value.replace(",", "."));
             return !isNaN(numberValue);
           })
-          .test("is-positive", "Price must be a positive number", function(value) {
+          .test(
+            "is-positive",
+            "Price must be a positive number",
+            function (value) {
+              if (!value) return false;
+              const numberValue = Number(value.replace(",", "."));
+              return numberValue > 0;
+            }
+          )
+          .test("min-value", "Price must be at least 1 MAD", function (value) {
             if (!value) return false;
-            const numberValue = Number(value.replace(',', '.'));
-            return numberValue > 0;
-          })
-          .test("min-value", "Price must be at least 1 MAD", function(value) {
-            if (!value) return false;
-            const numberValue = Number(value.replace(',', '.'));
+            const numberValue = Number(value.replace(",", "."));
             return numberValue >= 1;
           }),
       })
     )
     .min(1, "At least one task is required")
-    .test("all-tasks-valid", "All tasks must be valid", function(value) {
+    .test("all-tasks-valid", "All tasks must be valid", function (value) {
       if (!value || value.length === 0) return false;
-      return value.every(task => 
-        task.title && 
-        task.description && 
-        task.price && 
-        !isNaN(Number(task.price.replace(',', '.'))) && 
-        Number(task.price.replace(',', '.')) > 0
+      return value.every(
+        (task) =>
+          task.title &&
+          task.description &&
+          task.price &&
+          !isNaN(Number(task.price.replace(",", "."))) &&
+          Number(task.price.replace(",", ".")) > 0
       );
-    })
+    }),
+  totalPrice: Yup.string().nullable(),
 });
 
 // Fonction pour obtenir le schéma approprié en fonction du type d'utilisateur

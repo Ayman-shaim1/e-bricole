@@ -7,7 +7,9 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Platform,
+  ActivityIndicator,
   TouchableOpacity,
+  Text,
 } from "react-native";
 import React, { useEffect, useState, useRef } from "react";
 import ThemedView from "../../components/ThemedView";
@@ -37,9 +39,14 @@ const PROFESION_ICON = require("../../assets/icons/professions-et-emplois.png");
 const SKILLS_ICON = require("../../assets/icons/competences.png");
 const SERVICE_ICON = require("../../assets/icons/service.png");
 
+const FieldLabel = ({ text }) => {
+  return <Text style={styles.fieldLabel}>{text}</Text>;
+};
+
 export default function AddScreen() {
   const [serviceTypes, setServiceTypes] = useState([]);
   const formRef = useRef(null);
+  const [totalPrice, setTotalPrice] = useState("0");
 
   // Get user's current location
   const { location, isLoading: locationLoading } = useGeolocation();
@@ -86,108 +93,140 @@ export default function AddScreen() {
         : null,
       startDate: todayFormatted,
       endDate: tomorrowFormatted,
-      totalPrice: "0",
+      totalPrice: 0,
       images: [],
       tasks: [],
       taskForms: [initialTask],
     };
   };
 
-  const calculateTotalPrice = (tasks) => {
-    return tasks
-      .reduce((total, task) => {
-        const price = parseFloat(task.price.toString().replace(',', '.')) || 0;
-        return total + price;
-      }, 0)
-      .toFixed(2);
+  const updateTotalPrice = (tasks) => {
+    if (!tasks || tasks.length === 0) return "0";
+    
+    const total = tasks.reduce((sum, task) => {
+      if (!task) return sum;
+      const price = task.price
+        ? parseFloat(task.price.toString().replace(",", "."))
+        : 0;
+      return sum + (isNaN(price) ? 0 : price);
+    }, 0);
+    setTotalPrice(total.toFixed(2));
+    return total.toFixed(2);
+  };
+
+  const handlePriceChange = (text, taskIndex, setFieldValue) => {
+    try {
+      // Format input to only allow numbers and one comma
+      const formatted = text
+        ? text.replace(/[^0-9,]/g, "").replace(/(,.*),/g, "$1")
+        : "0";
+  
+      // Get current tasks
+      const currentForms = formRef.current.values.taskForms || [];
+      if (taskIndex < 0 || taskIndex >= currentForms.length) return;
+
+      const updatedForms = [...currentForms];
+      
+      // Update price for specific task
+      updatedForms[taskIndex] = {
+        ...updatedForms[taskIndex],
+        price: formatted
+      };
+      
+      // Update form values
+      setFieldValue(`taskForms.${taskIndex}.price`, formatted);
+      
+      // Update total price
+      const newTotal = updateTotalPrice(updatedForms);
+      setFieldValue("totalPrice", newTotal);
+    } catch (error) {
+      console.error("Error updating price:", error);
+    }
   };
 
   const handleAddTaskForm = (setFieldValue) => {
-    const currentForms = formRef.current.values.taskForms;
+    const currentForms = formRef.current.values.taskForms || [];
     const newForm = {
       id: currentForms.length + 1,
       title: "",
       description: "",
-      price: "",
+      price: "0",
     };
-    setFieldValue("taskForms", [...currentForms, newForm]);
+    const updatedForms = [...currentForms, newForm];
+    setFieldValue("taskForms", updatedForms);
+    
+    // Initialize total price when adding new task
+    const newTotalPrice = updateTotalPrice(updatedForms);
+    setFieldValue("totalPrice", newTotalPrice);
   };
 
-  const handleRemoveTaskForm = (formId, setFieldValue) => {
-    const currentForms = formRef.current.values.taskForms;
-    const updatedForms = currentForms.filter((form) => form.id !== formId);
-    setFieldValue("taskForms", updatedForms);
+  const handleRemoveTaskForm = (index, setFieldValue) => {
+    try {
+      const currentForms = formRef.current.values.taskForms || [];
+      if (index < 0 || index >= currentForms.length) return;
+
+      const updatedForms = currentForms.filter((_, i) => i !== index);
+      
+      // Réindexer les IDs des tâches restantes et s'assurer que chaque tâche a un prix
+      const reindexedForms = updatedForms.map((form, i) => ({
+        ...form,
+        id: i + 1,
+        price: form.price || "0"
+      }));
+
+      // Mettre à jour les tâches
+      setFieldValue("taskForms", reindexedForms);
+      
+      // Mettre à jour le prix total après un court délai pour s'assurer que les valeurs sont à jour
+      setTimeout(() => {
+        const newTotalPrice = updateTotalPrice(reindexedForms);
+        setFieldValue("totalPrice", newTotalPrice);
+      }, 0);
+    } catch (error) {
+      console.error("Error removing task:", error);
+    }
   };
 
   const handleSubmiteForm = async (values, { setSubmitting, resetForm }) => {
-    console.log("handleSubmiteForm started");
     try {
-      console.log("Form submission started");
+      console.log("handleSubmiteForm started");
+      setSubmitting(true);
       console.log("Form values:", JSON.stringify(values, null, 2));
 
-      // Validate that we have at least one task
-      if (!values.taskForms || values.taskForms.length === 0) {
-        console.log("No tasks found");
-        Alert.alert("Error", "Please add at least one task");
-        return;
-      }
-
       // Transform taskForms into tasks for submission
-      const processedTasks = values.taskForms.map(task => ({
-        title: task.title,
-        description: task.description,
-        price: parseFloat(task.price.toString().replace(',', '.'))
+      const processedTasks = values.taskForms.map((task) => ({
+        title: task.title || "",
+        description: task.description || "",
+        price: task.price
+          ? parseFloat(task.price.toString().replace(",", "."))
+          : 0,
       }));
 
       // Update tasks array
       values.tasks = processedTasks;
 
       // Calculate final total price from tasks
-      const finalTotalPrice = calculateTotalPrice(processedTasks);
+      const finalTotalPrice = updateTotalPrice(processedTasks);
       values.totalPrice = finalTotalPrice;
 
       console.log("Processed values:", {
         tasks: values.tasks,
         taskForms: values.taskForms,
-        totalPrice: values.totalPrice
+        totalPrice: values.totalPrice,
       });
 
-      // Validate that all task forms are properly filled
-      const invalidTasks = values.taskForms.filter(
-        (task) => !task.title || !task.description || !task.price
+      console.log(
+        "Final values before submission:",
+        JSON.stringify(values, null, 2)
       );
-
-      if (invalidTasks.length > 0) {
-        console.log("Found invalid tasks");
-        Alert.alert(
-          "Error",
-          "Please fill in all fields for each task (title, description, and price)"
-        );
-        return;
-      }
-
-      // Validate that all prices are valid numbers
-      const invalidPrices = processedTasks.filter((task) => {
-        return isNaN(task.price) || task.price <= 0;
-      });
-
-      if (invalidPrices.length > 0) {
-        console.log("Found invalid prices");
-        Alert.alert(
-          "Error",
-          "Please enter valid prices (positive numbers) for all tasks"
-        );
-        return;
-      }
-
-      console.log("Final values before submission:", JSON.stringify(values, null, 2));
-
-      // Your existing submission logic here
       console.log("Submitting form with values:", values);
 
       // Show success message
       Alert.alert("Success", "Your request has been submitted successfully!", [
-        { text: "OK" },
+        {
+          text: "OK",
+          onPress: () => {},
+        },
       ]);
     } catch (error) {
       console.error("Submission error:", error);
@@ -268,44 +307,63 @@ export default function AddScreen() {
               enableReinitialize={false}
               innerRef={formRef}
             >
-              {({ isSubmitting, setFieldValue, validateField, errors, touched, handleSubmit }) => (
+              {({
+                isSubmitting,
+                setFieldValue,
+                validateField,
+                errors,
+                touched,
+                handleSubmit,
+                values,
+                setFieldTouched,
+              }) => (
                 <StyledCard>
-                  <FormInput
-                    name="title"
-                    label="title :"
-                    placeholder="e.g. Full Apartment Cleaning"
-                  />
+                  <View>
+                    <Text style={styles.fieldLabel}>Request Title</Text>
+                    <FormInput
+                      name="title"
+                      placeholder="e.g. Full Apartment Cleaning"
+                      onBlur={() => setFieldTouched("title", true)}
+                    />
+                  </View>
 
-                  <FormRichTextBox
-                    name="description"
-                    label="description :"
-                    placeholder="e.g. Need apartment cleaning, 3 bedrooms, kitchen and bathrooms included"
-                    minHeight={150}
-                    maxLength={1000}
-                    numberOfLines={8}
-                  />
+                  <View>
+                    <Text style={styles.fieldLabel}>Request Description</Text>
+                    <FormRichTextBox
+                      name="description"
+                      placeholder="e.g. Need apartment cleaning, 3 bedrooms, kitchen and bathrooms included"
+                      minHeight={150}
+                      maxLength={1000}
+                      numberOfLines={8}
+                      onBlur={() => setFieldTouched("description", true)}
+                    />
+                  </View>
 
                   <View style={styles.addressPickerContainer}>
+                    <Text style={styles.fieldLabel}>Service Location</Text>
                     <FormAddressPicker
                       name="address"
                       useLabel={false}
-                      label="Adresse"
                       isLoading={locationLoading}
                       onPick={(selectedAddress) => {
                         setFieldValue("address", selectedAddress);
+                        setFieldTouched("address", true);
                       }}
                     />
                   </View>
 
-                  <FormikDropdown
-                    name="serviceType"
-                    label="service type :"
-                    options={
-                      serviceTypes.length > 0
-                        ? serviceTypes
-                        : ["-- select option --"]
-                    }
-                  />
+                  <View>
+                    <Text style={styles.fieldLabel}>Service Type</Text>
+                    <FormikDropdown
+                      name="serviceType"
+                      options={
+                        serviceTypes.length > 0
+                          ? serviceTypes
+                          : ["-- select option --"]
+                      }
+                      onValueChange={() => setFieldTouched("serviceType", true)}
+                    />
+                  </View>
 
                   <View style={styles.dateRowContainer}>
                     <FormStyledDatePicker
@@ -325,6 +383,7 @@ export default function AddScreen() {
                       onDateChange={() => {
                         setTimeout(() => {
                           validateField("endDate");
+                          setFieldTouched("startDate", true);
                         }, 150);
                       }}
                     />
@@ -350,6 +409,7 @@ export default function AddScreen() {
                         setTimeout(() => {
                           validateField("startDate");
                           validateField("endDate");
+                          setFieldTouched("endDate", true);
                         }, 150);
                       }}
                     />
@@ -361,12 +421,15 @@ export default function AddScreen() {
                     maxImages={5}
                     onImagesChange={(images) => {
                       setFieldValue("images", images);
+                      setFieldTouched("images", true);
                     }}
                   />
 
                   <View style={styles.taskSection}>
                     <View style={styles.taskSectionHeader}>
-                      <StyledText text="Tasks" style={styles.sectionTitle} />
+                      <Text style={[styles.fieldLabel, { marginTop: 0 }]}>
+                        Tasks List
+                      </Text>
                       <TouchableOpacity
                         style={styles.addTaskButton}
                         onPress={() => handleAddTaskForm(setFieldValue)}
@@ -379,18 +442,24 @@ export default function AddScreen() {
                       </TouchableOpacity>
                     </View>
 
-                    {formRef.current?.values.taskForms.map((form) => (
+                    {errors.taskForms &&
+                      typeof errors.taskForms === "string" && (
+                        <Text style={styles.fieldError}>
+                          {errors.taskForms}
+                        </Text>
+                      )}
+
+                    {formRef.current?.values.taskForms.map((form, index) => (
                       <StyledCard key={form.id} style={styles.taskForm}>
                         <View style={styles.taskFormHeader}>
-                          <StyledText
-                            text={`Task ${form.id}`}
-                            style={styles.taskFormTitle}
-                          />
+                          <Text style={[styles.fieldLabel, { marginTop: 0 }]}>
+                            Task {index + 1}
+                          </Text>
                           {formRef.current.values.taskForms.length > 1 && (
                             <TouchableOpacity
                               style={styles.removeTaskFormButton}
                               onPress={() =>
-                                handleRemoveTaskForm(form.id, setFieldValue)
+                                handleRemoveTaskForm(index, setFieldValue)
                               }
                             >
                               <Ionicons
@@ -401,56 +470,80 @@ export default function AddScreen() {
                             </TouchableOpacity>
                           )}
                         </View>
-                        <FormInput
-                          name={`taskForms[${form.id - 1}].title`}
-                          label="Task Title:"
-                          placeholder="Enter task title"
-                        />
-                        <FormRichTextBox
-                          name={`taskForms[${form.id - 1}].description`}
-                          label="Task Description:"
-                          placeholder="Enter task description"
-                          minHeight={100}
-                          maxLength={500}
-                          numberOfLines={4}
-                        />
-                        <FormInput
-                          name={`taskForms[${form.id - 1}].price`}
-                          label="Task Price (MAD):"
-                          placeholder="Enter task price"
-                          keyboardType="decimal-pad"
-                          onChangeText={(text) => {
-                            const formatted = text
-                              .replace(/[^0-9,]/g, "")
-                              .replace(/(,.*),/g, "$1");
-                            setFieldValue(
-                              `taskForms[${form.id - 1}].price`,
-                              formatted
-                            );
-                          }}
-                        />
+
+                        <View>
+                          <Text style={styles.fieldLabel}>Task Title</Text>
+                          <FormInput
+                            name={`taskForms.${index}.title`}
+                            placeholder="Enter task title"
+                            onBlur={() =>
+                              setFieldTouched(`taskForms.${index}.title`, true)
+                            }
+                          />
+                        </View>
+
+                        <View>
+                          <Text style={styles.fieldLabel}>
+                            Task Description
+                          </Text>
+                          <FormRichTextBox
+                            name={`taskForms.${index}.description`}
+                            placeholder="Enter task description"
+                            minHeight={100}
+                            maxLength={500}
+                            numberOfLines={4}
+                            onBlur={() =>
+                              setFieldTouched(
+                                `taskForms.${index}.description`,
+                                true
+                              )
+                            }
+                          />
+                        </View>
+
+                        <View>
+                          <Text style={styles.fieldLabel}>
+                            Task Price (MAD)
+                          </Text>
+                          <FormInput
+                            name={`taskForms.${index}.price`}
+                            placeholder="Enter task price"
+                            keyboardType="decimal-pad"
+                            onChangeText={(text) => {
+                              handlePriceChange(text, index, setFieldValue);
+                              setFieldTouched(`taskForms.${index}.price`, true);
+                            }}
+                            value={values.taskForms?.[index]?.price || "0"}
+                          />
+                        </View>
                       </StyledCard>
                     ))}
-
-                    {/* Total Price Display */}
-                    <StyledCard style={styles.totalPriceContainer}>
-                      <View style={styles.totalPriceRow}>
-                        <StyledText
-                          text="Total Price:"
-                          style={styles.totalPriceLabel}
-                        />
-                        <StyledText
-                          text={`${formRef.current?.values.totalPrice || "0.00"} MAD`}
-                          style={styles.totalPriceValue}
-                        />
-                      </View>
-                    </StyledCard>
                   </View>
-                  
-                  <FormButton 
-                    text="Submit Request" 
-                    isLoading={isSubmitting} 
-                    onPress={handleSubmit}
+
+                  {errors.submit && (
+                    <Text style={[styles.fieldError, styles.submitError]}>
+                      {errors.submit}
+                    </Text>
+                  )}
+
+                  <FormButton
+                    text="Submit Request"
+                    isLoading={isSubmitting}
+                    onPress={() => {
+                      // Mark all fields as touched to show validation errors
+                      Object.keys(values).forEach((fieldName) => {
+                        setFieldTouched(fieldName, true);
+                      });
+
+                      // For nested taskForms fields
+                      values.taskForms.forEach((_, index) => {
+                        setFieldTouched(`taskForms.${index}.title`, true);
+                        setFieldTouched(`taskForms.${index}.description`, true);
+                        setFieldTouched(`taskForms.${index}.price`, true);
+                      });
+
+                      handleSubmit();
+                    }}
                   />
                 </StyledCard>
               )}
@@ -535,34 +628,51 @@ const styles = StyleSheet.create({
     backgroundColor: colors.light.cardBackground,
   },
   totalPriceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   totalPriceLabel: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: colors.light.textColor,
   },
   totalPriceValue: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: colors.primary,
   },
   errorContainer: {
-    marginTop: 15,
-    padding: 10,
+    marginTop: 8,
+    padding: 8,
     backgroundColor: colors.light.errorBackground,
-    borderRadius: 5,
-  },
-  errorTitle: {
-    color: colors.danger,
-    fontWeight: 'bold',
-    marginBottom: 5,
+    borderRadius: 4,
   },
   errorText: {
     color: colors.danger,
-    marginLeft: 10,
-    marginBottom: 3,
+    fontSize: 14,
+  },
+  fieldError: {
+    color: colors.danger,
+    fontSize: 12,
+    marginTop: 4,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  submitError: {
+    textAlign: "center",
+    marginTop: 10,
+    marginBottom: 10,
+    fontSize: 14,
+    backgroundColor: "#ffebee",
+    padding: 10,
+    borderRadius: 4,
+  },
+  fieldLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.light.textColor,
+    marginBottom: 8,
+    marginTop: 12,
   },
 });
