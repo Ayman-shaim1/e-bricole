@@ -12,42 +12,17 @@ import BottomModal from "./BottomModal";
 import StyledLabel from "./StyledLabel";
 import { colors } from "../constants/colors";
 
-export default function StyledDropdown({ 
-  options = [], 
-  icon, 
-  selectedOption, 
-  setOption, 
-  withIcons = false,
-  getOptionLabel = (item) => typeof item === 'object' ? item.label : item,
-  getOptionIcon = (item) => typeof item === 'object' ? item.icon : null,
-  getOptionValue = (item) => typeof item === 'object' ? item.value : item,
+export default function StyledDropdown({
+  options = [],
+  icon,
+  selectedOption,
+  selectedOptionText,
+  setOption,
 }) {
   const [showModal, setShowModal] = useState(false);
-  const [selected, setSelected] = useState(selectedOption || (options.length > 0 ? getOptionLabel(options[0]) : ""));
-  const [selectedItem, setSelectedItem] = useState(options.length > 0 ? options[0] : null);
-
-  useEffect(() => {
-    if (selectedOption) {
-      // Find the option that matches the selectedOption
-      const foundOption = options.find(opt => 
-        getOptionLabel(opt) === selectedOption || getOptionValue(opt) === selectedOption
-      );
-      if (foundOption) {
-        setSelectedItem(foundOption);
-        setSelected(getOptionLabel(foundOption));
-      } else {
-        setSelected(selectedOption);
-      }
-    }
-  }, [selectedOption, options]);
 
   const handleSelect = (item) => {
-    setSelectedItem(item);
-    setSelected(getOptionLabel(item));
-    if (setOption) {
-      // Pass the whole item or just the value based on what the parent expects
-      setOption(withIcons ? item : getOptionValue(item));
-    }
+    setOption(item.value);
     setShowModal(false);
   };
 
@@ -57,8 +32,7 @@ export default function StyledDropdown({
         editable={false}
         onPress={() => setShowModal(true)}
         icon={icon}
-        placeholder={selected}
-        value={selected}
+        value={selectedOptionText}
       />
       <BottomModal
         style={styles.modalContainer}
@@ -68,36 +42,17 @@ export default function StyledDropdown({
         <FlatList
           data={options}
           renderItem={({ item }) => {
-            const itemLabel = getOptionLabel(item);
-            const itemIcon = withIcons ? getOptionIcon(item) : null;
-            const isSelected = selectedItem === item || selected === itemLabel;
-            
             return (
-              <TouchableOpacity 
-                style={[styles.optionContainer, isSelected && styles.selectedOption]} 
+              <TouchableOpacity
+                style={[styles.optionContainer]}
                 onPress={() => handleSelect(item)}
-                activeOpacity={0.7}
               >
-                {withIcons && itemIcon ? (
-                  <View style={styles.optionWithIconContainer}>
-                    <Image source={itemIcon} style={styles.optionIcon} />
-                    <StyledLabel 
-                      text={itemLabel} 
-                      textStyle={[styles.optionWithIconText, isSelected && styles.selectedText]} 
-                    />
-                  </View>
-                ) : (
-                  <StyledLabel 
-                    text={itemLabel} 
-                    textStyle={isSelected && styles.selectedText} 
-                  />
-                )}
+                {item.icon && item.icon}
+                {item.image && <Image source={item.image} width={30} />}
+
+                <StyledLabel text={item.label} />
               </TouchableOpacity>
             );
-          }}
-          keyExtractor={(item, index) => {
-            const itemValue = getOptionValue(item);
-            return typeof itemValue === 'string' ? itemValue : index.toString();
           }}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
@@ -127,11 +82,11 @@ const styles = StyleSheet.create({
   },
   selectedText: {
     color: colors.primary,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   optionWithIconContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   optionIcon: {
     width: 24,

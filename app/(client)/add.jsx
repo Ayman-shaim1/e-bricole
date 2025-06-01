@@ -9,6 +9,7 @@ import {
   Keyboard,
   Platform,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ThemedView from "../../components/ThemedView";
@@ -28,13 +29,24 @@ import { getServicesTypes } from "../../services/serviceTypesService";
 import { addRequestSchema } from "../../utils/validators";
 import { colors } from "../../constants/colors";
 import StyledLabel from "../../components/StyledLabel";
+import { useAuth } from "../../context/AuthContext";
+import {
+  createServiceRequest,
+  createAddress,
+  createServiceTask,
+} from "../../services/requestService";
 
 const CALENDAR_ICON = require("../../assets/icons/calendrier.png");
 
 export default function AddScreen() {
   const [serviceTypes, setServiceTypes] = useState([]);
+  const [serviceTypeOptions, setServiceTypeOptions] = useState([
+    { value: "-- select option --", label: "-- select option --" },
+  ]);
+  const [serviceTypeMap, setServiceTypeMap] = useState({});
   const [totalPrice, setTotalPrice] = useState(0);
   const formRef = useRef(null);
+  const { user } = useAuth();
 
   // Récupérer la géolocalisation de l'utilisateur
   const { location, isLoading: locationLoading } = useGeolocation();
@@ -98,11 +110,25 @@ export default function AddScreen() {
       try {
         const data = await getServicesTypes();
         if (data && data.length > 0) {
-          const formatted = [
-            "-- select option --",
-            ...data.map((item) => item.title),
+          // Créer un mapping des titres vers les IDs
+          const mapping = {};
+          data.forEach((item) => {
+            mapping[item.title] = item.id;
+          });
+          setServiceTypeMap(mapping);
+
+          // Créer la liste des options pour le dropdown avec valeur et label
+          const options = [
+            { value: "", label: "-- select option --" },
+            ...data.map((item) => ({
+              value: item.title,
+              label: item.title,
+            })),
           ];
-          setServiceTypes(formatted);
+          setServiceTypeOptions(options);
+
+          // Stocker les données complètes
+          setServiceTypes(data);
         }
       } catch (err) {
         console.error("Error fetching service types:", err);
@@ -130,6 +156,58 @@ export default function AddScreen() {
     }
   }, [location]);
 
+  // Handle form submission
+  const handleFormSubmit = async (values, { setSubmitting, resetForm }) => {
+    try {
+      setSubmitting(true);
+
+      const requestData = {
+        title: values.title,
+        description: values.description,
+        serviceType: values.serviceType,
+        address: {
+          coordinates: values.address.coordinates,
+          textAddress: values.address.address || "",
+        },
+        startDate: values.startDate,
+        endDate: values.endDate,
+        totalPrice: values.totalPrice,
+        images: values.images || [],
+        tasks: values.taskForms.map((t) => ({
+          title: t.title || "",
+          description: t.description || "",
+          price: parseFloat(t.price.replace(",", ".")) || 0,
+        })),
+        user: user.$id,
+      };
+
+      // Créer le service request avec toutes les relations
+      const result = await createServiceRequest(requestData);
+
+      if (result.success) {
+        // Reset form to initial state
+        resetForm({ values: getInitialValues() });
+        setTotalPrice(0);
+
+        Alert.alert(
+          "Success",
+          "Your service request has been created successfully!",
+          [{ text: "OK" }]
+        );
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (err) {
+      console.error("Submission error:", err);
+      Alert.alert(
+        "Error",
+        "An error occurred while submitting your request. Please try again."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <ThemedView style={styles.container}>
       <KeyboardAvoidingView
@@ -152,40 +230,7 @@ export default function AddScreen() {
               innerRef={formRef}
               initialValues={getInitialValues()}
               validationSchema={addRequestSchema}
-              onSubmit={async (values, { setSubmitting }) => {
-                try {
-                  setSubmitting(true);
-
-                  // Transformer taskForms en tasks finales
-                  const processedTasks = values.taskForms.map((t) => ({
-                    title: t.title || "",
-                    description: t.description || "",
-                    price: parseFloat(t.price.replace(",", ".")) || 0,
-                  }));
-
-                  values.tasks = processedTasks;
-                  values.totalPrice = calculateTotalFromForms(values.taskForms);
-
-                  console.log(
-                    "Final Submit Values:",
-                    JSON.stringify(values, null, 2)
-                  );
-
-                  Alert.alert(
-                    "Success",
-                    "Your request has been submitted successfully!",
-                    [{ text: "OK", onPress: () => {} }]
-                  );
-                } catch (err) {
-                  console.error("Submission error:", err);
-                  Alert.alert(
-                    "Error",
-                    "An error occurred while submitting your request. Please try again."
-                  );
-                } finally {
-                  setSubmitting(false);
-                }
-              }}
+              onSubmit={handleFormSubmit}
             >
               {({
                 values,
@@ -195,6 +240,7 @@ export default function AddScreen() {
                 setFieldTouched,
                 handleSubmit,
                 isSubmitting,
+                resetForm,
               }) => {
                 // Recalcul du total dès que taskForms change
                 useEffect(() => {
@@ -232,17 +278,24 @@ export default function AddScreen() {
                   <StyledCard>
                     {/* Request Title */}
                     <View>
-                      <StyledLabel text="Request Title" style={styles.fieldLabel} />
+                      <StyledLabel
+                        text="Request Title"
+                        style={styles.fieldLabel}
+                      />
                       <FormInput
                         name="title"
                         placeholder="e.g. Full Apartment Cleaning"
                         onBlur={() => setFieldTouched("title", true)}
+                        editable={!isSubmitting}
                       />
                     </View>
 
                     {/* Request Description */}
                     <View>
-                      <StyledLabel text="Request Description" style={styles.fieldLabel} />
+                      <StyledLabel
+                        text="Request Description"
+                        style={styles.fieldLabel}
+                      />
                       <FormRichTextBox
                         name="description"
                         placeholder="e.g. Need apartment cleaning, 3 bedrooms, kitchen and bathrooms included"
@@ -250,12 +303,16 @@ export default function AddScreen() {
                         maxLength={1000}
                         numberOfLines={8}
                         onBlur={() => setFieldTouched("description", true)}
+                        editable={!isSubmitting}
                       />
                     </View>
 
                     {/* Service Location */}
                     <View style={styles.addressPickerContainer}>
-                      <StyledLabel text="Service Location" style={styles.fieldLabel} />
+                      <StyledLabel
+                        text="Service Location"
+                        style={styles.fieldLabel}
+                      />
                       <FormAddressPicker
                         name="address"
                         useLabel={false}
@@ -264,22 +321,20 @@ export default function AddScreen() {
                           setFieldValue("address", picked);
                           setFieldTouched("address", true);
                         }}
+                        disabled={isSubmitting}
                       />
                     </View>
 
                     {/* Service Type */}
                     <View>
-                      <StyledLabel text="Service Type" style={styles.fieldLabel} />
+                      <StyledLabel
+                        text="Service Type"
+                        style={styles.fieldLabel}
+                      />
                       <FormikDropdown
                         name="serviceType"
-                        options={
-                          serviceTypes.length > 0
-                            ? serviceTypes
-                            : ["-- select option --"]
-                        }
-                        onValueChange={() =>
-                          setFieldTouched("serviceType", true)
-                        }
+                        options={serviceTypeOptions}
+                        disabled={isSubmitting}
                       />
                     </View>
 
@@ -300,6 +355,7 @@ export default function AddScreen() {
                             setFieldTouched("endDate", true);
                           }, 150);
                         }}
+                        disabled={isSubmitting}
                       />
                       <FormStyledDatePicker
                         name="endDate"
@@ -316,6 +372,7 @@ export default function AddScreen() {
                             setFieldTouched("startDate", true);
                           }, 150);
                         }}
+                        disabled={isSubmitting}
                       />
                     </View>
 
@@ -328,15 +385,23 @@ export default function AddScreen() {
                         setFieldValue("images", imgs);
                         setFieldTouched("images", true);
                       }}
+                      disabled={isSubmitting}
                     />
 
                     {/* Section Tâches */}
                     <View style={styles.taskSection}>
                       <View style={styles.taskSectionHeader}>
-                        <StyledLabel text="Tasks List" style={[styles.fieldLabel, { marginTop: 0 }]} />
+                        <StyledLabel
+                          text="Tasks List"
+                          style={[styles.fieldLabel, { marginTop: 0 }]}
+                        />
                         <TouchableOpacity
-                          style={styles.addTaskButton}
+                          style={[
+                            styles.addTaskButton,
+                            isSubmitting && styles.disabledButton,
+                          ]}
                           onPress={addTaskForm}
+                          disabled={isSubmitting}
                         >
                           <Ionicons
                             name="add-circle"
@@ -352,14 +417,18 @@ export default function AddScreen() {
                         return (
                           <StyledCard key={task.id} style={styles.taskForm}>
                             <View style={styles.taskFormHeader}>
-                              <StyledLabel 
-                                text={`Task ${index + 1}`} 
-                                style={[styles.fieldLabel, { marginTop: 0 }]} 
+                              <StyledLabel
+                                text={`Task ${index + 1}`}
+                                style={[styles.fieldLabel, { marginTop: 0 }]}
                               />
                               {values.taskForms.length > 1 && (
                                 <TouchableOpacity
-                                  style={styles.removeTaskFormButton}
+                                  style={[
+                                    styles.removeTaskFormButton,
+                                    isSubmitting && styles.disabledButton,
+                                  ]}
                                   onPress={() => removeTaskForm(index)}
+                                  disabled={isSubmitting}
                                 >
                                   <Ionicons
                                     name="trash-outline"
@@ -372,7 +441,10 @@ export default function AddScreen() {
 
                             {/* Task Title */}
                             <View>
-                              <StyledLabel text="Task Title" style={styles.fieldLabel} />
+                              <StyledLabel
+                                text="Task Title"
+                                style={styles.fieldLabel}
+                              />
                               <FormInput
                                 name={`taskForms.${index}.title`}
                                 placeholder="Enter task title"
@@ -382,12 +454,16 @@ export default function AddScreen() {
                                     true
                                   )
                                 }
+                                editable={!isSubmitting}
                               />
                             </View>
 
                             {/* Task Description */}
                             <View>
-                              <StyledLabel text="Task Description" style={styles.fieldLabel} />
+                              <StyledLabel
+                                text="Task Description"
+                                style={styles.fieldLabel}
+                              />
                               <FormRichTextBox
                                 name={`taskForms.${index}.description`}
                                 placeholder="Enter task description"
@@ -400,12 +476,16 @@ export default function AddScreen() {
                                     true
                                   )
                                 }
+                                editable={!isSubmitting}
                               />
                             </View>
 
                             {/* Task Price */}
                             <View>
-                              <StyledLabel text="Task Price (MAD)" style={styles.fieldLabel} />
+                              <StyledLabel
+                                text="Task Price ($)"
+                                style={styles.fieldLabel}
+                              />
                               <View style={styles.priceRow}>
                                 <View style={styles.priceInputWrapper}>
                                   <FormInput
@@ -419,6 +499,7 @@ export default function AddScreen() {
                                       )
                                     }
                                     value={task.price || "0"}
+                                    editable={!isSubmitting}
                                   />
                                 </View>
                               </View>
@@ -431,12 +512,12 @@ export default function AddScreen() {
                     {/* Total Price Display */}
                     <View style={styles.totalPriceDisplay}>
                       <StyledHeading text="Total Price:" />
-                      <StyledText text={`${totalPrice.toFixed(2)} MAD`} />
+                      <StyledText text={`${totalPrice.toFixed(2)} $`} />
                     </View>
 
                     {/* Bouton Submit */}
                     <FormButton
-                      text="Submit Request"
+                      text={isSubmitting ? "Submitting..." : "Submit Request"}
                       isLoading={isSubmitting}
                       onPress={() => {
                         // Marquer tous les champs comme touched
@@ -454,7 +535,22 @@ export default function AddScreen() {
                         });
                         handleSubmit();
                       }}
+                      disabled={isSubmitting}
                     />
+
+                    {/* Loading Overlay */}
+                    {isSubmitting && (
+                      <View style={styles.loadingOverlay}>
+                        <ActivityIndicator
+                          size="large"
+                          color={colors.primary}
+                        />
+                        <StyledText
+                          text="Creating your request..."
+                          style={styles.loadingText}
+                        />
+                      </View>
+                    )}
                   </StyledCard>
                 );
               }}
@@ -576,6 +672,25 @@ const styles = StyleSheet.create({
   totalPriceValue: {
     fontSize: 24,
     fontWeight: "bold",
+    color: colors.primary,
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 8,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
     color: colors.primary,
   },
 });

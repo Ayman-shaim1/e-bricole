@@ -13,9 +13,9 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
     const fetchServices = async () => {
       try {
+        setLoading(true);
         const data = await getServicesTypes();
         setServices(data);
       } catch (error) {
@@ -44,7 +44,10 @@ export default function HomeScreen() {
             ) : (
               <View style={styles.servicesContainer}>
                 {services.map((service) => (
-                  <TouchableOpacity key={service.$id} style={styles.serviceItem}>
+                  <TouchableOpacity
+                    key={service.id}
+                    style={styles.serviceItem}
+                  >
                     <StyledLabel text={service.title} />
                   </TouchableOpacity>
                 ))}

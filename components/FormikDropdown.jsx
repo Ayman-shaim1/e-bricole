@@ -16,16 +16,51 @@ import { colors } from "../constants/colors";
  * @param {Object} props.labelProps - Additional props for the label
  * @param {Object} props.dropdownProps - Additional props for the dropdown
  */
-export default function FormikDropdown({
+const FormikDropDown = ({
   name,
   label,
   icon,
   options,
   labelProps = {},
   dropdownProps = {},
-}) {
+}) => {
   // Use Formik's useField hook to connect to form state
   const [field, meta, helpers] = useField(name);
+
+  // Transform options to match StyledDropdown format
+  const transformedOptions = options.map(option => {
+    if (typeof option === 'string') {
+      return {
+        value: option,
+        label: option
+      };
+    }
+    return {
+      value: option.id || option.value,
+      label: option.text || option.label,
+      icon: option.icon,
+      image: option.image
+    };
+  });
+
+  // Find the selected option text
+  const selectedOption = transformedOptions.find(option => 
+    option.value === field.value
+  );
+  
+  // If no value is selected, show the placeholder text from the first option
+  const selectedOptionText = field.value ? (selectedOption?.label || '') : transformedOptions[0]?.label || '';
+
+  const handleOptionSelect = (value) => {
+    // If the value is an object, extract just the value part
+    const actualValue = typeof value === 'object' ? value.value : value;
+    helpers.setValue(actualValue);
+    helpers.setTouched(true);
+  };
+
+  // Show error if field is touched and either has no value or is set to the default option
+  const showError = meta.touched && meta.error && 
+    (!field.value || field.value === "" || selectedOptionText === "-- select option --");
 
   return (
     <View style={[styles.container]}>
@@ -33,23 +68,19 @@ export default function FormikDropdown({
 
       <StyledDropdown
         icon={icon}
-        options={options}
+        options={transformedOptions}
         selectedOption={field.value}
-        setOption={(value) => {
-          helpers.setValue(value);
-          helpers.setTouched(true);
-        }}
+        selectedOptionText={selectedOptionText}
+        setOption={handleOptionSelect}
         {...dropdownProps}
       />
 
-      {meta.touched &&
-      meta.error &&
-      (!field.value || field.value === "-- select option --") ? (
+      {showError ? (
         <Text style={styles.errorText}>{meta.error}</Text>
       ) : null}
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -63,3 +94,5 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins-Regular",
   },
 });
+
+export default FormikDropDown;

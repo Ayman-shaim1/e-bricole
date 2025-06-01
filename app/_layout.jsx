@@ -1,10 +1,10 @@
 import { StyleSheet } from "react-native";
 import React, { useEffect } from "react";
-import { Stack, useSegments, useRouter } from 'expo-router';
+import { Stack, useSegments, useRouter } from "expo-router";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
-import { ThemeProvider } from '../context/ThemeContext';
-import { AuthProvider, useAuth } from '../context/AuthContext';
+import { ThemeProvider } from "../context/ThemeContext";
+import { AuthProvider, useAuth } from "../context/AuthContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -17,25 +17,23 @@ function RootLayoutNav() {
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
+    const inAuthGroup = segments[0] === "(auth)";
 
     // Handle authentication redirects
     if (!isAuthenticated && !inAuthGroup) {
       // Redirect to login if not authenticated and not in auth group
-      router.replace('/(auth)/login');
+      router.replace("/(auth)/login");
     } else if (isAuthenticated && inAuthGroup) {
       // Redirect based on user type
       if (userRole === true) {
-        router.replace('/(client)/home');
+        router.replace("/(client)/home");
       } else {
-        router.replace('/(artisan)/dashboard');
+        router.replace("/(artisan)/dashboard");
       }
     }
   }, [isAuthenticated, isLoading, segments]);
 
-  return (
-    <Stack screenOptions={{ headerShown: false }} />
-  );
+  return <Stack screenOptions={{ headerShown: false }} />;
 }
 
 export default function Layout() {
