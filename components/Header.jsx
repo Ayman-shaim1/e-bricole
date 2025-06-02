@@ -73,6 +73,7 @@ export default function Header() {
               error={error}
               isLoading={isLoading}
               onPick={handlePickAddress}
+              shouldPick={false}
             />
           </View>
         </View>

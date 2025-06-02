@@ -6,7 +6,7 @@ import StyledHeading from "../../components/StyledHeading";
 import StyledLabel from "../../components/StyledLabel";
 import StyledButton from "../../components/StyledButton";
 import StyledLink from "../../components/StyledLink";
-import DividerWithText from "../../components/DividerWithText";
+import Divider from "../../components/Divider";
 import { useRouter } from "expo-router";
 import { loginUser } from "../../services/authService";
 import FormikForm from "../../components/FormikForm";
@@ -125,7 +125,7 @@ export default function LoginScreen() {
             />
 
             <StyledLink to="/">forget password ?</StyledLink>
-            <DividerWithText text="or" />
+            <Divider text="or" />
             <StyledButton
               text={"login with google account"}
               color="white"

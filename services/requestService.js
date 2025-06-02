@@ -2,6 +2,7 @@ import { databases } from "../config/appwrite";
 import { ID } from "appwrite";
 import settings from "../config/settings";
 import { uploadFile } from "./uploadService";
+import { Query } from "appwrite";
 
 /**
  * Creates a new address document in the addresses collection
@@ -202,7 +203,7 @@ export async function getUserRequests() {
 /**
  * Gets a specific request by ID
  * @param {string} requestId - The ID of the request to fetch
- * @returns {Promise<Object|null>}
+ * @returns {Promise<{success: boolean, data: Object|null, error: string|null}>}
  */
 export async function getRequestById(requestId) {
   try {
@@ -211,9 +212,47 @@ export async function getRequestById(requestId) {
       settings.serviceRequestsId,
       requestId
     );
-    return response;
+    return {
+      success: true,
+      data: response,
+      error: null
+    };
   } catch (error) {
     console.error("Error fetching request:", error);
-    return null;
+    return {
+      success: false,
+      data: null,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Gets all service requests for a specific user
+ * @param {string} userId - The ID of the logged-in user
+ * @returns {Promise<{success: boolean, data: Array, error: string|null}>}
+ */
+export async function getAllRequests(userId) {
+  try {
+    const response = await databases.listDocuments(
+      settings.dataBaseId,
+      settings.serviceRequestsId,
+      [
+        Query.equal("user", userId),
+        Query.orderDesc("$createdAt")
+      ]
+    );
+    return {
+      success: true,
+      data: response.documents,
+      error: null
+    };
+  } catch (error) {
+    console.error("Error fetching all requests:", error);
+    return {
+      success: false,
+      data: [],
+      error: error.message
+    };
   }
 }

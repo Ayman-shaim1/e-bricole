@@ -21,6 +21,7 @@ export default function StyledAddressPicker({
   error,
   isLoading,
   onPick,
+  shouldPick = true,
 }) {
   const router = useRouter();
   const { data, loading, error: rvError, reverseGeocode } = useReverseGeocode();
@@ -67,23 +68,26 @@ export default function StyledAddressPicker({
 
       // Register the callback
       registerCallback(callbackId, onPick);
-
-      router.push({
-        pathname: "/shared/address-picker",
-        params: {
-          latitude: currentCoordinates?.latitude,
-          longitude: currentCoordinates?.longitude,
-          callbackId: callbackId,
-        },
-      });
+      if (shouldPick) {
+        router.push({
+          pathname: "/shared/address-picker",
+          params: {
+            latitude: currentCoordinates?.latitude,
+            longitude: currentCoordinates?.longitude,
+            callbackId: callbackId,
+          },
+        });
+      }
     } else {
-      router.push({
-        pathname: "/shared/address-picker",
-        params: {
-          latitude: currentCoordinates?.latitude,
-          longitude: currentCoordinates?.longitude,
-        },
-      });
+      if (shouldPick) {
+        router.push({
+          pathname: "/shared/address-picker",
+          params: {
+            latitude: currentCoordinates?.latitude,
+            longitude: currentCoordinates?.longitude,
+          },
+        });
+      }
     }
   };
 
@@ -122,13 +126,13 @@ export default function StyledAddressPicker({
           style={styles.locationIcon}
         />
       )}
-      {(rvError || error) ? (
+      {rvError || error ? (
         <>
           {error && (
-            <StyledLabel 
-              text={getErrorMessage(error)} 
-              color="danger" 
-              style={styles.errorText} 
+            <StyledLabel
+              text={getErrorMessage(error)}
+              color="danger"
+              style={styles.errorText}
             />
           )}
           {rvError && (
