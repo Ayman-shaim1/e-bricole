@@ -44,7 +44,7 @@ export default function RequestsScreen() {
   if (loading) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator />
+        <ActivityIndicator size={'large'} />
       </ThemedView>
     );
   }
@@ -61,15 +61,22 @@ export default function RequestsScreen() {
     <ThemedView style={styles.container}>
       <StyledHeading text="My Requests" />
       <View style={styles.content}>
-        <FlatList
-          data={requests}
-          renderItem={renderRequest}
-          keyExtractor={(item) => item.$id}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-        />
+        {requests.length === 0 ? (
+          <StyledText 
+            text="You don't have any requests yet." 
+            style={styles.noRequestsText} 
+          />
+        ) : (
+          <FlatList
+            data={requests}
+            renderItem={renderRequest}
+            keyExtractor={(item) => item.$id}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          />
+        )}
       </View>
     </ThemedView>
   );
@@ -89,5 +96,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 20,
     color: colors.error,
+  },
+  noRequestsText: {
+    textAlign: "center",
+    marginTop: 20,
+    fontSize: 16,
   },
 });

@@ -6,12 +6,8 @@ import StyledHeading from "../../components/StyledHeading";
 export default function MessagesScreen() {
   return (
     <ThemedView style={styles.container}>
-
-        <StyledHeading text="Messages" />
-
-      <View style={styles.content}>
-        {/* Content will be added later */}
-      </View>
+      <StyledHeading text="Messages" />
+      <View style={styles.content}>{/* Content will be added later */}</View>
     </ThemedView>
   );
 }

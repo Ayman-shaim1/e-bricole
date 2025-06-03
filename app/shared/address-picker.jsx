@@ -232,8 +232,7 @@ export default function AddressPickerScreen() {
           />
           {searchLoading && (
             <ActivityIndicator
-              size="small"
-              color="#007AFF"
+              size="large"
               style={getStyles(theme).searchLoader}
             />
           )}

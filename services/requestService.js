@@ -215,14 +215,14 @@ export async function getRequestById(requestId) {
     return {
       success: true,
       data: response,
-      error: null
+      error: null,
     };
   } catch (error) {
     console.error("Error fetching request:", error);
     return {
       success: false,
       data: null,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -237,22 +237,143 @@ export async function getAllRequests(userId) {
     const response = await databases.listDocuments(
       settings.dataBaseId,
       settings.serviceRequestsId,
-      [
-        Query.equal("user", userId),
-        Query.orderDesc("$createdAt")
-      ]
+      [Query.equal("user", userId), Query.orderDesc("$createdAt")]
     );
     return {
       success: true,
       data: response.documents,
-      error: null
+      error: null,
     };
   } catch (error) {
     console.error("Error fetching all requests:", error);
     return {
       success: false,
       data: [],
-      error: error.message
+      error: error.message,
+    };
+  }
+}
+
+/**
+ * Gets jobs filtered by location and service type
+ * @param {Object} location - The artisan's current location {latitude, longitude}
+ * @param {string} serviceType - The service type title
+ * @param {number} maxDistance - Maximum distance in kilometers (default: 50)
+ * @returns {Promise<{success: boolean, data: Array, error: string|null}>}
+ */
+export async function getJobsByLocationAndType(
+  location,
+  serviceType,
+  maxDistance = 300
+) {
+  try {
+    // First, get all requests with status "in progress"
+    const response = await databases.listDocuments(
+      settings.dataBaseId,
+      settings.serviceRequestsId,
+      [Query.equal("status", "in progress"), Query.orderDesc("$createdAt")]
+    );
+
+    console.log("Found total requests:", response.documents.length);
+
+    // Filter requests by service type and distance
+    const filteredRequests = await Promise.all(
+      response.documents.map(async (request) => {
+        try {
+          // Check service type match first
+          if (request.serviceType !== serviceType) {
+            console.log(`Service type mismatch for request ${request.$id}:`, {
+              requestType: request.serviceType,
+              expectedType: serviceType,
+            });
+            return null;
+          }
+
+          // Fetch the address document
+          const addressDoc = await databases.getDocument(
+            settings.dataBaseId,
+            settings.addrressessId,
+            request.address
+          );
+
+          if (!addressDoc) {
+            console.log(`No address found for request ${request.$id}`);
+            return null;
+          }
+
+          const requestLat = addressDoc.latitude;
+          const requestLon = addressDoc.longitude;
+
+          if (!requestLat || !requestLon) {
+            console.log(`Invalid coordinates for request ${request.$id}`);
+            return null;
+          }
+
+          // Log coordinates for debugging
+          console.log('Calculating distance between:', {
+            artisan: { lat: location.latitude, lon: location.longitude },
+            request: { lat: requestLat, lon: requestLon }
+          });
+
+          // Convert latitude and longitude to radians
+          const lat1Rad = location.latitude * (Math.PI / 180);
+          const lon1Rad = location.longitude * (Math.PI / 180);
+          const lat2Rad = requestLat * (Math.PI / 180);
+          const lon2Rad = requestLon * (Math.PI / 180);
+
+          // Haversine formula components
+          const dLat = lat2Rad - lat1Rad;
+          const dLon = lon2Rad - lon1Rad;
+
+          // Simplified Haversine formula
+          const R = 6371; // Earth's radius in kilometers
+          const a = 
+            Math.pow(Math.sin(dLat/2), 2) + 
+            Math.cos(lat1Rad) * Math.cos(lat2Rad) * 
+            Math.pow(Math.sin(dLon/2), 2);
+          
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+          const distance = R * c;
+
+          console.log(`Distance calculated for request ${request.$id}: ${distance.toFixed(2)}km`);
+
+          if (distance <= maxDistance) {
+            return {
+              ...request,
+              distance: parseFloat(distance.toFixed(2)),
+              address: addressDoc,
+            };
+          }
+          return null;
+        } catch (err) {
+          console.error(`Error processing request ${request.$id}:`, err);
+          return null;
+        }
+      })
+    );
+
+    // Remove null values and sort by distance
+    const validRequests = filteredRequests
+      .filter(Boolean)
+      .sort((a, b) => a.distance - b.distance);
+
+    console.log("Found matching requests:", {
+      total: validRequests.length,
+      maxDistance,
+      serviceType
+    });
+
+    return {
+      success: true,
+      data: validRequests,
+      error: null,
+    };
+  } catch (error) {
+    console.error("Error in getJobsByLocationAndType:", error);
+    return {
+      success: false,
+      data: [],
+      error: error.message,
     };
   }
 }

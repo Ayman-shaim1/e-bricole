@@ -1,5 +1,5 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { checkSession } from '../services/authService';
+import React, { createContext, useState, useContext, useEffect } from "react";
+import { checkSession } from "../services/authService";
 
 // Create the auth context
 const AuthContext = createContext();
@@ -20,17 +20,25 @@ export function AuthProvider({ children }) {
         setIsLoading(true);
         const session = await checkSession();
         if (session.loggedIn) {
-          // Store the user object
-          setUser({...session.user, isClient: session.isClient});
-          setUserRole(session.isClient); 
+          // Store the complete user object including serviceType
+          const userWithData = {
+            ...session.user,
+            isClient: session.isClient,
+            // Make sure serviceType is included if it exists
+            serviceType: session.user.serviceType || null,
+          };
+          setUser(userWithData);
+          setUserRole(session.isClient);
           setIsAuthenticated(true);
+
+          // Debug log to verify the data
         } else {
           setUser(null);
           setUserRole(null);
           setIsAuthenticated(false);
         }
       } catch (error) {
-        console.error('Auth check error:', error);
+        console.error("Auth check error:", error);
         setUser(null);
         setUserRole(null);
         setIsAuthenticated(false);
@@ -62,7 +70,7 @@ export function AuthProvider({ children }) {
     userRole,
     setUserRole,
     isClient,
-    isArtisan
+    isArtisan,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

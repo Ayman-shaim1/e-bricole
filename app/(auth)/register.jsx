@@ -41,6 +41,7 @@ const SERVICE_ICON = require("../../assets/icons/service.png");
 export default function Register() {
   const [activeTab, setActiveTab] = useState("client");
   const [serviceTypes, setServiceTypes] = useState([]);
+  const [serviceTypeMap, setServiceTypeMap] = useState({});
 
   // Initial values for the form
   const getInitialValues = () => ({
@@ -49,7 +50,7 @@ export default function Register() {
     password: "",
     confirmPassword: "",
     profileImage: null,
-    serviceType: "-- select option --",
+    serviceType: "",
     profession: "",
     experienceYears: "",
     skills: [],
@@ -63,8 +64,11 @@ export default function Register() {
         if (data && data.length > 0) {
           // Transform data for dropdown
           const formattedServiceTypes = [
-            "-- select option --",
-            ...data.map((item) => item.title),
+            { value: "", label: "-- select option --" },
+            ...data.map((item) => ({
+              value: item.id,
+              label: item.title
+            }))
           ];
           setServiceTypes(formattedServiceTypes);
         }
@@ -179,11 +183,7 @@ export default function Register() {
                       name="serviceType"
                       label="service type :"
                       icon={SERVICE_ICON}
-                      options={
-                        serviceTypes.length > 0
-                          ? serviceTypes
-                          : ["-- select option --"]
-                      }
+                      options={serviceTypes.length > 0 ? serviceTypes : [{ value: "", label: "-- select option --" }]}
                     />
 
                     <FormInput

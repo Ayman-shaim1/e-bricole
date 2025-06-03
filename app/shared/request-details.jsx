@@ -5,24 +5,25 @@ import {
   ActivityIndicator,
   Image,
   RefreshControl,
+  Modal,
+  TouchableOpacity,
+  Dimensions,
 } from "react-native";
 import React, { useEffect, useState, useCallback } from "react";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import ThemedView from "../../components/ThemedView";
 import StyledHeading from "../../components/StyledHeading";
 import StyledText from "../../components/StyledText";
-import StyledLabel from "../../components/StyledLabel";
-import StyledButton from "../../components/StyledButton";
 import StyledCard from "../../components/StyledCard";
 import GoBackButton from "../../components/GoBackButton";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../constants/colors";
 import { getRequestById } from "../../services/requestService";
 import { formatDate } from "../../utils/dateUtils";
-import { getStatusColor, getStatusIcon } from "../../utils/statusUtils";
 import StatusBadge from "../../components/StatusBadge";
 import Divider from "../../components/Divider";
-
+import { displayedSplitText } from "../../utils/displayedSplitText";
+import { styles as mystyles } from "../../constants/styles";
 export default function RequestDetailsScreen() {
   const { id } = useLocalSearchParams();
 
@@ -30,6 +31,7 @@ export default function RequestDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   const fetchRequestDetails = async () => {
     try {
@@ -64,7 +66,7 @@ export default function RequestDetailsScreen() {
   if (loading) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" />
       </ThemedView>
     );
   }
@@ -72,13 +74,24 @@ export default function RequestDetailsScreen() {
   if (error || !request) {
     return (
       <ThemedView style={styles.container}>
-        <View style={styles.errorContainer}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={styles.errorContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+        >
+          <GoBackButton />
           <StyledText
             text={error || "Request not found"}
             style={styles.error}
           />
-          <GoBackButton />
-        </View>
+        </ScrollView>
       </ThemedView>
     );
   }
@@ -105,7 +118,7 @@ export default function RequestDetailsScreen() {
             }}
           >
             <GoBackButton />
-            <StyledHeading text={request.title} />
+            <StyledHeading text={displayedSplitText(request.title, 17)} />
           </View>
           <StatusBadge status={request.status} size="medium" />
         </View>
@@ -151,17 +164,38 @@ export default function RequestDetailsScreen() {
           </View>
           <View style={styles.imagesContainer}>
             {request.images.map((image, index) => (
-              <Image
-                style={styles.image}
-                source={{ uri: image }}
+              <TouchableOpacity
                 key={index}
-                resizeMode="cover"
-              />
+                onPress={() => setSelectedImage(image)}
+              >
+                <Image
+                  style={styles.image}
+                  source={{ uri: image }}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
             ))}
           </View>
         </StyledCard>
-        <StyledHeading text={"Tasks"} style={styles.tasksHeading} />
-        <Divider />
+
+        <Modal
+          visible={selectedImage !== null}
+          transparent={true}
+          onRequestClose={() => setSelectedImage(null)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setSelectedImage(null)}
+          >
+            <Image
+              source={{ uri: selectedImage }}
+              style={styles.fullImage}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+        </Modal>
+
         {request.serviceTasks &&
           request.serviceTasks.length > 0 &&
           request.serviceTasks.map((task) => (
@@ -174,14 +208,20 @@ export default function RequestDetailsScreen() {
                 />
                 <StyledHeading text={task.title} />
               </View>
-              <StyledText text={task.description} />
+              <StyledText
+                text={task.description}
+                style={{ marginVertical: 10 }}
+              />
               <View style={styles.priceRow}>
                 <Ionicons
                   name="pricetag-outline"
                   size={20}
                   color={colors.primary}
                 />
-                <StyledText text={task.price + " $"} style={styles.priceText} />
+                <StyledHeading
+                  text={task.price + " $"}
+                  style={styles.priceText}
+                />
               </View>
             </StyledCard>
           ))}
@@ -253,14 +293,8 @@ const styles = StyleSheet.create({
   image: {
     width: 150,
     height: 150,
-    borderRadius: 8,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    borderRadius: mystyles.borderRadius,
+
     elevation: 5,
   },
   tasksSection: {
@@ -335,5 +369,16 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     color: colors.primary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  fullImage: {
+    borderRadius: mystyles.borderRadius,
+    width: Dimensions.get("window").width - 100,
+    height: Dimensions.get("window").height - 100,
   },
 });

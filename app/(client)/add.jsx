@@ -543,7 +543,6 @@ export default function AddScreen() {
                       <View style={styles.loadingOverlay}>
                         <ActivityIndicator
                           size="large"
-                          color={colors.primary}
                         />
                         <StyledText
                           text="Creating your request..."

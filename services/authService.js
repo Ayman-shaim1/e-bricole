@@ -41,8 +41,10 @@ export async function registerUser({
     // Add artisan-specific fields if the user is an artisan
     if (!isClient) {
       if (skills && skills.length > 0) userData.skills = skills;
-      if (serviceType && serviceType !== "-- select option --")
+      if (serviceType && serviceType !== "-- select option --") {
+        // Store the serviceType ID as a relation
         userData.serviceType = serviceType;
+      }
       if (profession) userData.profession = profession;
       if (experienceYears) userData.experienceYears = experienceYears;
     }
@@ -163,7 +165,6 @@ export async function loginUser({ email, password }) {
 
       // Check if the user is a client or artisan
       const isClient = userDoc.isClient === true;
-      console.log("userDoc:", userDoc);
       return { success: true, user, isClient, ...userDoc };
     } catch (dbError) {
       console.error("Error fetching user document:", dbError);
@@ -196,6 +197,8 @@ export async function checkSession() {
         ...userDoc,
         profileImage: userDoc.profileImage || null,
       };
+
+      console.log("userDoc", userDoc);  
 
       return { loggedIn: true, user: userWithProfile, isClient };
     } catch (dbError) {

@@ -45,7 +45,7 @@ export const artisanRegisterSchema = Yup.object().shape({
   profileImage: Yup.mixed().required("Profile image is required"),
   serviceType: Yup.string()
     .required("Service type is required")
-    .notOneOf(["-- select option --"], "Please select a service type"),
+    .test("is-valid-service-type", "Please select a service type", value => value && value !== ""),
   profession: Yup.string().required("Profession is required"),
   experienceYears: Yup.string()
     .required("Experience years is required")
@@ -90,7 +90,7 @@ export const addRequestSchema = Yup.object().shape({
     .required("Please select an address for your service"),
   serviceType: Yup.string()
     .required("Service type is required")
-    .notOneOf(["-- select option --"], "Please select a service type"),
+    .test("is-valid-service-type", "Please select a service type", value => value && value !== ""),
   startDate: Yup.string()
     .required("Start date is required")
     .test(
