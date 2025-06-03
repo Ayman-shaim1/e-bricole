@@ -198,8 +198,6 @@ export async function checkSession() {
         profileImage: userDoc.profileImage || null,
       };
 
-      console.log("userDoc", userDoc);  
-
       return { loggedIn: true, user: userWithProfile, isClient };
     } catch (dbError) {
       console.error("Error fetching user document:", dbError);

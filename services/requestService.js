@@ -255,7 +255,7 @@ export async function getAllRequests(userId) {
 }
 
 /**
- * Gets jobs filtered by location and service type
+ * Gets jobs filtered by location and service type within a bounding box
  * @param {Object} location - The artisan's current location {latitude, longitude}
  * @param {string} serviceType - The service type title
  * @param {number} maxDistance - Maximum distance in kilometers (default: 50)
@@ -264,116 +264,89 @@ export async function getAllRequests(userId) {
 export async function getJobsByLocationAndType(
   location,
   serviceType,
-  maxDistance = 300
+  maxDistance = 50
 ) {
   try {
-    // First, get all requests with status "in progress"
-    const response = await databases.listDocuments(
+    // 1. Récupérer les jobs
+    const jobResponse = await databases.listDocuments(
       settings.dataBaseId,
       settings.serviceRequestsId,
-      [Query.equal("status", "in progress"), Query.orderDesc("$createdAt")]
+      [
+        Query.equal("status", "in progress"),
+        Query.equal("serviceType", serviceType),
+        Query.orderDesc("$createdAt"),
+      ]
     );
 
-    console.log("Found total requests:", response.documents.length);
+    const jobs = jobResponse.documents;
 
-    // Filter requests by service type and distance
-    const filteredRequests = await Promise.all(
-      response.documents.map(async (request) => {
-        try {
-          // Check service type match first
-          if (request.serviceType !== serviceType) {
-            console.log(`Service type mismatch for request ${request.$id}:`, {
-              requestType: request.serviceType,
-              expectedType: serviceType,
-            });
-            return null;
-          }
+    // 2. Récupérer toutes les adresses utilisées (IDs uniques)
+    const addressIds = [
+      ...new Set(jobs.map((job) => job.address).filter(Boolean)),
+    ];
 
-          // Fetch the address document
-          const addressDoc = await databases.getDocument(
-            settings.dataBaseId,
-            settings.addrressessId,
-            request.address
-          );
-
-          if (!addressDoc) {
-            console.log(`No address found for request ${request.$id}`);
-            return null;
-          }
-
-          const requestLat = addressDoc.latitude;
-          const requestLon = addressDoc.longitude;
-
-          if (!requestLat || !requestLon) {
-            console.log(`Invalid coordinates for request ${request.$id}`);
-            return null;
-          }
-
-          // Log coordinates for debugging
-          console.log('Calculating distance between:', {
-            artisan: { lat: location.latitude, lon: location.longitude },
-            request: { lat: requestLat, lon: requestLon }
-          });
-
-          // Convert latitude and longitude to radians
-          const lat1Rad = location.latitude * (Math.PI / 180);
-          const lon1Rad = location.longitude * (Math.PI / 180);
-          const lat2Rad = requestLat * (Math.PI / 180);
-          const lon2Rad = requestLon * (Math.PI / 180);
-
-          // Haversine formula components
-          const dLat = lat2Rad - lat1Rad;
-          const dLon = lon2Rad - lon1Rad;
-
-          // Simplified Haversine formula
-          const R = 6371; // Earth's radius in kilometers
-          const a = 
-            Math.pow(Math.sin(dLat/2), 2) + 
-            Math.cos(lat1Rad) * Math.cos(lat2Rad) * 
-            Math.pow(Math.sin(dLon/2), 2);
-          
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-          const distance = R * c;
-
-          console.log(`Distance calculated for request ${request.$id}: ${distance.toFixed(2)}km`);
-
-          if (distance <= maxDistance) {
-            return {
-              ...request,
-              distance: parseFloat(distance.toFixed(2)),
-              address: addressDoc,
-            };
-          }
-          return null;
-        } catch (err) {
-          console.error(`Error processing request ${request.$id}:`, err);
-          return null;
-        }
-      })
+    // 3. Charger les adresses associées (pagination si >100)
+    const addressResponses = await Promise.all(
+      addressIds.map((addressId) =>
+        databases
+          .getDocument(settings.dataBaseId, settings.addrressessId, addressId)
+          .then((address) => ({ success: true, address }))
+          .catch(() => ({ success: false, addressId }))
+      )
     );
 
-    // Remove null values and sort by distance
-    const validRequests = filteredRequests
-      .filter(Boolean)
-      .sort((a, b) => a.distance - b.distance);
-
-    console.log("Found matching requests:", {
-      total: validRequests.length,
-      maxDistance,
-      serviceType
+    // 4. Créer un dictionnaire d'adresses valides
+    const addressMap = {};
+    addressResponses.forEach((result) => {
+      if (result.success) {
+        addressMap[result.address.$id] = result.address;
+      }
     });
+
+    // 5. Filtrer les jobs selon la distance
+    const filteredJobs = jobs
+      .filter((job) => {
+        const addr = addressMap[job.address];
+        if (!addr) return false;
+
+        const distance = getDistanceInKm(
+          location.latitude,
+          location.longitude,
+          addr.latitude,
+          addr.longitude
+        );
+
+        return distance <= maxDistance;
+      })
+      .map((job) => ({
+        ...job,
+        address: addressMap[job.address], // joindre l'adresse au job
+      }));
 
     return {
       success: true,
-      data: validRequests,
+      data: filteredJobs,
       error: null,
     };
   } catch (error) {
-    console.error("Error in getJobsByLocationAndType:", error);
+    console.error("Error fetching jobs:", error);
     return {
       success: false,
       data: [],
       error: error.message,
     };
   }
+}
+
+function getDistanceInKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }

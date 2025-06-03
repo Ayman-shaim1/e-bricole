@@ -25,7 +25,7 @@ export default function JobsScreen() {
       try {
         setIsLoading(true);
         setError(null);
-        
+
         // Collect debug information
         const debug = {
           hasUser: !!user,
@@ -39,7 +39,6 @@ export default function JobsScreen() {
           locationLoading: locationLoading,
         };
         setDebugInfo(debug);
-        console.log("Debug Info:", debug);
 
         // Check if we have all required data
         if (!user) {
@@ -57,17 +56,12 @@ export default function JobsScreen() {
           return;
         }
 
-        console.log("Fetching jobs for service type:", user.serviceType.title);
-        console.log("Using location:", location);
-        
         const result = await getJobsByLocationAndType(
           location,
           user.serviceType.$id
         );
-
-        console.log("Search result:", result);
-
         if (result.success) {
+          console.log(result.data);
           setJobs(result.data);
         } else {
           setError(result.error || "Failed to fetch jobs");
@@ -85,52 +79,10 @@ export default function JobsScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        {isLoading ? (
-          <Text style={[styles.text, { color: theme.textColor }]}>
-            Loading jobs...
-          </Text>
-        ) : error ? (
-          <View>
-            <Text style={[styles.error, { color: theme.errorColor }]}>
-              {error}
-            </Text>
-            {__DEV__ && (
-              <View style={styles.debugContainer}>
-                <Text style={[styles.debugText, { color: theme.textColor }]}>
-                  Debug Info:{"\n"}
-                  {Object.entries(debugInfo).map(([key, value]) => (
-                    `${key}: ${JSON.stringify(value)}\n`
-                  )).join("")}
-                </Text>
-              </View>
-            )}
-          </View>
-        ) : jobs.length === 0 ? (
-          <View>
-            <Text style={[styles.text, { color: theme.textColor }]}>
-              No jobs found nearby
-            </Text>
-            {__DEV__ && (
-              <View style={styles.debugContainer}>
-                <Text style={[styles.debugText, { color: theme.textColor }]}>
-                  Debug Info:{"\n"}
-                  {Object.entries(debugInfo).map(([key, value]) => (
-                    `${key}: ${JSON.stringify(value)}\n`
-                  )).join("")}
-                </Text>
-              </View>
-            )}
-          </View>
-        ) : (
-          <View>
-            <Text style={[styles.title, { color: theme.textColor }]}>
-              Available Jobs
-            </Text>
-            {/* Add your job list rendering here */}
-          </View>
-        )}
-      </ScrollView>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+      ></ScrollView>
     </ThemedView>
   );
 }
@@ -167,7 +119,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 5,
   },
   debugText: {
