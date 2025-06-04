@@ -36,109 +36,101 @@ export default function JobRequest({ request, distance }) {
   };
 
   return (
-    <Animated.View style={[{ transform: [{ scale: scaleAnim }] }]}>
-      <StyledCard 
-        style={styles.requestCard} 
-        onPress={handlePress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-      >
-        <View style={styles.header}>
-          <View style={styles.titleContainer}>
-            <StyledHeading text={request.title} style={styles.title} />
-            <StatusBadge status={request.status} size="small" />
-          </View>
+    <StyledCard
+      style={styles.requestCard}
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+    >
+      <View style={styles.header}>
+        <View style={styles.titleContainer}>
+          <StyledHeading text={request.title} style={styles.title} />
+          {/* <StatusBadge status={request.status} size="small" /> */}
         </View>
+      </View>
 
-        <StyledText text={request.description} style={styles.description} numberOfLines={2} />
+      <StyledText
+        text={request.description}
+        style={styles.description}
+        numberOfLines={2}
+      />
 
-        {request.address && (
-          <View style={styles.locationContainer}>
-            <View style={styles.locationIconContainer}>
-              <MaterialCommunityIcons
-                name="map-marker-distance"
-                size={18}
-                color={colors.primary}
-              />
-            </View>
-            <StyledLabel
-              text={`${distance.toFixed(1)} km - ${request.address.textAddress}`}
-              style={styles.location}
-            />
-          </View>
-        )}
-
-        <View style={styles.divider} />
-
-        <View style={styles.footer}>
-          <View style={styles.budgetContainer}>
+      {request.address && (
+        <View style={styles.locationContainer}>
+          <View style={styles.locationIconContainer}>
             <MaterialCommunityIcons
-              name="currency-eur"
-              size={20}
+              name="map-marker-distance"
+              size={18}
               color={colors.primary}
-              style={styles.budgetIcon}
-            />
-            <StyledText
-              text={`${request.totalPrice} €`}
-              style={styles.budget}
             />
           </View>
+          <StyledLabel
+            text={`${distance.toFixed(1)} km - ${request.address.textAddress}`}
+            style={styles.location}
+          />
+        </View>
+      )}
 
-          <View style={styles.dateContainer}>
-            <MaterialCommunityIcons
-              name="calendar-clock"
-              size={16}
-              color={colors.textSecondary}
-              style={styles.dateIcon}
-            />
-            <StyledText
-              text={formatDate(request.startDate, false)}
-              style={styles.date}
-            />
-          </View>
+      <View style={styles.divider} />
 
-          <View style={styles.arrowContainer}>
-            <MaterialCommunityIcons
-              name="chevron-right"
-              size={24}
-              color={colors.gray}
-            />
-          </View>
+      <View style={styles.footer}>
+        <View style={styles.budgetContainer}>
+          <MaterialCommunityIcons
+            name="currency-eur"
+            size={20}
+            color={colors.primary}
+            style={styles.budgetIcon}
+          />
+          <StyledText text={`${request.totalPrice} €`} style={styles.budget} />
         </View>
 
-        {request.urgency && (
-          <View
-            style={[
-              styles.urgencyBadge,
-              { backgroundColor: colors.danger + "15" },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name="alert"
-              size={12}
-              color={colors.danger}
-              style={styles.urgencyIcon}
-            />
-            <StyledText text="Urgent" style={styles.urgencyText} />
-          </View>
-        )}
-      </StyledCard>
-    </Animated.View>
+        <View style={styles.dateContainer}>
+          <MaterialCommunityIcons
+            name="calendar-clock"
+            size={16}
+            color={colors.textSecondary}
+            style={styles.dateIcon}
+          />
+          <StyledText
+            text={formatDate(request.startDate, false)}
+            style={styles.date}
+          />
+        </View>
+
+        <View style={styles.arrowContainer}>
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={24}
+            color={colors.gray}
+          />
+        </View>
+      </View>
+
+      {request.urgency && (
+        <View
+          style={[
+            styles.urgencyBadge,
+            { backgroundColor: colors.danger + "15" },
+          ]}
+        >
+          <MaterialCommunityIcons
+            name="alert"
+            size={12}
+            color={colors.danger}
+            style={styles.urgencyIcon}
+          />
+          <StyledText text="Urgent" style={styles.urgencyText} />
+        </View>
+      )}
+    </StyledCard>
   );
 }
 
 const styles = StyleSheet.create({
   requestCard: {
     marginBottom: 16,
-    padding: 16,
     elevation: 2,
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
   },
   header: {
     marginBottom: 12,
@@ -164,7 +156,6 @@ const styles = StyleSheet.create({
   locationContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 8,
     backgroundColor: colors.gray + "10",
     borderRadius: 12,
     paddingVertical: 4,
@@ -241,4 +232,4 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontWeight: "500",
   },
-}); 
+});

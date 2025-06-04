@@ -1,5 +1,5 @@
 import { StyleSheet, View, FlatList, ActivityIndicator } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import ThemedView from "../../components/ThemedView";
 import StyledHeading from "../../components/StyledHeading";
 import StyledText from "../../components/StyledText";
@@ -13,6 +13,8 @@ export default function RequestsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const lastRefreshTime = useRef(0);
+  const SCROLL_THRESHOLD = 50; // Seuil de défilement en pixels
 
   useEffect(() => {
     fetchRequests();
@@ -35,8 +37,22 @@ export default function RequestsScreen() {
   };
 
   const onRefresh = () => {
+    const now = Date.now();
+    // Empêcher le rafraîchissement si moins de 2 secondes se sont écoulées depuis le dernier rafraîchissement
+    if (now - lastRefreshTime.current < 2000) {
+      return;
+    }
+    lastRefreshTime.current = now;
     setRefreshing(true);
     fetchRequests();
+  };
+
+  const handleScroll = ({ nativeEvent }) => {
+    const { contentOffset } = nativeEvent;
+    // Se déclenche uniquement si l'utilisateur a fait défiler plus que le seuil vers le haut
+    if (contentOffset.y < -SCROLL_THRESHOLD && !refreshing) {
+      onRefresh();
+    }
   };
 
   const renderRequest = ({ item }) => <ClientRequest request={item} />;
@@ -75,6 +91,8 @@ export default function RequestsScreen() {
             showsVerticalScrollIndicator={false}
             refreshing={refreshing}
             onRefresh={onRefresh}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
           />
         )}
       </View>

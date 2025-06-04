@@ -157,10 +157,7 @@ export default function RequestDetailsScreen() {
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="location" size={20} color={colors.primary} />
-            <StyledText
-              text={request.address.textAddress}
-              style={styles.infoText}
-            />
+            <StyledText text={request.textAddress} style={styles.infoText} />
           </View>
           <View style={styles.imagesContainer}>
             {request.images.map((image, index) => (
@@ -188,11 +185,15 @@ export default function RequestDetailsScreen() {
             activeOpacity={1}
             onPress={() => setSelectedImage(null)}
           >
-            <Image
-              source={{ uri: selectedImage }}
-              style={styles.fullImage}
-              resizeMode="contain"
-            />
+            <View style={styles.modalImageContainer}>
+              <View style={styles.imageWrapper}>
+                <Image
+                  source={{ uri: selectedImage }}
+                  style={styles.fullImage}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
           </TouchableOpacity>
         </Modal>
 
@@ -376,9 +377,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  fullImage: {
-    borderRadius: mystyles.borderRadius,
+  modalImageContainer: {
     width: Dimensions.get("window").width - 100,
     height: Dimensions.get("window").height - 100,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  fullImage: {
+    width: "100%",
+    height: "100%",
   },
 });

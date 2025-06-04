@@ -119,23 +119,19 @@ async function uploadImages(images) {
 }
 
 /**
- * Creates a new service request with references to address, tasks, and service type
+ * Creates a new service request with tasks, coordinates, and service type
  * @param {Object} requestData - The complete request data
  * @returns {Promise<{success: boolean, requestId: string|null, error: string|null}>}
  */
 export async function createServiceRequest(requestData) {
   try {
     // Execute all creation operations in parallel
-    const [addressResult, tasksResult, imagesResult] = await Promise.all([
-      createAddress(requestData.address),
+    const [tasksResult, imagesResult] = await Promise.all([
       createServiceTasks(requestData.tasks),
       uploadImages(requestData.images),
     ]);
 
     // Check for errors in parallel operations
-    if (!addressResult.success) {
-      throw new Error(`Failed to create address: ${addressResult.error}`);
-    }
     if (!tasksResult.success) {
       throw new Error(`Failed to create tasks: ${tasksResult.error}`);
     }
@@ -153,7 +149,9 @@ export async function createServiceRequest(requestData) {
         requestData.totalPrice.toString().replace(",", ".")
       ),
       images: imagesResult.uploadedImages,
-      address: addressResult.addressId,
+      latitude: requestData.address.coordinates.latitude,
+      longitude: requestData.address.coordinates.longitude,
+      textAddress: requestData.address.textAddress || "",
       serviceTasks: tasksResult.taskIds,
       serviceType: requestData.serviceType,
       status: "in progress",
@@ -254,6 +252,18 @@ export async function getAllRequests(userId) {
   }
 }
 
+function getDistanceKm(lat1, lon1, lat2, lon2) {
+  const R = 6371; // rayon de la Terre en km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
 /**
  * Gets jobs filtered by location and service type within a bounding box
  * @param {Object} location - The artisan's current location {latitude, longitude}
@@ -264,68 +274,44 @@ export async function getAllRequests(userId) {
 export async function getJobsByLocationAndType(
   location,
   serviceType,
-  maxDistance = 50
+  maxDistance = 5
 ) {
   try {
-    // 1. Récupérer les jobs
-    const jobResponse = await databases.listDocuments(
+    const lat = location.latitude;
+    const lon = location.longitude;
+
+    const latRad = (lat * Math.PI) / 180;
+    const cosLat = Math.max(Math.cos(latRad), 0.00001);
+    const latDelta = maxDistance / 111;
+    const lonDelta = maxDistance / (111 * cosLat);
+
+    const minLat = lat - latDelta;
+    const maxLat = lat + latDelta;
+    const minLon = lon - lonDelta;
+    const maxLon = lon + lonDelta;
+
+    const response = await databases.listDocuments(
       settings.dataBaseId,
       settings.serviceRequestsId,
       [
         Query.equal("status", "in progress"),
         Query.equal("serviceType", serviceType),
-        Query.orderDesc("$createdAt"),
+        Query.greaterThanEqual("latitude", minLat),
+        Query.lessThanEqual("latitude", maxLat),
+        Query.greaterThanEqual("longitude", minLon),
+        Query.lessThanEqual("longitude", maxLon),
       ]
     );
 
-    const jobs = jobResponse.documents;
-
-    // 2. Récupérer toutes les adresses utilisées (IDs uniques)
-    const addressIds = [
-      ...new Set(jobs.map((job) => job.address).filter(Boolean)),
-    ];
-
-    // 3. Charger les adresses associées (pagination si >100)
-    const addressResponses = await Promise.all(
-      addressIds.map((addressId) =>
-        databases
-          .getDocument(settings.dataBaseId, settings.addrressessId, addressId)
-          .then((address) => ({ success: true, address }))
-          .catch(() => ({ success: false, addressId }))
-      )
-    );
-
-    // 4. Créer un dictionnaire d'adresses valides
-    const addressMap = {};
-    addressResponses.forEach((result) => {
-      if (result.success) {
-        addressMap[result.address.$id] = result.address;
-      }
+    // ❗ On applique un vrai filtre de distance ensuite
+    const filtered = response.documents.filter((doc) => {
+      const d = getDistanceKm(lat, lon, doc.latitude, doc.longitude);
+      return d <= maxDistance;
     });
-
-    // 5. Filtrer les jobs selon la distance
-    const filteredJobs = jobs
-      .filter((job) => {
-        const addr = addressMap[job.address];
-        if (!addr) return false;
-
-        const distance = getDistanceInKm(
-          location.latitude,
-          location.longitude,
-          addr.latitude,
-          addr.longitude
-        );
-
-        return distance <= maxDistance;
-      })
-      .map((job) => ({
-        ...job,
-        address: addressMap[job.address], // joindre l'adresse au job
-      }));
 
     return {
       success: true,
-      data: filteredJobs,
+      data: filtered,
       error: null,
     };
   } catch (error) {
@@ -336,17 +322,4 @@ export async function getJobsByLocationAndType(
       error: error.message,
     };
   }
-}
-
-function getDistanceInKm(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }

@@ -1,88 +1,115 @@
-import { StyleSheet, View, Text, ScrollView } from "react-native";
-import React, { useEffect, useState } from "react";
+import { StyleSheet, View, FlatList, RefreshControl } from "react-native";
+import React, { useEffect, useState, useCallback } from "react";
 import ThemedView from "../../components/ThemedView";
 import { useTheme } from "../../context/ThemeContext";
-import { getJobsByLocationAndType } from "../../services/requestService";
 import useGeolocation from "../../hooks/useGeolocation";
 import { useAuth } from "../../context/AuthContext";
+import { getJobsByLocationAndType } from "../../services/requestService";
+import JobRequest from "../../components/JobRequest";
+import StyledHeading from "../../components/StyledHeading";
+import StyledText from "../../components/StyledText";
+import StyledAddressPicker from "../../components/StyledAddressPicker";
 
 export default function JobsScreen() {
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
-  const {
-    location,
-    error: locationError,
-    isLoading: locationLoading,
-  } = useGeolocation();
+  const { location } = useGeolocation();
   const { user } = useAuth();
   const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [debugInfo, setDebugInfo] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState(null);
+
+  const fetchJobs = async () => {
+    try {
+      if ((!selectedLocation && !location) || !user?.serviceType) {
+        setLoading(false);
+        return;
+      }
+
+      const result = await getJobsByLocationAndType(
+        {
+          latitude: selectedLocation?.latitude || location.latitude,
+          longitude: selectedLocation?.longitude || location.longitude,
+        },
+        user.serviceType.$id
+      );
+
+      if (result.success) {
+        setJobs(result.data);
+      } else {
+        setError(result.error);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchJobs = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        // Collect debug information
-        const debug = {
-          hasUser: !!user,
-          hasServiceType: !!user?.serviceType,
-          serviceTypeId: user?.serviceType?.$id,
-          serviceTypeTitle: user?.serviceType?.title,
-          hasLocation: !!location,
-          latitude: location?.latitude,
-          longitude: location?.longitude,
-          locationError: locationError,
-          locationLoading: locationLoading,
-        };
-        setDebugInfo(debug);
-
-        // Check if we have all required data
-        if (!user) {
-          setError("User not authenticated");
-          return;
-        }
-
-        if (!user.serviceType) {
-          setError("Service type not found for user");
-          return;
-        }
-
-        if (!location) {
-          setError("Location not available");
-          return;
-        }
-
-        const result = await getJobsByLocationAndType(
-          location,
-          user.serviceType.$id
-        );
-        if (result.success) {
-          console.log(result.data);
-          setJobs(result.data);
-        } else {
-          setError(result.error || "Failed to fetch jobs");
-        }
-      } catch (err) {
-        console.error("Error fetching jobs:", err);
-        setError("An error occurred while fetching jobs");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchJobs();
-  }, [user, location, locationError, locationLoading]);
+  }, [location, user?.serviceType, selectedLocation]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchJobs();
+  }, [location, user?.serviceType, selectedLocation]);
+
+  const handleLocationPick = (pickedLocation) => {
+    setSelectedLocation(pickedLocation.coordinates);
+  };
+
+  if (!theme) {
+    return null;
+  }
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
+      <View style={styles.header}>
+        <StyledHeading text="Available Jobs" />
+        <StyledText
+          text="Find and manage your service requests"
+          style={styles.subtitle}
+        />
+        <StyledAddressPicker
+          coordinates={selectedLocation || location}
+          onPick={handleLocationPick}
+          style={styles.addressPicker}
+          useLabel={false}
+        />
+      </View>
+      <FlatList
+        data={jobs}
+        keyExtractor={(item) => item.$id}
+        renderItem={({ item }) => (
+          <JobRequest request={item} distance={item.distance} />
+        )}
         contentContainerStyle={styles.content}
-      ></ScrollView>
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[theme.primary]}
+            tintColor={theme.primary}
+          />
+        }
+        ListEmptyComponent={() => (
+          <StyledText
+            text={
+              loading
+                ? "Chargement..."
+                : error
+                ? `Erreur: ${error}`
+                : "Aucun job disponible"
+            }
+            style={{ color: theme.textColor }}
+          />
+        )}
+      />
     </ThemedView>
   );
 }
@@ -91,39 +118,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
+  header: {
+    paddingTop: 15,
+    paddingBottom: 10,
   },
-  content: {
-    flexGrow: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 16,
+  subtitle: {
+    fontSize: 14,
+    opacity: 0.7,
+    marginTop: 5,
   },
-  title: {
-    fontSize: 24,
-    fontFamily: "Poppins-Bold",
-    marginBottom: 16,
-  },
-  text: {
-    fontSize: 16,
-    fontFamily: "Poppins-Regular",
-    textAlign: "center",
-  },
-  error: {
-    fontSize: 16,
-    fontFamily: "Poppins-Regular",
-    textAlign: "center",
-  },
-  debugContainer: {
-    marginTop: 20,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
-  },
-  debugText: {
-    fontSize: 12,
-    fontFamily: "Poppins-Regular",
+  addressPicker: {
+    marginTop: 10,
+    marginBottom: 5,
   },
 });
