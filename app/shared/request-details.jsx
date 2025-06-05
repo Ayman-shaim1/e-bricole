@@ -8,14 +8,16 @@ import {
   Modal,
   TouchableOpacity,
   Dimensions,
+  Animated,
 } from "react-native";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useLocalSearchParams } from "expo-router";
 import ThemedView from "../../components/ThemedView";
 import StyledHeading from "../../components/StyledHeading";
 import StyledText from "../../components/StyledText";
 import StyledCard from "../../components/StyledCard";
 import GoBackButton from "../../components/GoBackButton";
+import StyledButton from "../../components/StyledButton";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../constants/colors";
 import { getRequestById } from "../../services/requestService";
@@ -24,14 +26,20 @@ import StatusBadge from "../../components/StatusBadge";
 import Divider from "../../components/Divider";
 import { displayedSplitText } from "../../utils/displayedSplitText";
 import { styles as mystyles } from "../../constants/styles";
+import ImageSkeleton from "../../components/ImageSkeleton";
+import { useAuth } from "../../context/AuthContext";
+
 export default function RequestDetailsScreen() {
   const { id } = useLocalSearchParams();
+  const { user } = useAuth();
 
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [imageLoadingStates, setImageLoadingStates] = useState({});
+  const scaleAnim = useRef(new Animated.Value(0)).current;
 
   const fetchRequestDetails = async () => {
     try {
@@ -53,6 +61,38 @@ export default function RequestDetailsScreen() {
     setRefreshing(true);
     fetchRequestDetails();
   }, []);
+
+  const handleImageLoad = (imageIndex) => {
+    setImageLoadingStates((prev) => ({
+      ...prev,
+      [imageIndex]: true,
+    }));
+  };
+
+  const openImage = (image) => {
+    setSelectedImage(image);
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 7,
+    }).start();
+  };
+
+  const closeImage = () => {
+    Animated.timing(scaleAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setSelectedImage(null);
+    });
+  };
+
+  const handlePostuler = () => {
+    // TODO: Implement postuler functionality
+    console.log("Postuler clicked");
+  };
 
   useEffect(() => {
     if (!id) {
@@ -118,9 +158,16 @@ export default function RequestDetailsScreen() {
             }}
           >
             <GoBackButton />
-            <StyledHeading text={displayedSplitText(request.title, 17)} />
+            <StyledHeading
+              text={displayedSplitText(
+                request.title,
+                !user?.isClient ? 22 : 17
+              )}
+            />
           </View>
-          <StatusBadge status={request.status} size="medium" />
+          {user?.isClient && (
+            <StatusBadge status={request.status} size="medium" />
+          )}
         </View>
         <StyledCard>
           <StyledText text={request.description} />
@@ -163,40 +210,51 @@ export default function RequestDetailsScreen() {
             {request.images.map((image, index) => (
               <TouchableOpacity
                 key={index}
-                onPress={() => setSelectedImage(image)}
+                onPress={() => openImage(image)}
+                style={styles.imageWrapper}
               >
+                {!imageLoadingStates[index] && (
+                  <ImageSkeleton width={150} height={150} />
+                )}
                 <Image
-                  style={styles.image}
+                  style={[
+                    styles.image,
+                    !imageLoadingStates[index] && styles.hiddenImage,
+                  ]}
                   source={{ uri: image }}
                   resizeMode="cover"
+                  onLoad={() => handleImageLoad(index)}
                 />
               </TouchableOpacity>
             ))}
           </View>
         </StyledCard>
-
         <Modal
           visible={selectedImage !== null}
           transparent={true}
-          onRequestClose={() => setSelectedImage(null)}
+          onRequestClose={closeImage}
         >
           <TouchableOpacity
             style={styles.modalOverlay}
             activeOpacity={1}
-            onPress={() => setSelectedImage(null)}
+            onPress={closeImage}
           >
-            <View style={styles.modalImageContainer}>
-              <View style={styles.imageWrapper}>
-                <Image
-                  source={{ uri: selectedImage }}
-                  style={styles.fullImage}
-                  resizeMode="contain"
-                />
-              </View>
-            </View>
+            <Animated.View
+              style={[
+                styles.modalImageContainer,
+                {
+                  transform: [{ scale: scaleAnim }],
+                },
+              ]}
+            >
+              <Image
+                source={{ uri: selectedImage }}
+                style={styles.modalImage}
+                resizeMode="contain"
+              />
+            </Animated.View>
           </TouchableOpacity>
         </Modal>
-
         {request.serviceTasks &&
           request.serviceTasks.length > 0 &&
           request.serviceTasks.map((task) => (
@@ -249,6 +307,16 @@ export default function RequestDetailsScreen() {
             </View>
           </StyledCard>
         )}
+
+        {!user?.isClient && (
+          <View style={styles.buttonContainer}>
+            <StyledButton
+              text="Postuler"
+              onPress={handlePostuler}
+              style={styles.postulerButton}
+            />
+          </View>
+        )}
       </ScrollView>
     </ThemedView>
   );
@@ -295,8 +363,10 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     borderRadius: mystyles.borderRadius,
-
     elevation: 5,
+  },
+  hiddenImage: {
+    opacity: 0,
   },
   tasksSection: {
     marginTop: 20,
@@ -373,18 +443,38 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     justifyContent: "center",
     alignItems: "center",
   },
   modalImageContainer: {
-    width: Dimensions.get("window").width - 100,
-    height: Dimensions.get("window").height - 100,
-    borderRadius: 12,
-    overflow: "hidden",
+    width: "90%",
+    height: "80%",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  fullImage: {
+  modalImage: {
     width: "100%",
     height: "100%",
+  },
+  imageWrapper: {
+    position: "relative",
+  },
+  imageLoadingContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.lightGray,
+    borderRadius: mystyles.borderRadius,
+  },
+  buttonContainer: {
+    marginBottom: 20,
+  },
+  postulerButton: {
+    width: "100%",
   },
 });

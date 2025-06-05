@@ -33,6 +33,11 @@ function RootLayoutNav() {
     }
   }, [isAuthenticated, isLoading, segments]);
 
+  // Don't render anything while loading
+  if (isLoading) {
+    return null;
+  }
+
   return <Stack screenOptions={{ headerShown: false }} />;
 }
 
