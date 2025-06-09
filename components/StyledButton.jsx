@@ -15,6 +15,7 @@ export default function StyledButton({
   iconSize = 20,
   textColor,
   backgroundColor,
+  style,
 }) {
   const bgColor = backgroundColor ? backgroundColor : colors[color];
   const labelColor = textColor
@@ -23,7 +24,11 @@ export default function StyledButton({
     ? "black"
     : "white";
 
-  const finalIconColor = iconColor ? colors[iconColor] : (color === "white" || backgroundColor === colors.successLight ? colors.black : colors.white);
+  const finalIconColor = iconColor
+    ? colors[iconColor]
+    : color === "white" || backgroundColor === colors.successLight
+    ? colors.black
+    : colors.white;
 
   return (
     <TouchableOpacity
@@ -31,24 +36,23 @@ export default function StyledButton({
       style={[
         styles.button,
         { backgroundColor: bgColor },
+        { ...style },
         color === "white" && { borderWidth: 1, borderColor: colors.gray },
       ]}
     >
-      {icon && (
-        typeof icon === 'string' ? (
+      {icon &&
+        (typeof icon === "string" ? (
           <FeatherIcon
             name={icon}
             size={iconSize}
             color={finalIconColor}
             style={styles.icon}
-            
           />
         ) : (
           React.cloneElement(icon, {
-            style: [styles.icon, icon.props.style]
+            style: [styles.icon, icon.props.style],
           })
-        )
-      )}
+        ))}
       {image && <Image source={image} style={styles.image} />}
       <StyledLabel text={text} color={labelColor} />
     </TouchableOpacity>
@@ -68,6 +72,6 @@ const styles = StyleSheet.create({
   image: { width: 20, height: 20, marginRight: 10 },
   icon: {
     marginRight: 10,
-    marginBottom:1,
+    marginBottom: 1,
   },
 });

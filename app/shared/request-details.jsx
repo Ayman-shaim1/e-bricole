@@ -7,8 +7,8 @@ import {
   RefreshControl,
   Modal,
   TouchableOpacity,
-  Dimensions,
   Animated,
+  Alert,
 } from "react-native";
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useLocalSearchParams } from "expo-router";
@@ -21,7 +21,6 @@ import StyledButton from "../../components/StyledButton";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../constants/colors";
 import { getRequestById } from "../../services/requestService";
-import { formatDate } from "../../utils/dateUtils";
 import StatusBadge from "../../components/StatusBadge";
 import Divider from "../../components/Divider";
 import { displayedSplitText } from "../../utils/displayedSplitText";
@@ -29,11 +28,15 @@ import { styles as mystyles } from "../../constants/styles";
 import ImageSkeleton from "../../components/ImageSkeleton";
 import { useAuth } from "../../context/AuthContext";
 import ArtisanDisplayedJobAddress from "../../components/ArtisanDisplayedJobAddress";
+import BottomModal from "../../components/BottomModal";
+import StyledLabel from "../../components/StyledLabel";
+import StyledTextInput from "../../components/StyledTextInput";
+import AlertComponent from "../../components/Alert";
 
 export default function RequestDetailsScreen() {
   const { id } = useLocalSearchParams();
   const { user } = useAuth();
-
+  const [visibleNegoModal, setVisibleNegoModal] = useState(false);
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -95,6 +98,14 @@ export default function RequestDetailsScreen() {
     console.log("Postuler clicked");
   };
 
+  const handleNegotiation = () => {
+    setVisibleNegoModal(true);
+  };
+
+  const confirmNegociationHandler = () => {
+    console.log("");
+  };
+
   useEffect(() => {
     if (!id) {
       setError("Request ID is missing");
@@ -139,6 +150,23 @@ export default function RequestDetailsScreen() {
 
   return (
     <ThemedView>
+      <View style={styles.header}>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <GoBackButton />
+          <StyledHeading
+            text={displayedSplitText(request.title, !user?.isClient ? 32 : 18)}
+          />
+        </View>
+        {user?.isClient && (
+          <StatusBadge status={request.status} size="medium" />
+        )}
+      </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -150,42 +178,27 @@ export default function RequestDetailsScreen() {
           />
         }
       >
-        <View style={styles.header}>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <GoBackButton />
-            <StyledHeading
-              text={displayedSplitText(
-                request.title,
-                !user?.isClient ? 22 : 17
-              )}
-            />
-          </View>
-          {user?.isClient && (
-            <StatusBadge status={request.status} size="medium" />
-          )}
-        </View>
         <StyledCard>
           <StyledText text={request.description} />
           <Divider />
           {/* Afficher la carte et l'adresse si l'utilisateur est un artisan */}
           {!user?.isClient && (
-            <ArtisanDisplayedJobAddress
-              latitude={request.latitude}
-              longitude={request.longitude}
-              textAddress={request.textAddress}
-            />
+            <>
+              <ArtisanDisplayedJobAddress
+                latitude={request.latitude}
+                longitude={request.longitude}
+                textAddress={request.textAddress}
+              />
+              <Divider />
+            </>
           )}
           <View style={styles.datesContainer}>
             <View style={styles.dateItem}>
               <Ionicons name="time-outline" size={20} color={colors.primary} />
               <StyledText
-                text={`${request.duration || 0} day${(request.duration || 0) > 1 ? 's' : ''}`}
+                text={`${request.duration || 0} day${
+                  (request.duration || 0) > 1 ? "s" : ""
+                }`}
                 style={styles.dateText}
               />
             </View>
@@ -198,10 +211,12 @@ export default function RequestDetailsScreen() {
               style={styles.infoText}
             />
           </View>
-          <View style={styles.infoRow}>
-            <Ionicons name="location" size={20} color={colors.primary} />
-            <StyledText text={request.textAddress} style={styles.infoText} />
-          </View>
+          {user?.isClient && (
+            <View style={styles.infoRow}>
+              <Ionicons name="location" size={20} color={colors.primary} />
+              <StyledText text={request.textAddress} style={styles.infoText} />
+            </View>
+          )}
           <View style={styles.imagesContainer}>
             {request.images.map((image, index) => (
               <TouchableOpacity
@@ -305,13 +320,65 @@ export default function RequestDetailsScreen() {
         )}
 
         {!user?.isClient && (
-          <View style={styles.buttonContainer}>
-            <StyledButton
-              text="Apply"
-              onPress={handlePostuler}
-              style={styles.postulerButton}
+          <>
+            <AlertComponent
+              status="warning"
+              title="How to proceed"
+              description={
+                "You can negotiate to change prices or duration, or apply directly without negotiation.\n\n- Tap 'Negotiate' to propose changes.\n- Tap 'Apply' to submit your application as is."
+              }
+              style={{ marginBottom: 10 }}
             />
-          </View>
+            <View style={styles.buttonContainer}>
+              <StyledButton
+                text="Negotiate"
+                onPress={handleNegotiation}
+                style={styles.negotiateButton}
+                color="primary"
+              />
+              {/* POSTULER SANS NÉGOCIATION */}
+              <StyledButton
+                text="Apply"
+                onPress={handlePostuler}
+                style={styles.postulerButton}
+                color="accent"
+              />
+            </View>
+
+            <BottomModal
+              visible={visibleNegoModal}
+              onClose={() => {
+                setVisibleNegoModal(false);
+              }}
+            >
+              <StyledHeading
+                text={"change duration and prices"}
+                style={{ marginBottom: 15 }}
+              />
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <StyledLabel text={"new duration :"} />
+                <StyledTextInput
+                  placeholder="Enter new duration in days"
+                  keyboardType="numeric"
+                />
+                {request?.serviceTasks.map((task) => (
+                  <View key={task.$id}>
+                    <StyledLabel text={task.title + " :"} key={task.$id} />
+                    <StyledTextInput
+                      placeholder={`new price of task : (${task.title})`}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                ))}
+
+                <StyledButton
+                  text={"confirm"}
+                  style={{ marginTop: 15 }}
+                  onPress={confirmNegociationHandler}
+                />
+              </ScrollView>
+            </BottomModal>
+          </>
         )}
       </ScrollView>
     </ThemedView>
@@ -474,5 +541,8 @@ const styles = StyleSheet.create({
   },
   postulerButton: {
     width: "100%",
+    borderWidth: 1,
+    borderColor: colors.primary,
   },
+  negotiateButton: {},
 });

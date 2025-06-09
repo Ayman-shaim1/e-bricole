@@ -20,7 +20,7 @@ export default function Avatar({
   const [imageError, setImageError] = useState(false);
   const dimension = SIZES[size];
 
-  // Get initials from text (max 2 characters)
+// Get initials from text (max 2 characters)
   const getInitials = (text) => {
     if (!text || typeof text !== 'string') {
       return '';
@@ -95,6 +95,6 @@ const styles = StyleSheet.create({
   },
   text: {
     color: colors.primary,
-    fontWeight: '600',
+    fontWeight: '400',
   },
 }); 

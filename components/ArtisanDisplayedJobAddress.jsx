@@ -1,17 +1,20 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
-  Text,
   Modal,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  useColorScheme,
 } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, Polyline } from "react-native-maps";
 import { colors } from "../constants/colors";
 import { Ionicons } from "@expo/vector-icons";
 import useGeolocation from "../hooks/useGeolocation";
 import { styles as mystyles } from "../constants/styles";
+import { useDirections } from "../hooks/useDirections";
+import StyledLabel from "./StyledLabel";
+import StyledCard from "./StyledCard";
 import StyledText from "./StyledText";
 const { width } = Dimensions.get("window");
 
@@ -49,10 +52,15 @@ export default function ArtisanDisplayedJobAddress({
   longitude,
   textAddress,
 }) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const [routeCoords, setRouteCoords] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const { location } = useGeolocation();
   const [zoom, setZoom] = useState(0.01);
   const mapRef = useRef(null);
+  const { getDirections, loading: directionsLoading } = useDirections();
+  const [distance, setDistance] = useState(null);
   const [modalRegion, setModalRegion] = useState({
     latitude,
     longitude,
@@ -60,16 +68,44 @@ export default function ArtisanDisplayedJobAddress({
     longitudeDelta: 0.01,
   });
 
-  // Ajuste la région à l'ouverture du modal pour englober job + artisan
+  // Fetch route when location is available
+  useEffect(() => {
+    const fetchRoute = async () => {
+      if (location) {
+        try {
+          const result = await getDirections(
+            { latitude: location.latitude, longitude: location.longitude },
+            { latitude, longitude }
+          );
+          if (result && result.coordinates) {
+            // Convert coordinates from [longitude, latitude] to {latitude, longitude} format
+            const formattedCoords = result.coordinates.map((coord) => ({
+              latitude: coord[1],
+              longitude: coord[0],
+            }));
+            setRouteCoords(formattedCoords);
+            setDistance(result.formattedDistance);
+          }
+        } catch (error) {
+          console.error("Error fetching route:", error);
+        }
+      }
+    };
+
+    fetchRoute();
+  }, [location, latitude, longitude]);
+
+  // Update map region when modal opens
   useEffect(() => {
     if (modalVisible) {
       if (location) {
         const region = getRegionForCoordinates([
           { latitude, longitude },
           { latitude: location.latitude, longitude: location.longitude },
+          ...routeCoords,
         ]);
         setModalRegion(region);
-        setZoom(region.latitudeDelta); // synchronise le zoom pour les boutons
+        setZoom(region.latitudeDelta);
         setTimeout(() => {
           if (mapRef.current) {
             mapRef.current.animateToRegion(region, 300);
@@ -85,7 +121,7 @@ export default function ArtisanDisplayedJobAddress({
         setZoom(0.05);
       }
     }
-  }, [modalVisible, location, latitude, longitude]);
+  }, [modalVisible, location, latitude, longitude, routeCoords]);
 
   const jobRegion = {
     latitude: latitude,
@@ -122,7 +158,12 @@ export default function ArtisanDisplayedJobAddress({
         onPress={() => setModalVisible(true)}
         activeOpacity={0.8}
       >
-        <MapView style={styles.miniMap} region={jobRegion} pointerEvents="none">
+        <MapView
+          style={styles.miniMap}
+          region={jobRegion}
+          pointerEvents="none"
+          customMapStyle={isDark ? darkMapStyle : []}
+        >
           <Marker
             coordinate={{ latitude, longitude }}
             title="Job Location"
@@ -132,7 +173,13 @@ export default function ArtisanDisplayedJobAddress({
       </TouchableOpacity>
       <View style={styles.addressRow}>
         <Ionicons name="location" size={18} color={colors.primary} />
-        <StyledText text={textAddress} />
+        <StyledLabel text={textAddress} />
+        {distance && (
+          <View style={styles.distanceContainer}>
+            <Ionicons name="navigate" size={16} color={colors.primary} />
+            <StyledLabel text={distance} style={styles.distanceText} />
+          </View>
+        )}
       </View>
       <Modal
         visible={modalVisible}
@@ -140,25 +187,53 @@ export default function ArtisanDisplayedJobAddress({
         transparent={true}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalOverlay} activeOpacity={1}>
+        <View
+          style={[
+            styles.modalOverlay,
+            { backgroundColor: isDark ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.5)" },
+          ]}
+        >
           <View style={styles.modalMapContainer}>
-            {/* Close button */}
             <TouchableOpacity
-              style={styles.closeButton}
+              style={[
+                styles.closeButton,
+                {
+                  backgroundColor: isDark
+                    ? colors.dark.cardColor
+                    : colors.white,
+                },
+              ]}
               onPress={() => setModalVisible(false)}
             >
-              <Ionicons name="close" size={28} color={colors.textSecondary} />
+              <Ionicons
+                name="close"
+                size={28}
+                color={isDark ? colors.dark.textColor : colors.light.textColor}
+              />
             </TouchableOpacity>
-            {/* Zoom controls */}
             <View style={styles.zoomControls}>
               <TouchableOpacity
-                style={styles.zoomBtn}
+                style={[
+                  styles.zoomBtn,
+                  {
+                    backgroundColor: isDark
+                      ? colors.dark.cardColor
+                      : colors.white,
+                  },
+                ]}
                 onPress={() => handleZoom(0.5)}
               >
                 <Ionicons name="remove" size={22} color={colors.primary} />
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.zoomBtn}
+                style={[
+                  styles.zoomBtn,
+                  {
+                    backgroundColor: isDark
+                      ? colors.dark.cardColor
+                      : colors.white,
+                  },
+                ]}
                 onPress={() => handleZoom(2)}
               >
                 <Ionicons name="add" size={22} color={colors.primary} />
@@ -170,6 +245,7 @@ export default function ArtisanDisplayedJobAddress({
               initialRegion={modalRegion}
               region={modalRegion}
               showsUserLocation={false}
+              customMapStyle={isDark ? darkMapStyle : []}
             >
               <Marker
                 coordinate={{ latitude, longitude }}
@@ -183,24 +259,102 @@ export default function ArtisanDisplayedJobAddress({
                     longitude: location.longitude,
                   }}
                   title="Your Position"
-                  pinColor={colors.secondary}
+                  pinColor={colors.danger}
+                />
+              )}
+
+              {routeCoords.length > 0 && (
+                <Polyline
+                  coordinates={routeCoords}
+                  strokeColor={colors.primary}
+                  strokeWidth={3}
                 />
               )}
             </MapView>
-            {/* Overlay address and coordinates */}
-            <View style={styles.addressOverlay}>
-              <StyledText text={textAddress} style={styles.overlayAddress} numberOfLines={2} />
-              <View style={styles.overlayCoordsRow}>
-                <StyledText text={`Lat: ${latitude.toFixed(6)}`} style={styles.overlayCoord} />
-                <StyledText text={`Lng: ${longitude.toFixed(6)}`} style={styles.overlayCoord} />
+            <StyledCard style={styles.legendContainer}>
+              <View style={styles.legendItem}>
+                <View
+                  style={[
+                    styles.legendMarker,
+                    { backgroundColor: colors.danger },
+                  ]}
+                />
+                <StyledLabel text="Your Position" style={styles.legendText} />
               </View>
-            </View>
+              <View style={styles.legendItem}>
+                <View
+                  style={[
+                    styles.legendMarker,
+                    { backgroundColor: colors.primary },
+                  ]}
+                />
+                <StyledLabel text="Job Location" style={styles.legendText} />
+              </View>
+            </StyledCard>
+            <StyledCard style={styles.addressOverlay}>
+              <StyledLabel
+                text={textAddress}
+                style={styles.overlayAddress}
+                numberOfLines={2}
+              />
+              {distance && (
+                <View style={styles.overlayDistanceRow}>
+                  <Ionicons name="navigate" size={16} color={colors.primary} />
+                  <StyledLabel text={distance} style={styles.overlayDistance} />
+                </View>
+              )}
+              <View style={styles.overlayCoordsRow}>
+                <StyledLabel
+                  text={`Lat: ${latitude.toFixed(6)}`}
+                  style={styles.overlayCoord}
+                />
+                <StyledLabel
+                  text={`Lng: ${longitude.toFixed(6)}`}
+                  style={styles.overlayCoord}
+                />
+              </View>
+            </StyledCard>
           </View>
         </View>
       </Modal>
     </View>
   );
 }
+
+const darkMapStyle = [
+  {
+    elementType: "geometry",
+    stylers: [{ color: "#242f3e" }],
+  },
+  {
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#746855" }],
+  },
+  {
+    elementType: "labels.text.stroke",
+    stylers: [{ color: "#242f3e" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#38414e" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#212a37" }],
+  },
+  {
+    featureType: "road",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#9ca5b3" }],
+  },
+  {
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ color: "#17263c" }],
+  },
+];
 
 const styles = StyleSheet.create({
   container: {
@@ -212,37 +366,29 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 8,
   },
+  addressCard: {
+    marginBottom: 8,
+  },
   addressRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.accentLight3,
-    paddingVertical: mystyles.paddingVertical,
-    paddingHorizontal: 5,
-    borderRadius: mystyles.borderRadius,
-    borderWidth: 1,
-    borderColor: colors.primary,
+    paddingVertical: mystyles.paddingVertical - 5,
+    paddingHorizontal: 14,
     gap: 8,
-    marginBottom: 4,
-  },
-  addressText: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    marginLeft: 6,
-    flex: 1,
+    borderWidth: 1,
+    borderRadius: mystyles.borderRadius,
+    borderColor: colors.primary,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
   },
   modalMapContainer: {
     width: width * 0.95,
     height: "80%",
-    backgroundColor: "#fff",
     borderRadius: 16,
     overflow: "hidden",
-    elevation: 8,
     position: "relative",
   },
   closeButton: {
@@ -250,7 +396,6 @@ const styles = StyleSheet.create({
     top: 12,
     right: 12,
     zIndex: 10,
-    backgroundColor: "#fff",
     borderRadius: 20,
     padding: 2,
     elevation: 2,
@@ -264,7 +409,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   zoomBtn: {
-    backgroundColor: "#fff",
     borderRadius: 18,
     padding: 6,
     alignItems: "center",
@@ -280,20 +424,13 @@ const styles = StyleSheet.create({
     top: 55,
     left: 16,
     right: 16,
-    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 12,
     zIndex: 20,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
   },
   overlayAddress: {
     fontSize: 15,
     fontWeight: "600",
-    color: colors.textSecondary,
     marginBottom: 4,
   },
   overlayCoordsRow: {
@@ -303,6 +440,49 @@ const styles = StyleSheet.create({
   },
   overlayCoord: {
     fontSize: 13,
-    color: colors.textSecondary,
+  },
+  distanceContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: "auto",
+    gap: 4,
+  },
+  distanceText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: "500",
+  },
+  overlayDistanceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 4,
+  },
+  overlayDistance: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: "500",
+  },
+  legendContainer: {
+    position: "absolute",
+    bottom: 20,
+    left: 16,
+    borderRadius: 8,
+    padding: 8,
+    flexDirection: "row",
+    gap: 12,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  legendMarker: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendText: {
+    fontSize: 12,
   },
 });

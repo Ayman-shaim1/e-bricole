@@ -15,7 +15,6 @@ export default function BottomModal({
   const theme = getCurrentTheme();
   const [dragY, setDragY] = useState(0);
 
-
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -56,7 +55,12 @@ export default function BottomModal({
           ]}
           {...panResponder.panHandlers}
         >
-          <View style={[styles.modalContent,{backgroundColor:theme.backgroundColor}]}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: theme.backgroundColor },
+            ]}
+          >
             <View style={styles.line}></View>
             <CloseButton style={styles.btnClose} onPress={onClose} />
             {children}
@@ -85,7 +89,6 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
   },
   modalContent: {
-  
     height: "100%",
     padding: 10,
     borderRadius: mystyles.borderRadius,
