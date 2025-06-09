@@ -7,6 +7,7 @@ import {
   ScrollView,
   Dimensions,
   Pressable,
+  Alert,
 } from "react-native";
 import React, { useState } from "react";
 import { colors } from "../constants/colors";
@@ -14,10 +15,12 @@ import { styles as mystyle } from "../constants/styles";
 import StyledLabel from "./StyledLabel";
 import * as ImagePicker from "expo-image-picker";
 import { Feather } from "@expo/vector-icons";
+import * as FileSystem from 'expo-file-system';
 
 const IMAGE_ICON = require("../assets/icons/image.png");
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const IMAGE_SIZE = (SCREEN_WIDTH - 60) / 3; // 3 images per row with padding
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
 
 export default function StyledMultiImagePicker({
   images,
@@ -25,6 +28,19 @@ export default function StyledMultiImagePicker({
   customLabel,
   maxImages = 5,
 }) {
+  const checkImageSize = async (uri) => {
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      if (fileInfo.exists) {
+        return fileInfo.size <= MAX_IMAGE_SIZE;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking image size:', error);
+      return false;
+    }
+  };
+
   const pickImageHandler = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
@@ -42,11 +58,31 @@ export default function StyledMultiImagePicker({
     });
 
     if (!result.canceled) {
-      const newImages = [
-        ...(images || []),
-        ...result.assets.map((asset) => asset.uri),
-      ];
-      onImagesChange(newImages);
+      // Check size for each selected image
+      const validImages = [];
+      const invalidImages = [];
+
+      for (const asset of result.assets) {
+        const isValid = await checkImageSize(asset.uri);
+        if (isValid) {
+          validImages.push(asset.uri);
+        } else {
+          invalidImages.push(asset.uri);
+        }
+      }
+
+      if (invalidImages.length > 0) {
+        Alert.alert(
+          "Image Size Error",
+          "Some images exceed the 5MB size limit and were not added. Please select smaller images.",
+          [{ text: "OK" }]
+        );
+      }
+
+      if (validImages.length > 0) {
+        const newImages = [...(images || []), ...validImages];
+        onImagesChange(newImages);
+      }
     }
   };
 

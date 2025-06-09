@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import ThemedView from "../../components/ThemedView";
 import StyledHeading from "../../components/StyledHeading";
 import StyledText from "../../components/StyledText";
@@ -30,13 +31,7 @@ import { addRequestSchema } from "../../utils/validators";
 import { colors } from "../../constants/colors";
 import StyledLabel from "../../components/StyledLabel";
 import { useAuth } from "../../context/AuthContext";
-import {
-  createServiceRequest,
-  createAddress,
-  createServiceTask,
-} from "../../services/requestService";
-
-const CALENDAR_ICON = require("../../assets/icons/calendrier.png");
+import { createServiceRequest } from "../../services/requestService";
 
 export default function AddScreen() {
   const [serviceTypes, setServiceTypes] = useState([]);
@@ -45,6 +40,7 @@ export default function AddScreen() {
   ]);
   const [serviceTypeMap, setServiceTypeMap] = useState({});
   const [totalPrice, setTotalPrice] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   const formRef = useRef(null);
   const { user } = useAuth();
 
@@ -95,8 +91,7 @@ export default function AddScreen() {
             timestamp: Date.now(),
           }
         : null,
-      startDate: todayFormatted,
-      endDate: tomorrowFormatted,
+      duration: 1,
       totalPrice: 0,
       images: [],
       tasks: [],
@@ -121,7 +116,7 @@ export default function AddScreen() {
           const options = [
             { value: "", label: "-- select option --" },
             ...data.map((item) => ({
-              value: item.title,
+              value: item.id,
               label: item.title,
             })),
           ];
@@ -159,6 +154,7 @@ export default function AddScreen() {
   // Handle form submission
   const handleFormSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
+      setIsLoading(true);
       setSubmitting(true);
 
       const requestData = {
@@ -167,10 +163,9 @@ export default function AddScreen() {
         serviceType: values.serviceType,
         address: {
           coordinates: values.address.coordinates,
-          textAddress: values.address.address || "",
+          textAddress: values.address.textAddress || values.address.address || "",
         },
-        startDate: values.startDate,
-        endDate: values.endDate,
+        duration: parseInt(values.duration, 10),
         totalPrice: values.totalPrice,
         images: values.images || [],
         tasks: values.taskForms.map((t) => ({
@@ -181,11 +176,9 @@ export default function AddScreen() {
         user: user.$id,
       };
 
-      // Créer le service request avec toutes les relations
       const result = await createServiceRequest(requestData);
 
       if (result.success) {
-        // Reset form to initial state
         resetForm({ values: getInitialValues() });
         setTotalPrice(0);
 
@@ -204,6 +197,7 @@ export default function AddScreen() {
         "An error occurred while submitting your request. Please try again."
       );
     } finally {
+      setIsLoading(false);
       setSubmitting(false);
     }
   };
@@ -225,6 +219,12 @@ export default function AddScreen() {
               <StyledHeading text="Request something new" />
               <StyledText text="Please provide the necessary information for your service." />
             </View>
+            {/* Loading Indicator at bottom */}
+            {isLoading && (
+              <View style={styles.bottomLoadingIndicator}>
+                <ActivityIndicator />
+              </View>
+            )}
 
             <FormikForm
               innerRef={formRef}
@@ -286,7 +286,7 @@ export default function AddScreen() {
                         name="title"
                         placeholder="e.g. Full Apartment Cleaning"
                         onBlur={() => setFieldTouched("title", true)}
-                        editable={!isSubmitting}
+                        editable={!isLoading}
                       />
                     </View>
 
@@ -303,7 +303,7 @@ export default function AddScreen() {
                         maxLength={1000}
                         numberOfLines={8}
                         onBlur={() => setFieldTouched("description", true)}
-                        editable={!isSubmitting}
+                        editable={!isLoading}
                       />
                     </View>
 
@@ -321,7 +321,7 @@ export default function AddScreen() {
                           setFieldValue("address", picked);
                           setFieldTouched("address", true);
                         }}
-                        disabled={isSubmitting}
+                        disabled={isLoading}
                       />
                     </View>
 
@@ -334,45 +334,24 @@ export default function AddScreen() {
                       <FormikDropdown
                         name="serviceType"
                         options={serviceTypeOptions}
-                        disabled={isSubmitting}
+                        valueKey="value"
+                        labelKey="label"
+                        disabled={isLoading}
                       />
                     </View>
 
-                    {/* Date Range */}
-                    <View style={styles.dateRowContainer}>
-                      <FormStyledDatePicker
-                        name="startDate"
-                        label="start date :"
-                        mode="date"
-                        placeholder="Select start date"
-                        icon={CALENDAR_ICON}
-                        width="100%"
-                        containerStyle={styles.datePickerHalf}
-                        minDate={todayFormatted}
-                        onDateChange={() => {
-                          setTimeout(() => {
-                            setFieldTouched("startDate", true);
-                            setFieldTouched("endDate", true);
-                          }, 150);
-                        }}
-                        disabled={isSubmitting}
+                    {/* Duration Input */}
+                    <View>
+                      <StyledLabel
+                        text="Duration (days)"
+                        style={styles.fieldLabel}
                       />
-                      <FormStyledDatePicker
-                        name="endDate"
-                        label="end date :"
-                        mode="date"
-                        placeholder="Select end date"
-                        icon={CALENDAR_ICON}
-                        width="100%"
-                        containerStyle={styles.datePickerHalf}
-                        minDate={tomorrowFormatted}
-                        onDateChange={() => {
-                          setTimeout(() => {
-                            setFieldTouched("endDate", true);
-                            setFieldTouched("startDate", true);
-                          }, 150);
-                        }}
-                        disabled={isSubmitting}
+                      <FormInput
+                        name="duration"
+                        placeholder="Enter duration in days"
+                        keyboardType="numeric"
+                        onBlur={() => setFieldTouched("duration", true)}
+                        editable={!isLoading}
                       />
                     </View>
 
@@ -385,7 +364,7 @@ export default function AddScreen() {
                         setFieldValue("images", imgs);
                         setFieldTouched("images", true);
                       }}
-                      disabled={isSubmitting}
+                      disabled={isLoading}
                     />
 
                     {/* Section Tâches */}
@@ -398,10 +377,10 @@ export default function AddScreen() {
                         <TouchableOpacity
                           style={[
                             styles.addTaskButton,
-                            isSubmitting && styles.disabledButton,
+                            isLoading && styles.disabledButton,
                           ]}
                           onPress={addTaskForm}
-                          disabled={isSubmitting}
+                          disabled={isLoading}
                         >
                           <Ionicons
                             name="add-circle"
@@ -425,10 +404,10 @@ export default function AddScreen() {
                                 <TouchableOpacity
                                   style={[
                                     styles.removeTaskFormButton,
-                                    isSubmitting && styles.disabledButton,
+                                    isLoading && styles.disabledButton,
                                   ]}
                                   onPress={() => removeTaskForm(index)}
-                                  disabled={isSubmitting}
+                                  disabled={isLoading}
                                 >
                                   <Ionicons
                                     name="trash-outline"
@@ -454,7 +433,7 @@ export default function AddScreen() {
                                     true
                                   )
                                 }
-                                editable={!isSubmitting}
+                                editable={!isLoading}
                               />
                             </View>
 
@@ -476,7 +455,7 @@ export default function AddScreen() {
                                     true
                                   )
                                 }
-                                editable={!isSubmitting}
+                                editable={!isLoading}
                               />
                             </View>
 
@@ -499,7 +478,7 @@ export default function AddScreen() {
                                       )
                                     }
                                     value={task.price || "0"}
-                                    editable={!isSubmitting}
+                                    editable={!isLoading}
                                   />
                                 </View>
                               </View>
@@ -515,18 +494,16 @@ export default function AddScreen() {
                       <StyledText text={`${totalPrice.toFixed(2)} $`} />
                     </View>
 
-                    {/* Bouton Submit */}
+                    {/* Submit Button */}
                     <FormButton
-                      text={isSubmitting ? "Submitting..." : "Submit Request"}
-                      isLoading={isSubmitting}
+                      text={isLoading ? "Adding..." : "Submit Request"}
+                      isLoading={isLoading}
                       onPress={() => {
-                        // Marquer tous les champs comme touched
                         setFieldTouched("title", true);
                         setFieldTouched("description", true);
                         setFieldTouched("serviceType", true);
                         setFieldTouched("address", true);
-                        setFieldTouched("startDate", true);
-                        setFieldTouched("endDate", true);
+                        setFieldTouched("duration", true);
                         setFieldTouched("images", true);
                         values.taskForms.forEach((_, idx) => {
                           setFieldTouched(`taskForms.${idx}.title`, true);
@@ -535,19 +512,13 @@ export default function AddScreen() {
                         });
                         handleSubmit();
                       }}
-                      disabled={isSubmitting}
+                      disabled={isLoading}
                     />
 
-                    {/* Loading Overlay */}
-                    {isSubmitting && (
-                      <View style={styles.loadingOverlay}>
-                        <ActivityIndicator
-                          size="large"
-                        />
-                        <StyledText
-                          text="Creating your request..."
-                          style={styles.loadingText}
-                        />
+                    {/* Loading Indicator at bottom */}
+                    {isLoading && (
+                      <View style={styles.bottomLoadingIndicator}>
+                        <ActivityIndicator />
                       </View>
                     )}
                   </StyledCard>
@@ -676,20 +647,15 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.5,
   },
-  loadingOverlay: {
+  topLoadingIndicator: {
     position: "absolute",
-    top: 0,
+    top: 10,
     left: 0,
     right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    justifyContent: "center",
     alignItems: "center",
-    borderRadius: 8,
+    zIndex: 1000,
   },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: colors.primary,
+  bottomLoadingIndicator: {
+    alignItems: "center",
   },
 });

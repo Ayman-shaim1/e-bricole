@@ -232,7 +232,7 @@ export default function AddressPickerScreen() {
           />
           {searchLoading && (
             <ActivityIndicator
-              size="large"
+              size="small"
               style={getStyles(theme).searchLoader}
             />
           )}
@@ -369,7 +369,7 @@ const getStyles = (theme) =>
     },
     suggestionsContainer: {
       position: "absolute",
-      top: Platform.OS === "ios" ? 100 : 80,
+      top: Platform.OS === "ios" ? 120 : 80,
       left: 16,
       right: 16,
       backgroundColor: theme.cardColor,
@@ -378,11 +378,6 @@ const getStyles = (theme) =>
       borderRadius: 8,
       marginTop: 5,
       maxHeight: 200,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 3.84,
-      elevation: 5,
       zIndex: 1002,
     },
     suggestionsList: {
@@ -416,11 +411,7 @@ const getStyles = (theme) =>
       backgroundColor: theme.cardColor,
       borderRadius: 12,
       padding: 16,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 3.84,
-      elevation: 5,
+
       borderWidth: 1,
       borderColor: theme.iconColor + "40",
       zIndex: 500,

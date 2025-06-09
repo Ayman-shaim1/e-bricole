@@ -174,25 +174,12 @@ export default function RequestDetailsScreen() {
           <Divider />
           <View style={styles.datesContainer}>
             <View style={styles.dateItem}>
-              <Ionicons name="calendar" size={20} color={colors.primary} />
+              <Ionicons name="time-outline" size={20} color={colors.primary} />
               <StyledText
-                text={formatDate(request.startDate)}
+                text={`${request.duration || 0} day${(request.duration || 0) > 1 ? 's' : ''}`}
                 style={styles.dateText}
               />
             </View>
-            {request.endDate && (
-              <View style={styles.dateItem}>
-                <Ionicons
-                  name="calendar-outline"
-                  size={20}
-                  color={colors.primary}
-                />
-                <StyledText
-                  text={formatDate(request.endDate)}
-                  style={styles.dateText}
-                />
-              </View>
-            )}
           </View>
           <Divider />
           <View style={styles.infoRow}>
@@ -311,7 +298,7 @@ export default function RequestDetailsScreen() {
         {!user?.isClient && (
           <View style={styles.buttonContainer}>
             <StyledButton
-              text="Postuler"
+              text="Apply"
               onPress={handlePostuler}
               style={styles.postulerButton}
             />
@@ -459,6 +446,8 @@ const styles = StyleSheet.create({
   },
   imageWrapper: {
     position: "relative",
+    width: 150,
+    height: 150,
   },
   imageLoadingContainer: {
     position: "absolute",

@@ -124,41 +124,50 @@ async function uploadImages(images) {
  * @returns {Promise<{success: boolean, requestId: string|null, error: string|null}>}
  */
 export async function createServiceRequest(requestData) {
+  let uploadedImages = [];
+  let createdTaskIds = [];
+
   try {
-    // Execute all creation operations in parallel
-    const [tasksResult, imagesResult] = await Promise.all([
-      createServiceTasks(requestData.tasks),
-      uploadImages(requestData.images),
-    ]);
-
-    // Check for errors in parallel operations
-    if (!tasksResult.success) {
-      throw new Error(`Failed to create tasks: ${tasksResult.error}`);
-    }
-    if (!imagesResult.success) {
-      throw new Error(`Failed to upload images: ${imagesResult.error}`);
+    // First, upload all images
+    if (requestData.images && requestData.images.length > 0) {
+      const imagesResult = await uploadImages(requestData.images);
+      if (!imagesResult.success) {
+        throw new Error(`Failed to upload images: ${imagesResult.error}`);
+      }
+      uploadedImages = imagesResult.uploadedImages;
     }
 
-    // Prepare the service request document
+    // Then, create all service tasks
+    if (requestData.tasks && requestData.tasks.length > 0) {
+      const tasksResult = await createServiceTasks(requestData.tasks);
+      if (!tasksResult.success) {
+        throw new Error(`Failed to create tasks: ${tasksResult.error}`);
+      }
+      createdTaskIds = tasksResult.taskIds;
+    }
+
+    // Get the text address from the address object
+    const textAddress = requestData.address?.textAddress || 
+                       requestData.address?.address || 
+                       requestData.address?.formattedAddress || 
+                       "";
+
+    // Finally, create the service request
     const requestDoc = {
       title: requestData.title,
       description: requestData.description,
-      startDate: requestData.startDate,
-      endDate: requestData.endDate,
-      totalPrice: parseFloat(
-        requestData.totalPrice.toString().replace(",", ".")
-      ),
-      images: imagesResult.uploadedImages,
+      duration: requestData.duration,
+      totalPrice: parseFloat(requestData.totalPrice.toString().replace(",", ".")),
+      images: uploadedImages,
       latitude: requestData.address.coordinates.latitude,
       longitude: requestData.address.coordinates.longitude,
-      textAddress: requestData.address.textAddress || "",
-      serviceTasks: tasksResult.taskIds,
+      textAddress: textAddress,
+      serviceTasks: createdTaskIds,
       serviceType: requestData.serviceType,
       status: "in progress",
       user: requestData.user,
     };
 
-    // Create the service request document
     const response = await databases.createDocument(
       settings.dataBaseId,
       settings.serviceRequestsId,
@@ -173,6 +182,22 @@ export async function createServiceRequest(requestData) {
     };
   } catch (error) {
     console.error("Error creating service request:", error);
+    
+    // If there was an error, we should clean up any created resources
+    try {
+      // Delete any uploaded images
+      if (uploadedImages.length > 0) {
+        // TODO: Implement image deletion from storage
+      }
+      
+      // Delete any created tasks
+      if (createdTaskIds.length > 0) {
+        // TODO: Implement task deletion
+      }
+    } catch (cleanupError) {
+      console.error("Error during cleanup:", cleanupError);
+    }
+
     return {
       success: false,
       requestId: null,

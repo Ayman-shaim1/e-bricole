@@ -7,7 +7,6 @@ import { colors } from "../constants/colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import StyledHeading from "./StyledHeading";
 import StyledLabel from "./StyledLabel";
-import { formatDate } from "../utils/dateUtils";
 import StatusBadge from "./StatusBadge";
 
 export default function ClientRequest({ request }) {
@@ -87,13 +86,13 @@ export default function ClientRequest({ request }) {
 
           <View style={styles.dateContainer}>
             <MaterialCommunityIcons
-              name="calendar-clock"
+              name="clock-outline"
               size={16}
               color={colors.textSecondary}
               style={styles.dateIcon}
             />
             <StyledText
-              text={formatDate(request.startDate, false)}
+              text={`${request.duration || 0} day${(request.duration || 0) > 1 ? 's' : ''}`}
               style={styles.date}
             />
           </View>

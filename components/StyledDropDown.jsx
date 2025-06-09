@@ -18,11 +18,27 @@ export default function StyledDropdown({
   selectedOption,
   selectedOptionText,
   setOption,
+  valueKey = "value",
+  labelKey = "label",
 }) {
   const [showModal, setShowModal] = useState(false);
+  const [selectedLabel, setSelectedLabel] = useState(selectedOptionText);
+
+  useEffect(() => {
+    // Update selected label when selectedOption changes
+    if (selectedOption) {
+      const selected = options.find(opt => opt[valueKey] === selectedOption);
+      if (selected) {
+        setSelectedLabel(selected[labelKey]);
+      }
+    } else {
+      setSelectedLabel("");
+    }
+  }, [selectedOption, options]);
 
   const handleSelect = (item) => {
-    setOption(item.value);
+    setOption(item[valueKey]);
+    setSelectedLabel(item[labelKey]);
     setShowModal(false);
   };
 
@@ -32,7 +48,8 @@ export default function StyledDropdown({
         editable={false}
         onPress={() => setShowModal(true)}
         icon={icon}
-        value={selectedOptionText}
+        value={selectedLabel}
+        placeholder="Select an option"
       />
       <BottomModal
         style={styles.modalContainer}
@@ -42,15 +59,22 @@ export default function StyledDropdown({
         <FlatList
           data={options}
           renderItem={({ item }) => {
+            const isSelected = item[valueKey] === selectedOption;
             return (
               <TouchableOpacity
-                style={[styles.optionContainer]}
+                style={[
+                  styles.optionContainer,
+                  isSelected && styles.selectedOption
+                ]}
                 onPress={() => handleSelect(item)}
               >
                 {item.icon && item.icon}
                 {item.image && <Image source={item.image} width={30} />}
 
-                <StyledLabel text={item.label} />
+                <StyledLabel 
+                  text={item[labelKey]} 
+                  style={isSelected && styles.selectedText}
+                />
               </TouchableOpacity>
             );
           }}

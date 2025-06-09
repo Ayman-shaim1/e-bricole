@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   Text,
   Platform,
-  Image,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { colors } from "../constants/colors";
@@ -13,6 +12,7 @@ import StyledHeading from "./StyledHeading";
 import { useAuth } from "../context/AuthContext";
 import StyledAddressPicker from "./StyledAddressPicker";
 import useGeolocation from "../hooks/useGeolocation";
+import Avatar from "./Avatar";
 
 export default function Header() {
   const { user } = useAuth();
@@ -51,18 +51,11 @@ export default function Header() {
       <View style={styles.userInfo}>
         <View style={styles.userInfoTop}>
           <TouchableOpacity style={styles.avatarContainer}>
-            <Image
-              key={user?.profileImage || "default"}
-              source={
-                user?.profileImage
-                  ? { uri: user.profileImage }
-                  : require("../assets/icons/default_user.png")
-              }
+            <Avatar
+              size="md"
+              source={user?.profileImage}
+              text={user?.name}
               style={styles.avatar}
-              onError={(error) => {
-                console.log("Error loading profile image:", error);
-              }}
-              defaultSource={require("../assets/icons/default_user.png")}
             />
           </TouchableOpacity>
           <View>
@@ -111,18 +104,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   avatarContainer: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    overflow: "hidden",
-    borderWidth: 2,
-    borderColor: colors.primary,
     marginTop: 5,
   },
   avatar: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 22.5,
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   userName: {
     fontSize: 22,

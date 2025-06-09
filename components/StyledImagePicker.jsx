@@ -1,11 +1,14 @@
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View, Alert } from "react-native";
 import React, { useState } from "react";
 import { colors } from "../constants/colors";
 import { styles as mystyle } from "../constants/styles";
 import StyledLabel from "./StyledLabel";
 import * as ImagePicker from "expo-image-picker";
 import { Feather } from "@expo/vector-icons";
+import * as FileSystem from 'expo-file-system';
 const IMAGE_ICON = require("../assets/icons/image.png");
+
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; 
 
 export default function StyledImagePicker({ image, onImageChange, customLabel }) {
   // Use internal state only if no external state is provided
@@ -14,6 +17,19 @@ export default function StyledImagePicker({ image, onImageChange, customLabel })
   // Determine which image and setter to use
   const currentImage = image !== undefined ? image : internalImage;
   const setCurrentImage = onImageChange || setInternalImage;
+  
+  const checkImageSize = async (uri) => {
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      if (fileInfo.exists) {
+        return fileInfo.size <= MAX_IMAGE_SIZE;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking image size:', error);
+      return false;
+    }
+  };
   
   const pickImageHandler = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -30,7 +46,16 @@ export default function StyledImagePicker({ image, onImageChange, customLabel })
     });
 
     if (!result.canceled) {
-      setCurrentImage(result.assets[0].uri);
+      const isValid = await checkImageSize(result.assets[0].uri);
+      if (isValid) {
+        setCurrentImage(result.assets[0].uri);
+      } else {
+        Alert.alert(
+          "Image Size Error",
+          "The selected image exceeds the 5MB size limit. Please select a smaller image.",
+          [{ text: "OK" }]
+        );
+      }
     }
   };
 

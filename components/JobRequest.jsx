@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, View, TouchableOpacity, Animated } from "react-native";
+import { StyleSheet, View, Animated } from "react-native";
 import { useRouter } from "expo-router";
 import StyledCard from "./StyledCard";
 import StyledText from "./StyledText";
@@ -8,11 +8,28 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import StyledHeading from "./StyledHeading";
 import StyledLabel from "./StyledLabel";
 import { formatDate } from "../utils/dateUtils";
-import StatusBadge from "./StatusBadge";
+import Avatar from "./Avatar";
 
 export default function JobRequest({ request, distance }) {
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
   const router = useRouter();
+
+  // Get user name from request data
+  const getUserName = () => {
+    // Check if user is a string (ID) or an object
+    if (typeof request.user === 'string') {
+      return "Anonymous";
+    }
+
+    // If user is an object, try to get the name
+    if (request.user && typeof request.user === 'object') {
+      // Try different possible name properties
+      const name = request.user.name || request.user.fullName || request.user.username;
+      if (name) return name;
+    }
+
+    return "Anonymous";
+  };
 
   const handlePress = () => {
     router.push({
@@ -35,6 +52,8 @@ export default function JobRequest({ request, distance }) {
     }).start();
   };
 
+  const userName = getUserName();
+
   return (
     <StyledCard
       style={styles.requestCard}
@@ -43,9 +62,20 @@ export default function JobRequest({ request, distance }) {
       onPressOut={handlePressOut}
     >
       <View style={styles.header}>
+        <View style={styles.clientInfo}>
+          <Avatar
+            size="md"
+            source={request.user?.profileImage}
+            text={userName}
+            style={styles.clientImage}
+          />
+          <StyledHeading
+            text={userName}
+            style={styles.clientName}
+          />
+        </View>
         <View style={styles.titleContainer}>
           <StyledHeading text={request.title} style={styles.title} />
-          {/* <StatusBadge status={request.status} size="small" /> */}
         </View>
       </View>
 
@@ -86,13 +116,13 @@ export default function JobRequest({ request, distance }) {
 
         <View style={styles.dateContainer}>
           <MaterialCommunityIcons
-            name="calendar-clock"
+            name="clock-outline"
             size={16}
             color={colors.textSecondary}
             style={styles.dateIcon}
           />
           <StyledText
-            text={formatDate(request.startDate, false)}
+            text={`${request.duration} day${request.duration > 1 ? 's' : ''}`}
             style={styles.date}
           />
         </View>
@@ -134,6 +164,8 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 12,
+    // flexDirection:'row',
+    // justifyContent:'space-between'
   },
   titleContainer: {
     flexDirection: "row",
@@ -146,6 +178,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     flex: 1,
+  },
+  clientInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  clientImage: {
+    marginRight: 8,
+  },
+  clientName: {
+    fontSize: 14,
+    color: colors.textSecondary,
   },
   description: {
     fontSize: 14,

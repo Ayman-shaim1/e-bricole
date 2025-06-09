@@ -91,80 +91,11 @@ export const addRequestSchema = Yup.object().shape({
   serviceType: Yup.string()
     .required("Service type is required")
     .test("is-valid-service-type", "Please select a service type", value => value && value !== ""),
-  startDate: Yup.string()
-    .required("Start date is required")
-    .test(
-      "is-today-or-future",
-      "Start date cannot be in the past",
-      function (value) {
-        if (!value) return false;
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        // Parse the date string (format: MM/DD/YYYY)
-        const dateParts = value.split("/");
-        if (dateParts.length !== 3) return false;
-
-        const month = parseInt(dateParts[0]) - 1; // Month is 0-indexed
-        const day = parseInt(dateParts[1]);
-        const year = parseInt(dateParts[2]);
-
-        const selectedDate = new Date(year, month, day);
-        selectedDate.setHours(0, 0, 0, 0);
-
-        return selectedDate >= today;
-      }
-    ),
-  endDate: Yup.string()
-    .required("End date is required")
-    .test("is-after-today", "End date must be after today", function (value) {
-      if (!value) return false;
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      // Parse the date string (format: MM/DD/YYYY)
-      const dateParts = value.split("/");
-      if (dateParts.length !== 3) return false;
-
-      const month = parseInt(dateParts[0]) - 1; // Month is 0-indexed
-      const day = parseInt(dateParts[1]);
-      const year = parseInt(dateParts[2]);
-
-      const selectedDate = new Date(year, month, day);
-      selectedDate.setHours(0, 0, 0, 0);
-
-      return selectedDate > today;
-    })
-    .test(
-      "is-after-start-date",
-      "End date must be after start date",
-      function (value) {
-        const { startDate } = this.parent;
-        if (!value || !startDate) return true;
-
-        // Parse start date (format: MM/DD/YYYY)
-        const startParts = startDate.split("/");
-        if (startParts.length !== 3) return true;
-
-        const startMonth = parseInt(startParts[0]) - 1;
-        const startDay = parseInt(startParts[1]);
-        const startYear = parseInt(startParts[2]);
-        const startDateObj = new Date(startYear, startMonth, startDay);
-
-        // Parse end date (format: MM/DD/YYYY)
-        const endParts = value.split("/");
-        if (endParts.length !== 3) return true;
-
-        const endMonth = parseInt(endParts[0]) - 1;
-        const endDay = parseInt(endParts[1]);
-        const endYear = parseInt(endParts[2]);
-        const endDateObj = new Date(endYear, endMonth, endDay);
-
-        return endDateObj > startDateObj;
-      }
-    ),
+  duration: Yup.number()
+    .required("Duration is required")
+    .min(1, "Duration must be at least 1 day")
+    .max(365, "Duration cannot exceed 365 days")
+    .integer("Duration must be a whole number"),
   images: Yup.array()
     .of(Yup.string().required("Image URI is required"))
     .max(5, "Maximum 5 images allowed")
