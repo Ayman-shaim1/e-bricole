@@ -28,6 +28,7 @@ import { displayedSplitText } from "../../utils/displayedSplitText";
 import { styles as mystyles } from "../../constants/styles";
 import ImageSkeleton from "../../components/ImageSkeleton";
 import { useAuth } from "../../context/AuthContext";
+import ArtisanDisplayedJobAddress from "../../components/ArtisanDisplayedJobAddress";
 
 export default function RequestDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -172,6 +173,14 @@ export default function RequestDetailsScreen() {
         <StyledCard>
           <StyledText text={request.description} />
           <Divider />
+          {/* Afficher la carte et l'adresse si l'utilisateur est un artisan */}
+          {!user?.isClient && (
+            <ArtisanDisplayedJobAddress
+              latitude={request.latitude}
+              longitude={request.longitude}
+              textAddress={request.textAddress}
+            />
+          )}
           <View style={styles.datesContainer}>
             <View style={styles.dateItem}>
               <Ionicons name="time-outline" size={20} color={colors.primary} />
