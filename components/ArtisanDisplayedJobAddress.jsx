@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   },
   addressOverlay: {
     position: "absolute",
-    top: 16,
+    top: 55,
     left: 16,
     right: 16,
     backgroundColor: "#fff",
