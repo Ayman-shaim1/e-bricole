@@ -187,6 +187,14 @@ export default function ArtisanDisplayedJobAddress({
                 />
               )}
             </MapView>
+            {/* Overlay address and coordinates */}
+            <View style={styles.addressOverlay}>
+              <StyledText text={textAddress} style={styles.overlayAddress} numberOfLines={2} />
+              <View style={styles.overlayCoordsRow}>
+                <StyledText text={`Lat: ${latitude.toFixed(6)}`} style={styles.overlayCoord} />
+                <StyledText text={`Lng: ${longitude.toFixed(6)}`} style={styles.overlayCoord} />
+              </View>
+            </View>
           </View>
         </View>
       </Modal>
@@ -200,7 +208,7 @@ const styles = StyleSheet.create({
   },
   miniMap: {
     width: width - 48,
-    height: 120,
+    height: 200,
     borderRadius: 12,
     marginBottom: 8,
   },
@@ -249,7 +257,7 @@ const styles = StyleSheet.create({
   },
   zoomControls: {
     position: "absolute",
-    top: 60,
+    bottom: 60,
     right: 12,
     zIndex: 10,
     flexDirection: "column",
@@ -266,5 +274,35 @@ const styles = StyleSheet.create({
   fullMap: {
     width: "100%",
     height: "100%",
+  },
+  addressOverlay: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    right: 16,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    zIndex: 20,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  overlayAddress: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  overlayCoordsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  overlayCoord: {
+    fontSize: 13,
+    color: colors.textSecondary,
   },
 });
