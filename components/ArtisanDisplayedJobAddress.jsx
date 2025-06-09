@@ -15,7 +15,7 @@ import { styles as mystyles } from "../constants/styles";
 import { useDirections } from "../hooks/useDirections";
 import StyledLabel from "./StyledLabel";
 import StyledCard from "./StyledCard";
-import StyledText from "./StyledText";
+
 const { width } = Dimensions.get("window");
 
 function getRegionForCoordinates(coords) {

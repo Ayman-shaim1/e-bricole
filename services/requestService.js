@@ -348,3 +348,58 @@ export async function getJobsByLocationAndType(
     };
   }
 }
+
+/**
+ * Soumet une candidature d'artisan avec propositions de tâches (transaction complète)
+ * @param {Object} data - { newDuration, startDate, message, serviceRequestId, artisanId, clientId, tasks: [{taskId, newPrice}] }
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function submitServiceApplicationWithProposals(data) {
+  let applicationId = null;
+  try {
+    // 1. Créer la candidature principale
+    const appRes = await databases.createDocument(
+      settings.dataBaseId,
+      settings.serviceApplicationsId,
+      ID.unique(),
+      {
+        message: data.message,
+        startDate: data.startDate,
+        status: 'pending',
+        newDuration: data.newDuration,
+        serviceRequest: data.serviceRequestId,
+        artisan: data.artisanId,
+        client: data.clientId,
+      }
+    );
+    applicationId = appRes.$id;
+
+    // 2. Créer les propositions de tâches
+    const taskPromises = data.tasks.map((task) =>
+      databases.createDocument(
+        settings.dataBaseId,
+        settings.serviceTaskProposalsId,
+        ID.unique(),
+        {
+          newPrice: task.newPrice,
+          serviceTask: task.taskId,
+          serviceApplication: applicationId,
+        }
+      )
+    );
+    await Promise.all(taskPromises);
+    return { success: true };
+  } catch (error) {
+    // Si une erreur, rollback (supprimer la candidature si créée)
+    if (applicationId) {
+      try {
+        await databases.deleteDocument(
+          settings.dataBaseId,
+          settings.serviceApplicationsId,
+          applicationId
+        );
+      } catch {}
+    }
+    return { success: false, error: error.message };
+  }
+}

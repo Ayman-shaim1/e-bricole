@@ -150,6 +150,40 @@ export const addRequestSchema = Yup.object().shape({
   totalPrice: Yup.string().nullable(),
 });
 
+export const serviceApplicationSchema = Yup.object().shape({
+  newDuration: Yup.number()
+    .required('La nouvelle durée est requise')
+    .min(1, 'La durée doit être au moins 1 jour'),
+  tasks: Yup.array()
+    .of(
+      Yup.object().shape({
+        taskId: Yup.string().required(),
+        newPrice: Yup.number()
+          .required('Le prix est requis')
+          .min(1, 'Le prix doit être positif'),
+      })
+    )
+    .min(1, 'Au moins une tâche'),
+  startDate: Yup.date().required('La date de début est requise'),
+  message: Yup.string().required('Le message est requis').min(10, 'Le message doit contenir au moins 10 caractères'),
+});
+
+export const serviceApplicationStep1Schema = Yup.object().shape({
+  newDuration: Yup.number()
+    .required('New duration is required')
+    .min(1, 'Duration must be at least 1 day'),
+  tasks: Yup.array()
+    .of(
+      Yup.object().shape({
+        taskId: Yup.string().required(),
+        newPrice: Yup.number()
+          .required('Price is required')
+          .min(1, 'Price must be positive'),
+      })
+    )
+    .min(1, 'At least one task'),
+});
+
 // Fonction pour obtenir le schéma approprié en fonction du type d'utilisateur
 export const getRegisterSchema = (userType) => {
   return userType === "artisan" ? artisanRegisterSchema : clientRegisterSchema;

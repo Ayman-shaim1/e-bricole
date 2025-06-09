@@ -29,9 +29,15 @@ import ImageSkeleton from "../../components/ImageSkeleton";
 import { useAuth } from "../../context/AuthContext";
 import ArtisanDisplayedJobAddress from "../../components/ArtisanDisplayedJobAddress";
 import BottomModal from "../../components/BottomModal";
-import StyledLabel from "../../components/StyledLabel";
-import StyledTextInput from "../../components/StyledTextInput";
 import AlertComponent from "../../components/Alert";
+import FormikForm from '../../components/FormikForm';
+import FormInput from '../../components/FormInput';
+import FormRichTextBox from '../../components/FormRichTextBox';
+import { serviceApplicationSchema, serviceApplicationStep1Schema } from '../../utils/validators';
+import { submitServiceApplicationWithProposals } from '../../services/requestService';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import StyledLabel from "../../components/StyledLabel";
+import FormStyledDatePicker from '../../components/FormStyledDatePicker';
 
 export default function RequestDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -44,6 +50,11 @@ export default function RequestDetailsScreen() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageLoadingStates, setImageLoadingStates] = useState({});
   const scaleAnim = useRef(new Animated.Value(0)).current;
+  const [formStep, setFormStep] = useState(1);
+  const [formLoading, setFormLoading] = useState(false);
+  const [formError, setFormError] = useState(null);
+  const [formSuccess, setFormSuccess] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const fetchRequestDetails = async () => {
     try {
@@ -104,6 +115,54 @@ export default function RequestDetailsScreen() {
 
   const confirmNegociationHandler = () => {
     console.log("");
+  };
+
+  // Préparation des valeurs initiales pour Formik
+  const initialFormValues = request
+    ? {
+        newDuration: request.duration || 1,
+        tasks: request.serviceTasks.map((task) => ({
+          taskId: task.$id,
+          newPrice: task.price,
+        })),
+        startDate: '',
+        message: '',
+      }
+    : {
+        newDuration: 1,
+        tasks: [],
+        startDate: '',
+        message: '',
+      };
+
+  // Nouvelle fonction de soumission
+  const handleApplicationSubmit = async (values, { resetForm }) => {
+    setFormLoading(true);
+    setFormError(null);
+    try {
+      const res = await submitServiceApplicationWithProposals({
+        newDuration: values.newDuration,
+        startDate: values.startDate,
+        message: values.message,
+        serviceRequestId: request.$id,
+        artisanId: user.$id,
+        clientId: request.user, // ou request.client selon la structure
+        tasks: values.tasks,
+      });
+      if (res.success) {
+        setFormSuccess(true);
+        setVisibleNegoModal(false);
+        resetForm();
+        // Optionnel : afficher un toast ou naviguer
+      } else {
+        setFormError(res.error || 'Erreur lors de la soumission');
+      }
+    } catch (e) {
+      setFormError(e.message || 'Erreur inattendue');
+    } finally {
+      setFormLoading(false);
+      setFormStep(1);
+    }
   };
 
   useEffect(() => {
@@ -325,23 +384,16 @@ export default function RequestDetailsScreen() {
               status="warning"
               title="How to proceed"
               description={
-                "You can negotiate to change prices or duration, or apply directly without negotiation.\n\n- Tap 'Negotiate' to propose changes.\n- Tap 'Apply' to submit your application as is."
+                "You can apply for this job by submitting your proposed prices and duration.\n\n- Tap 'Apply' to submit your application with your proposed changes."
               }
               style={{ marginBottom: 10 }}
             />
             <View style={styles.buttonContainer}>
               <StyledButton
-                text="Negotiate"
+                text="Apply"
                 onPress={handleNegotiation}
                 style={styles.negotiateButton}
                 color="primary"
-              />
-              {/* POSTULER SANS NÉGOCIATION */}
-              <StyledButton
-                text="Apply"
-                onPress={handlePostuler}
-                style={styles.postulerButton}
-                color="accent"
               />
             </View>
 
@@ -349,34 +401,86 @@ export default function RequestDetailsScreen() {
               visible={visibleNegoModal}
               onClose={() => {
                 setVisibleNegoModal(false);
+                setFormStep(1);
+                setFormError(null);
+                setFormSuccess(false);
               }}
             >
               <StyledHeading
-                text={"change duration and prices"}
+                text={formStep === 1 ? 'Votre proposition' : 'Finalisez votre candidature'}
                 style={{ marginBottom: 15 }}
               />
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <StyledLabel text={"new duration :"} />
-                <StyledTextInput
-                  placeholder="Enter new duration in days"
-                  keyboardType="numeric"
-                />
-                {request?.serviceTasks.map((task) => (
-                  <View key={task.$id}>
-                    <StyledLabel text={task.title + " :"} key={task.$id} />
-                    <StyledTextInput
-                      placeholder={`new price of task : (${task.title})`}
-                      keyboardType="numeric"
+              <FormikForm
+                initialValues={initialFormValues}
+                validationSchema={formStep === 1 ? serviceApplicationStep1Schema : serviceApplicationSchema}
+                enableReinitialize
+                onSubmit={(values, helpers) => {
+                  if (formStep === 1) {
+                    setFormStep(2);
+                  } else {
+                    handleApplicationSubmit(values, helpers);
+                  }
+                }}
+              >
+                {(formik) => (
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    {formStep === 1 && (
+                      <>
+                        <FormInput
+                          name="newDuration"
+                          label="New duration (days)"
+                          keyboardType="numeric"
+                        />
+                        <Divider />
+                        {formik.values.tasks.map((task, idx) => (
+                          <FormInput
+                            key={task.taskId}
+                            name={`tasks[${idx}].newPrice`}
+                            label={`Price for: ${request.serviceTasks[idx].title}`}
+                            keyboardType="numeric"
+                          />
+                        ))}
+                      </>
+                    )}
+                    {formStep === 2 && (
+                      <>
+                        <FormStyledDatePicker
+                          name="startDate"
+                          label="Start date"
+                          mode="date"
+                        />
+                        <FormRichTextBox
+                          name="message"
+                          label="Message to client"
+                          placeholder="Explain your motivation, questions, etc."
+                          minHeight={100}
+                        />
+                      </>
+                    )}
+                    {formError && (
+                      <AlertComponent status="danger" title="Error" description={formError} />
+                    )}
+                    {formSuccess && (
+                      <AlertComponent status="success" title="Success" description="Your application has been sent!" />
+                    )}
+                    <StyledButton
+                      text={formStep === 1 ? 'Confirm' : formLoading ? 'Sending...' : 'Submit application'}
+                      onPress={formik.handleSubmit}
+                      color="primary"
+                      style={{ marginTop: 15 }}
+                      disabled={formLoading}
                     />
-                  </View>
-                ))}
-
-                <StyledButton
-                  text={"confirm"}
-                  style={{ marginTop: 15 }}
-                  onPress={confirmNegociationHandler}
-                />
-              </ScrollView>
+                    {formStep === 2 && (
+                      <StyledButton
+                        text="Back"
+                        onPress={() => setFormStep(1)}
+                        color="white"
+                        style={{ marginTop: 5 }}
+                      />
+                    )}
+                  </ScrollView>
+                )}
+              </FormikForm>
             </BottomModal>
           </>
         )}

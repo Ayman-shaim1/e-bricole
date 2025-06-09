@@ -43,7 +43,7 @@ export default function FormInput({
       {label && <StyledLabel text={label} {...labelProps} />}
 
       <StyledTextInput
-        value={field.value}
+        value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
         onChangeText={(text) => {
           helpers.setValue(text);
           // Mark as touched on change to show validation immediately

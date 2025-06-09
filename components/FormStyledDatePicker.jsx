@@ -1,7 +1,7 @@
-import React from "react";
-import { View, StyleSheet, Text } from "react-native";
+import React, { useState } from "react";
+import { View, Text, Button, Platform, TouchableOpacity } from "react-native";
 import { useField } from "formik";
-import StyledDatePicker from "./StyledDatePicker";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import StyledLabel from "./StyledLabel";
 import { colors } from "../constants/colors";
 
@@ -11,7 +11,6 @@ import { colors } from "../constants/colors";
  * @param {Object} props - Component props
  * @param {string} props.name - Field name in Formik
  * @param {string} props.label - Label text
- * @param {Object} props.icon - Icon source
  * @param {string} props.mode - Date picker mode: "date", "time", or "datetime"
  * @param {string} props.placeholder - Placeholder text
  * @param {string} props.width - Width of the component (default: "100%")
@@ -24,57 +23,44 @@ import { colors } from "../constants/colors";
 export default function FormStyledDatePicker({
   name,
   label,
-  icon,
   mode = "date",
-  placeholder = "Select date/time",
-  width = "100%",
-  labelProps = {},
-  datePickerProps = {},
-  containerStyle = {},
-  minDate = null,
-  onDateChange,
+  ...props
 }) {
-  // Use Formik's useField hook to connect to form state
   const [field, meta, helpers] = useField(name);
+  const [show, setShow] = useState(false);
+
+  const onChange = (event, selectedDate) => {
+    setShow(false);
+    if ((event.type === 'set' || Platform.OS === 'ios') && selectedDate) {
+      helpers.setValue(selectedDate);
+      helpers.setTouched(true);
+    }
+  };
 
   return (
-    <View style={[styles.container, { width }, containerStyle]}>
-      {label && <StyledLabel text={label} {...labelProps} />}
-
-      <StyledDatePicker
-        value={field.value}
-        onChange={(dateTimeString) => {
-          helpers.setValue(dateTimeString);
-          helpers.setTouched(true);
-          // Trigger form validation for cross-field validation
-          if (onDateChange) {
-            setTimeout(() => onDateChange(), 100);
-          }
-        }}
-        icon={icon}
-        mode={mode}
-        placeholder={placeholder}
-        width={width}
-        minDate={minDate}
-        {...datePickerProps}
-      />
-
-      {meta.touched && meta.error ? (
-        <Text style={styles.errorText}>{meta.error}</Text>
-      ) : null}
+    <View style={{ marginBottom: 10 }}>
+      {label && <StyledLabel text={label} />}
+      <TouchableOpacity
+        onPress={() => setShow(true)}
+        style={{ padding: 12, borderWidth: 1, borderColor: '#ccc', borderRadius: 8 ,backgroundColor:colors.white}}
+      >
+        <Text>
+          {field.value
+            ? (field.value instanceof Date ? field.value.toLocaleDateString() : new Date(field.value).toLocaleDateString())
+            : "Select a date"}
+        </Text>
+      </TouchableOpacity>
+      {show && (
+        <DateTimePicker
+          value={field.value || new Date()}
+          mode={mode}
+          display="default"
+          onChange={onChange}
+        />
+      )}
+      {meta.touched && meta.error && (
+        <Text style={{ color: "red" }}>{meta.error}</Text>
+      )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    // width removed - now controlled by width prop
-  },
-  errorText: {
-    color: colors.error || "#FF3B30",
-    fontSize: 12,
-    marginBottom: 5,
-    paddingHorizontal: 5,
-    fontFamily: "Poppins-Regular",
-  },
-});

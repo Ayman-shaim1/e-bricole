@@ -9,7 +9,8 @@ const settings = {
     servicesTypesId: "682cdbd9002d1fd1dc00",
     serviceTasksId: "683b8704000a007dff7c",
     serviceRequestsId: "683b844a0009b7325d4e",
-    addrressessId: "683b8541000ecf102883",
+    serviceApplicationsId: "6847421200314be69ca7",
+    serviceTaskProposalsId: "684743ac0017cbf90147",
   },
   staging: {
     openRouteApiKey: "5b3ce3597851110001cf62487457825666a7441fbf7b9ac578303d3b",
@@ -19,7 +20,8 @@ const settings = {
     servicesTypesId: "682cdbd9002d1fd1dc00",
     serviceTasksId: "683b8704000a007dff7c",
     serviceRequestsId: "683b844a0009b7325d4e",
-    addrressessId: "683b8541000ecf102883",
+    serviceApplicationsId: "6847421200314be69ca7",
+    serviceTaskProposalsId: "684743ac0017cbf90147",
   },
   prod: {
     openRouteApiKey: "5b3ce3597851110001cf62487457825666a7441fbf7b9ac578303d3b",
@@ -29,7 +31,8 @@ const settings = {
     servicesTypesId: "682cdbd9002d1fd1dc00",
     serviceTasksId: "683b8704000a007dff7c",
     serviceRequestsId: "683b844a0009b7325d4e",
-    addrressessId: "683b8541000ecf102883",
+    serviceApplicationsId: "6847421200314be69ca7",
+    serviceTaskProposalsId: "684743ac0017cbf90147",
   },
 };
 
