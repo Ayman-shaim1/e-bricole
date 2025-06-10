@@ -30,11 +30,19 @@ export default function FormStyledDatePicker({
   const [show, setShow] = useState(false);
 
   const onChange = (event, selectedDate) => {
-    setShow(false);
+    setShow(Platform.OS === 'ios');
     if ((event.type === 'set' || Platform.OS === 'ios') && selectedDate) {
-      helpers.setValue(selectedDate);
+      // Ensure we're setting a proper Date object
+      const date = new Date(selectedDate);
+      helpers.setValue(date);
       helpers.setTouched(true);
     }
+  };
+
+  const formatDate = (date) => {
+    if (!date) return "Select a date";
+    const d = date instanceof Date ? date : new Date(date);
+    return d.toLocaleDateString();
   };
 
   return (
@@ -42,20 +50,23 @@ export default function FormStyledDatePicker({
       {label && <StyledLabel text={label} />}
       <TouchableOpacity
         onPress={() => setShow(true)}
-        style={{ padding: 12, borderWidth: 1, borderColor: '#ccc', borderRadius: 8 ,backgroundColor:colors.white}}
+        style={{ 
+          padding: 12, 
+          borderWidth: 1, 
+          borderColor: '#ccc', 
+          borderRadius: 8,
+          backgroundColor: colors.white 
+        }}
       >
-        <Text>
-          {field.value
-            ? (field.value instanceof Date ? field.value.toLocaleDateString() : new Date(field.value).toLocaleDateString())
-            : "Select a date"}
-        </Text>
+        <Text>{formatDate(field.value)}</Text>
       </TouchableOpacity>
       {show && (
         <DateTimePicker
-          value={field.value || new Date()}
+          value={field.value ? new Date(field.value) : new Date()}
           mode={mode}
           display="default"
           onChange={onChange}
+          minimumDate={new Date()} // Prevent selecting past dates
         />
       )}
       {meta.touched && meta.error && (

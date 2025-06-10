@@ -30,6 +30,7 @@ export default function StyledDatePicker({
           borderWidth: 1,
           borderColor: "#ccc",
           borderRadius: 8,
+          marginBottom:10
         }}
       >
         <StyledLabel

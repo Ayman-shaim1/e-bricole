@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, Text } from "react-native";
+import { View, StyleSheet, Text, ActivityIndicator } from "react-native";
 import { useField } from "formik";
 import StyledTextInput from "./StyledTextInput";
 import StyledLabel from "./StyledLabel";
@@ -17,6 +17,7 @@ import { colors } from "../constants/colors";
  * @param {boolean} props.secureTextEntry - Whether to hide text entry
  * @param {string} props.textContentType - Text content type for iOS
  * @param {boolean} props.editable - Whether the input is editable
+ * @param {boolean} props.isLoading - Whether the input is in loading state
  * @param {Function} props.onPress - Function to call on press (for dropdowns etc.)
  * @param {Object} props.labelProps - Additional props for the label
  * @param {Object} props.inputProps - Additional props for the input
@@ -29,36 +30,53 @@ export default function FormInput({
   keyboardType,
   secureTextEntry,
   textContentType,
-  editable,
+  editable = true,
+  isLoading = false,
   onPress,
   labelProps = {},
   inputProps = {},
-  height,
 }) {
   // Use Formik's useField hook to connect to form state
   const [field, meta, helpers] = useField(name);
+
+  const handleChange = (text) => {
+    helpers.setValue(text);
+    // Only validate on blur to avoid too frequent validation
+    if (meta.touched) {
+      helpers.setError(undefined);
+    }
+  };
+
+  const handleBlur = () => {
+    helpers.setTouched(true);
+  };
 
   return (
     <View style={[styles.container]}>
       {label && <StyledLabel text={label} {...labelProps} />}
 
-      <StyledTextInput
-        value={field.value !== undefined && field.value !== null ? String(field.value) : ""}
-        onChangeText={(text) => {
-          helpers.setValue(text);
-          // Mark as touched on change to show validation immediately
-          helpers.setTouched(true);
-        }}
-        placeholder={placeholder}
-        icon={icon}
-        keyboardType={keyboardType}
-        secureTextEntry={secureTextEntry}
-        textContentType={textContentType}
-        editable={editable}
-        onPress={onPress}
-        onBlur={() => helpers.setTouched(true)}
-        {...inputProps}
-      />
+      {isLoading ? (
+        <ActivityIndicator size="small" color={colors.primary} />
+      ) : (
+        <StyledTextInput
+          value={
+            field.value !== undefined && field.value !== null
+              ? String(field.value)
+              : ""
+          }
+          onChangeText={handleChange}
+          onBlur={handleBlur}
+          placeholder={placeholder}
+          icon={icon}
+          keyboardType={keyboardType}
+          secureTextEntry={secureTextEntry}
+          textContentType={textContentType}
+          editable={editable}
+          onPress={onPress}
+          error={meta.touched && meta.error ? meta.error : undefined}
+          {...inputProps}
+        />
+      )}
 
       {meta.touched && meta.error ? (
         <Text style={styles.errorText}>{meta.error}</Text>
@@ -70,11 +88,12 @@ export default function FormInput({
 const styles = StyleSheet.create({
   container: {
     width: "100%",
+    marginBottom: 10,
   },
   errorText: {
     color: colors.error || "#FF3B30",
     fontSize: 12,
-    marginBottom: 5,
+    marginTop: 4,
     paddingHorizontal: 5,
     fontFamily: "Poppins-Regular",
   },

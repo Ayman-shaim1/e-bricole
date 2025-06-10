@@ -3,6 +3,8 @@ import { ID } from "appwrite";
 import settings from "../config/settings";
 import { uploadFile } from "./uploadService";
 import { Query } from "appwrite";
+import { Alert } from "react-native";
+import { createNotification } from "./notificationService";
 
 /**
  * Creates a new address document in the addresses collection
@@ -147,17 +149,20 @@ export async function createServiceRequest(requestData) {
     }
 
     // Get the text address from the address object
-    const textAddress = requestData.address?.textAddress || 
-                       requestData.address?.address || 
-                       requestData.address?.formattedAddress || 
-                       "";
+    const textAddress =
+      requestData.address?.textAddress ||
+      requestData.address?.address ||
+      requestData.address?.formattedAddress ||
+      "";
 
     // Finally, create the service request
     const requestDoc = {
       title: requestData.title,
       description: requestData.description,
       duration: requestData.duration,
-      totalPrice: parseFloat(requestData.totalPrice.toString().replace(",", ".")),
+      totalPrice: parseFloat(
+        requestData.totalPrice.toString().replace(",", ".")
+      ),
       images: uploadedImages,
       latitude: requestData.address.coordinates.latitude,
       longitude: requestData.address.coordinates.longitude,
@@ -182,14 +187,14 @@ export async function createServiceRequest(requestData) {
     };
   } catch (error) {
     console.error("Error creating service request:", error);
-    
+
     // If there was an error, we should clean up any created resources
     try {
       // Delete any uploaded images
       if (uploadedImages.length > 0) {
         // TODO: Implement image deletion from storage
       }
-      
+
       // Delete any created tasks
       if (createdTaskIds.length > 0) {
         // TODO: Implement task deletion
@@ -356,7 +361,23 @@ export async function getJobsByLocationAndType(
  */
 export async function submitServiceApplicationWithProposals(data) {
   let applicationId = null;
+  let createdTaskProposalIds = [];
+  let notificationId = null;
   try {
+    // Format the startDate properly
+    let formattedStartDate;
+    if (data.startDate instanceof Date) {
+      formattedStartDate = data.startDate.toISOString();
+    } else if (typeof data.startDate === "string") {
+      formattedStartDate = new Date(data.startDate).toISOString();
+    } else {
+      throw new Error("Invalid startDate format");
+    }
+    const clientId =
+      typeof data.clientId === "object" && data.clientId.$id
+        ? data.clientId.$id
+        : data.clientId;
+    const newDuration = parseInt(data.newDuration, 10);
     // 1. Créer la candidature principale
     const appRes = await databases.createDocument(
       settings.dataBaseId,
@@ -364,33 +385,73 @@ export async function submitServiceApplicationWithProposals(data) {
       ID.unique(),
       {
         message: data.message,
-        startDate: data.startDate,
-        status: 'pending',
-        newDuration: data.newDuration,
+        startDate: formattedStartDate,
+        status: "pending",
+        newDuration: newDuration,
         serviceRequest: data.serviceRequestId,
         artisan: data.artisanId,
-        client: data.clientId,
+        client: clientId,
       }
     );
     applicationId = appRes.$id;
-
-    // 2. Créer les propositions de tâches
-    const taskPromises = data.tasks.map((task) =>
-      databases.createDocument(
+    // 2. Créer les propositions de tâches une par une pour éviter les problèmes de concurrence
+    for (const task of data.tasks) {
+      const taskRes = await databases.createDocument(
         settings.dataBaseId,
         settings.serviceTaskProposalsId,
         ID.unique(),
         {
-          newPrice: task.newPrice,
+          newPrice: parseFloat(task.newPrice.toString().replace(",", ".")),
           serviceTask: task.taskId,
           serviceApplication: applicationId,
         }
-      )
+      );
+      createdTaskProposalIds.push(taskRes.$id);
+    }
+    // 3. Créer la notification pour le client
+    // Fetch the service request to get its title and createdAt
+    const serviceRequest = await databases.getDocument(
+      settings.dataBaseId,
+      settings.serviceRequestsId,
+      data.serviceRequestId
     );
-    await Promise.all(taskPromises);
+    const requestTitle = serviceRequest.title;
+    const createdAt = new Date(serviceRequest.$createdAt);
+    const pad = (n) => n.toString().padStart(2, "0");
+    const formattedDate = `${pad(createdAt.getDate())}/${pad(
+      createdAt.getMonth() + 1
+    )}/${createdAt.getFullYear()} at ${pad(createdAt.getHours())}:${pad(
+      createdAt.getMinutes()
+    )}`;
+    const notifRes = await createNotification({
+      senderUser: data.artisanId,
+      receiverUser: clientId,
+      title: "New Application Received",
+      messageContent: `You have received a new application for your service request ("${requestTitle}") that you made here at ${formattedDate}. Please review the details and respond to the applicant if you are interested.`,
+    });
+    if (!notifRes.success) throw new Error(notifRes.error);
+    notificationId = notifRes.notificationId;
     return { success: true };
   } catch (error) {
-    // Si une erreur, rollback (supprimer la candidature si créée)
+    // Rollback: delete everything created
+    if (notificationId) {
+      try {
+        await databases.deleteDocument(
+          settings.dataBaseId,
+          settings.notificationsId,
+          notificationId
+        );
+      } catch {}
+    }
+    for (const taskId of createdTaskProposalIds) {
+      try {
+        await databases.deleteDocument(
+          settings.dataBaseId,
+          settings.serviceTaskProposalsId,
+          taskId
+        );
+      } catch {}
+    }
     if (applicationId) {
       try {
         await databases.deleteDocument(
@@ -401,5 +462,27 @@ export async function submitServiceApplicationWithProposals(data) {
       } catch {}
     }
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Checks if the artisan has already applied to a specific service request
+ * @param {string} serviceRequestId
+ * @param {string} artisanId
+ * @returns {Promise<boolean>}
+ */
+export async function hasUserAppliedToRequest(serviceRequestId, artisanId) {
+  try {
+    const response = await databases.listDocuments(
+      settings.dataBaseId,
+      settings.serviceApplicationsId,
+      [
+        Query.equal("serviceRequest", serviceRequestId),
+        Query.equal("artisan", artisanId)
+      ]
+    );
+    return response.documents.length > 0;
+  } catch (error) {
+    return false; // fallback: allow apply if error
   }
 }
