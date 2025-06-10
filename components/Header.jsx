@@ -13,12 +13,15 @@ import { useAuth } from "../context/AuthContext";
 import StyledAddressPicker from "./StyledAddressPicker";
 import useGeolocation from "../hooks/useGeolocation";
 import Avatar from "./Avatar";
+import { useRouter } from "expo-router";
+import { getUnseenNotificationCount } from "../services/notificationService";
 
 export default function Header() {
   const { user } = useAuth();
   const { location, error, isLoading } = useGeolocation();
-
   const [pickedLocation, setPickerLocation] = useState(null);
+  const [unseenCount, setUnseenCount] = useState(0);
+  const router = useRouter();
 
   const handlePickAddress = (locationData) => {
     // Handle both new format (with coordinates object) and legacy format (direct coordinates)
@@ -46,6 +49,12 @@ export default function Header() {
     }
   }, [location]);
 
+  useEffect(() => {
+    if (user?.$id) {
+      getUnseenNotificationCount(user.$id).then(setUnseenCount);
+    }
+  }, [user]);
+
   return (
     <View style={styles.headerContent}>
       <View style={styles.userInfo}>
@@ -71,12 +80,14 @@ export default function Header() {
           </View>
         </View>
       </View>
-      <TouchableOpacity style={styles.notificationButton}>
+      <TouchableOpacity style={styles.notificationButton} onPress={() => router.push('/shared/notifications')}>
         <View style={styles.notificationIconContainer}>
           <Ionicons name="notifications" size={24} color={colors.primary} />
-          <View style={styles.notificationBadge}>
-            <Text style={styles.notificationCount}>2</Text>
-          </View>
+          {unseenCount > 0 && (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationCount}>{unseenCount}</Text>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     </View>

@@ -304,7 +304,7 @@ function getDistanceKm(lat1, lon1, lat2, lon2) {
 export async function getJobsByLocationAndType(
   location,
   serviceType,
-  maxDistance = 5
+  maxDistance = 3
 ) {
   try {
     const lat = location.latitude;

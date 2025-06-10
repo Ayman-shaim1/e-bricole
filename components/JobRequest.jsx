@@ -10,9 +10,9 @@ import StyledLabel from "./StyledLabel";
 import { formatDate } from "../utils/dateUtils";
 import Avatar from "./Avatar";
 
-export default function JobRequest({ request, distance, alreadyApplied }) {
+export default function JobRequest({ request, distance, alreadyApplied, onPress }) {
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
-  const router = useRouter();
+  // const router = useRouter();
 
   // Get user name from request data
   const getUserName = () => {
@@ -31,12 +31,12 @@ export default function JobRequest({ request, distance, alreadyApplied }) {
     return "Anonymous";
   };
 
-  const handlePress = () => {
-    router.push({
-      pathname: "/shared/request-details",
-      params: { id: request.$id },
-    });
-  };
+  // const handlePress = () => {
+  //   router.push({
+  //     pathname: "/shared/request-details",
+  //     params: { id: request.$id },
+  //   });
+  // };
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -57,7 +57,7 @@ export default function JobRequest({ request, distance, alreadyApplied }) {
   return (
     <StyledCard
       style={styles.requestCard}
-      onPress={handlePress}
+      onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
     >

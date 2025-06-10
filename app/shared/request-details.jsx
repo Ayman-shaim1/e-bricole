@@ -44,7 +44,7 @@ import {
 import FormStyledDatePicker from "../../components/FormStyledDatePicker";
 
 export default function RequestDetailsScreen() {
-  const { id } = useLocalSearchParams();
+  const { id, onJobApplied } = useLocalSearchParams();
   const { user } = useAuth();
   const [visibleNegoModal, setVisibleNegoModal] = useState(false);
   const [request, setRequest] = useState(null);
@@ -58,7 +58,6 @@ export default function RequestDetailsScreen() {
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState(null);
   const [formSuccess, setFormSuccess] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [alreadyApplied, setAlreadyApplied] = useState(false);
   const [checkingApplied, setCheckingApplied] = useState(true);
 
@@ -110,17 +109,8 @@ export default function RequestDetailsScreen() {
     });
   };
 
-  const handlePostuler = () => {
-    // TODO: Implement postuler functionality
-    console.log("Postuler clicked");
-  };
-
   const handleNegotiation = () => {
     setVisibleNegoModal(true);
-  };
-
-  const confirmNegociationHandler = () => {
-    console.log("");
   };
 
   // Préparation des valeurs initiales pour Formik
@@ -162,14 +152,18 @@ export default function RequestDetailsScreen() {
         tasks: values.tasks,
       });
       if (res.success) {
-        setFormSuccess(true);
-        setVisibleNegoModal(false);
-        resetForm();
         Alert.alert(
           "Application Sent",
           "Your application has been sent to the client. You will be notified if the client responds.",
           [{ text: "OK" }]
         );
+        setTimeout(() => {
+          setFormSuccess(true);
+          setVisibleNegoModal(false);
+          resetForm();
+          setAlreadyApplied(true);
+          if (onJobApplied) onJobApplied(request.$id);
+        }, 300);
       } else {
         setFormError(res.error || "Erreur lors de la soumission");
       }
@@ -205,6 +199,17 @@ export default function RequestDetailsScreen() {
       </ThemedView>
     );
   }
+
+  // Show info message at the top if already applied
+  const topInfo =
+    !user?.isClient && alreadyApplied ? (
+      <AlertComponent
+        status="success"
+        title="Application Sent"
+        description="You have already applied to this job. You will be notified if the client responds."
+        style={{ marginBottom: 10 }}
+      />
+    ) : null;
 
   if (error || !request) {
     return (
@@ -261,143 +266,7 @@ export default function RequestDetailsScreen() {
           />
         }
       >
-        {!user?.isClient &&
-          !checkingApplied &&
-          (alreadyApplied ? (
-            <AlertComponent
-              status="info"
-              title="Already Applied"
-              description="You have already applied to this job. Please wait for the client's response."
-              style={{ marginBottom: 10 }}
-            />
-          ) : (
-            <>
-              <AlertComponent
-                status="warning"
-                title="How to proceed"
-                description={
-                  "You can apply for this job by submitting your proposed prices and duration.\n\n- Tap 'Apply' to submit your application with your proposed changes."
-                }
-                style={{ marginBottom: 10 }}
-              />
-              <View style={styles.buttonContainer}>
-                <StyledButton
-                  text="Apply"
-                  onPress={handleNegotiation}
-                  style={styles.negotiateButton}
-                  color="primary"
-                />
-              </View>
-
-              <BottomModal
-                visible={visibleNegoModal}
-                onClose={() => {
-                  setVisibleNegoModal(false);
-                  setFormStep(1);
-                  setFormError(null);
-                  setFormSuccess(false);
-                }}
-              >
-                <StyledHeading
-                  text={
-                    formStep === 1
-                      ? "Votre proposition"
-                      : "Finalisez votre candidature"
-                  }
-                  style={{ marginBottom: 15 }}
-                />
-                <FormikForm
-                  initialValues={initialFormValues}
-                  validationSchema={
-                    formStep === 1
-                      ? serviceApplicationStep1Schema
-                      : serviceApplicationSchema
-                  }
-                  enableReinitialize
-                  onSubmit={(values, helpers) => {
-                    if (formStep === 1) {
-                      setFormStep(2);
-                    } else {
-                      handleApplicationSubmit(values, helpers);
-                    }
-                  }}
-                >
-                  {(formik) => (
-                    <ScrollView showsVerticalScrollIndicator={false}>
-                      {formStep === 1 && (
-                        <>
-                          <FormInput
-                            name="newDuration"
-                            label="New duration (days)"
-                            keyboardType="numeric"
-                          />
-                          <Divider />
-                          {formik.values.tasks.map((task, idx) => (
-                            <FormInput
-                              key={task.taskId}
-                              name={`tasks[${idx}].newPrice`}
-                              label={`Price for: ${request.serviceTasks[idx].title}`}
-                              keyboardType="numeric"
-                            />
-                          ))}
-                        </>
-                      )}
-                      {formStep === 2 && (
-                        <>
-                          <FormStyledDatePicker
-                            name="startDate"
-                            label="Start date"
-                            mode="date"
-                          />
-                          <FormRichTextBox
-                            name="message"
-                            label="Message to client"
-                            placeholder="Explain your motivation, questions, etc."
-                            minHeight={100}
-                          />
-                        </>
-                      )}
-                      {formError && (
-                        <AlertComponent
-                          status="danger"
-                          title="Error"
-                          description={formError}
-                        />
-                      )}
-                      {formSuccess && (
-                        <AlertComponent
-                          status="success"
-                          title="Success"
-                          description="Your application has been sent!"
-                        />
-                      )}
-                      <StyledButton
-                        text={
-                          formStep === 1
-                            ? "Confirm"
-                            : formLoading
-                            ? "Sending..."
-                            : "Submit application"
-                        }
-                        onPress={formik.handleSubmit}
-                        color="primary"
-                        style={{ marginTop: 15 }}
-                        disabled={formLoading}
-                      />
-                      {formStep === 2 && (
-                        <StyledButton
-                          text="Back"
-                          onPress={() => setFormStep(1)}
-                          color="white"
-                          style={{ marginTop: 5 }}
-                        />
-                      )}
-                    </ScrollView>
-                  )}
-                </FormikForm>
-              </BottomModal>
-            </>
-          ))}
+        {topInfo}
         <StyledCard>
           <StyledText text={request.description} />
           <Divider />
@@ -538,6 +407,144 @@ export default function RequestDetailsScreen() {
             </View>
           </StyledCard>
         )}
+
+        {!user?.isClient &&
+          !checkingApplied &&
+          (alreadyApplied ? (
+            <AlertComponent
+              status="info"
+              title="Already Applied"
+              description="You have already applied to this job. Please wait for the client's response."
+              style={{ marginBottom: 10 }}
+            />
+          ) : (
+            <>
+              <AlertComponent
+                status="warning"
+                title="How to proceed"
+                description={
+                  "You can apply for this job by submitting your proposed prices and duration.\n\n- Tap 'Apply' to submit your application with your proposed changes."
+                }
+                style={{ marginBottom: 10 }}
+              />
+              <View style={styles.buttonContainer}>
+                <StyledButton
+                  text="Apply"
+                  onPress={handleNegotiation}
+                  style={styles.negotiateButton}
+                  color="primary"
+                />
+              </View>
+
+              <BottomModal
+                visible={visibleNegoModal}
+                onClose={() => {
+                  setVisibleNegoModal(false);
+                  setFormStep(1);
+                  setFormError(null);
+                  setFormSuccess(false);
+                }}
+              >
+                <StyledHeading
+                  text={
+                    formStep === 1
+                      ? "Votre proposition"
+                      : "Finalisez votre candidature"
+                  }
+                  style={{ marginBottom: 15 }}
+                />
+                <FormikForm
+                  initialValues={initialFormValues}
+                  validationSchema={
+                    formStep === 1
+                      ? serviceApplicationStep1Schema
+                      : serviceApplicationSchema
+                  }
+                  enableReinitialize
+                  onSubmit={(values, helpers) => {
+                    if (formStep === 1) {
+                      setFormStep(2);
+                    } else {
+                      handleApplicationSubmit(values, helpers);
+                    }
+                  }}
+                >
+                  {(formik) => (
+                    <ScrollView showsVerticalScrollIndicator={false}>
+                      {formStep === 1 && (
+                        <>
+                          <FormInput
+                            name="newDuration"
+                            label="New duration (days)"
+                            keyboardType="numeric"
+                          />
+                          <Divider />
+                          {formik.values.tasks.map((task, idx) => (
+                            <FormInput
+                              key={task.taskId}
+                              name={`tasks[${idx}].newPrice`}
+                              label={`Price for: ${request.serviceTasks[idx].title}`}
+                              keyboardType="numeric"
+                            />
+                          ))}
+                        </>
+                      )}
+                      {formStep === 2 && (
+                        <>
+                          <FormStyledDatePicker
+                            name="startDate"
+                            label="Start date"
+                            mode="date"
+                          />
+                          <FormRichTextBox
+                            name="message"
+                            label="Message to client"
+                            placeholder="Explain your motivation, questions, etc."
+                            minHeight={100}
+                          />
+                        </>
+                      )}
+                      {formError && (
+                        <AlertComponent
+                          status="danger"
+                          title="Error"
+                          description={formError}
+                        />
+                      )}
+                      {formSuccess && (
+                        <AlertComponent
+                          status="success"
+                          title="Success"
+                          description="Your application has been sent!"
+                        />
+                      )}
+                      <StyledButton
+                        text={
+                          formStep === 1
+                            ? "Confirm"
+                            : formLoading
+                            ? "Sending..."
+                            : "Submit application"
+                        }
+                        onPress={formik.handleSubmit}
+                        color="primary"
+                        style={{ marginTop: 15 }}
+                        disabled={formLoading}
+                      />
+                      {formStep === 2 && (
+                        <StyledButton
+                          text="Back"
+                          onPress={() => setFormStep(1)}
+                          color="white"
+                          style={{ marginTop: 5 }}
+                        />
+                      )}
+                    </ScrollView>
+                  )}
+                </FormikForm>
+              </BottomModal>
+            </>
+          ))}
       </ScrollView>
     </ThemedView>
   );

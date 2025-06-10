@@ -9,6 +9,7 @@ import JobRequest from "../../components/JobRequest";
 import StyledHeading from "../../components/StyledHeading";
 import StyledText from "../../components/StyledText";
 import StyledAddressPicker from "../../components/StyledAddressPicker";
+import { useRouter, useFocusEffect } from "expo-router";
 
 export default function JobsScreen() {
   const { getCurrentTheme } = useTheme();
@@ -20,6 +21,7 @@ export default function JobsScreen() {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const router = useRouter();
 
   const fetchJobs = async () => {
     try {
@@ -55,9 +57,11 @@ export default function JobsScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchJobs();
-  }, [location, user?.serviceType, selectedLocation]);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchJobs();
+    }, [location, user?.serviceType, selectedLocation])
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -66,6 +70,13 @@ export default function JobsScreen() {
 
   const handleLocationPick = (pickedLocation) => {
     setSelectedLocation(pickedLocation.coordinates);
+  };
+
+  const handlePress = (jobId) => {
+    router.push({
+      pathname: "/shared/request-details",
+      params: { id: jobId },
+    });
   };
 
   if (!theme) {
@@ -91,7 +102,12 @@ export default function JobsScreen() {
         data={jobs}
         keyExtractor={(item) => item.$id}
         renderItem={({ item }) => (
-          <JobRequest request={item} distance={item.distance} alreadyApplied={item.alreadyApplied} />
+          <JobRequest
+            request={item}
+            distance={item.distance}
+            alreadyApplied={item.alreadyApplied}
+            onPress={() => handlePress(item.$id)}
+          />
         )}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}

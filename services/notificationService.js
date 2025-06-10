@@ -45,3 +45,24 @@ export async function getNotifications(userId) {
     return { success: false, data: [], error: error.message };
   }
 }
+
+/**
+ * Gets the count of unseen notifications for a user
+ * @param {string} userId
+ * @returns {Promise<number>}
+ */
+export async function getUnseenNotificationCount(userId) {
+  try {
+    const response = await databases.listDocuments(
+      settings.dataBaseId,
+      settings.notificationId,
+      [
+        Query.equal("receiverUser", userId),
+        Query.equal("isSeen", false)
+      ]
+    );
+    return response.documents.length;
+  } catch (error) {
+    return 0;
+  }
+}
