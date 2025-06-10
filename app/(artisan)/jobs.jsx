@@ -4,7 +4,7 @@ import ThemedView from "../../components/ThemedView";
 import { useTheme } from "../../context/ThemeContext";
 import useGeolocation from "../../hooks/useGeolocation";
 import { useAuth } from "../../context/AuthContext";
-import { getJobsByLocationAndType } from "../../services/requestService";
+import { getJobsByLocationAndType, hasUserAppliedToRequest } from "../../services/requestService";
 import JobRequest from "../../components/JobRequest";
 import StyledHeading from "../../components/StyledHeading";
 import StyledText from "../../components/StyledText";
@@ -37,7 +37,13 @@ export default function JobsScreen() {
       );
 
       if (result.success) {
-        setJobs(result.data);
+        const jobsWithApplied = await Promise.all(
+          result.data.map(async (job) => {
+            const alreadyApplied = await hasUserAppliedToRequest(job.$id, user.$id);
+            return { ...job, alreadyApplied };
+          })
+        );
+        setJobs(jobsWithApplied);
       } else {
         setError(result.error);
       }
@@ -85,7 +91,7 @@ export default function JobsScreen() {
         data={jobs}
         keyExtractor={(item) => item.$id}
         renderItem={({ item }) => (
-          <JobRequest request={item} distance={item.distance} />
+          <JobRequest request={item} distance={item.distance} alreadyApplied={item.alreadyApplied} />
         )}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}

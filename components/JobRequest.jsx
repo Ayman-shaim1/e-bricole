@@ -10,7 +10,7 @@ import StyledLabel from "./StyledLabel";
 import { formatDate } from "../utils/dateUtils";
 import Avatar from "./Avatar";
 
-export default function JobRequest({ request, distance }) {
+export default function JobRequest({ request, distance, alreadyApplied }) {
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
   const router = useRouter();
 
@@ -61,6 +61,13 @@ export default function JobRequest({ request, distance }) {
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
     >
+      {/* Already Applied Badge */}
+      {alreadyApplied && (
+        <View style={styles.appliedBadge}>
+          <MaterialCommunityIcons name="check-circle" size={16} color="#4CAF50" />
+          <StyledText text="Applied" style={styles.appliedBadgeText} />
+        </View>
+      )}
       <View style={styles.header}>
         <View style={styles.clientInfo}>
           <Avatar
@@ -275,5 +282,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.danger,
     fontWeight: "500",
+  },
+  appliedBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#e6f9ec",
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    zIndex: 10,
+  },
+  appliedBadgeText: {
+    fontSize: 11,
+    color: "#388e3c",
+    marginLeft: 3,
+    fontWeight: "bold",
   },
 });
