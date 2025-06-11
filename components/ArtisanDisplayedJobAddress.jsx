@@ -162,6 +162,7 @@ export default function ArtisanDisplayedJobAddress({
           style={styles.miniMap}
           region={jobRegion}
           pointerEvents="none"
+          scrollEnabled={false}
           customMapStyle={isDark ? darkMapStyle : []}
         >
           <Marker

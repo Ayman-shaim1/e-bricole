@@ -1,5 +1,11 @@
 import { useRef, useEffect, useState } from "react";
-import { Modal, StyleSheet, View, PanResponder } from "react-native";
+import {
+  Modal,
+  StyleSheet,
+  View,
+  PanResponder,
+  ScrollView,
+} from "react-native";
 import CloseButton from "./CloseButton";
 import { colors } from "../constants/colors";
 import { styles as mystyles } from "../constants/styles";
@@ -63,7 +69,9 @@ export default function BottomModal({
           >
             <View style={styles.line}></View>
             <CloseButton style={styles.btnClose} onPress={onClose} />
-            {children}
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {children}
+            </ScrollView>
           </View>
         </View>
       </View>
@@ -82,8 +90,11 @@ const styles = StyleSheet.create({
   },
   modalWrapper: {
     paddingTop: 5,
-    height: "100%",
     borderRadius: mystyles.borderRadius,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   btnClose: {
     alignSelf: "flex-end",

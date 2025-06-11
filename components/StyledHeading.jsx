@@ -6,13 +6,7 @@ export default function StyledHeading({ text, style }) {
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
   return (
-    <Text
-      style={[
-        styles.text,
-        { ...style },
-        { color: style && style.color ? style.color : theme.textColor },
-      ]}
-    >
+    <Text style={[styles.text, { ...style }, { color: theme.textColor }]}>
       {text}
     </Text>
   );

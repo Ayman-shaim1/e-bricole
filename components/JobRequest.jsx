@@ -7,24 +7,34 @@ import { colors } from "../constants/colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import StyledHeading from "./StyledHeading";
 import StyledLabel from "./StyledLabel";
-import { formatDate } from "../utils/dateUtils";
-import Avatar from "./Avatar";
 
-export default function JobRequest({ request, distance, alreadyApplied, onPress }) {
+import Avatar from "./Avatar";
+import { useTheme } from "../context/ThemeContext";
+import { styles as mystyles } from "../constants/styles";
+
+export default function JobRequest({
+  request,
+  distance,
+  alreadyApplied,
+  onPress,
+}) {
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
+  const { getCurrentTheme } = useTheme();
+  const theme = getCurrentTheme();
   // const router = useRouter();
 
   // Get user name from request data
   const getUserName = () => {
     // Check if user is a string (ID) or an object
-    if (typeof request.user === 'string') {
+    if (typeof request.user === "string") {
       return "Anonymous";
     }
 
     // If user is an object, try to get the name
-    if (request.user && typeof request.user === 'object') {
+    if (request.user && typeof request.user === "object") {
       // Try different possible name properties
-      const name = request.user.name || request.user.fullName || request.user.username;
+      const name =
+        request.user.name || request.user.fullName || request.user.username;
       if (name) return name;
     }
 
@@ -63,9 +73,24 @@ export default function JobRequest({ request, distance, alreadyApplied, onPress 
     >
       {/* Already Applied Badge */}
       {alreadyApplied && (
-        <View style={styles.appliedBadge}>
-          <MaterialCommunityIcons name="check-circle" size={16} color="#4CAF50" />
-          <StyledText text="Applied" style={styles.appliedBadgeText} />
+        <View
+          style={[
+            styles.appliedBadge,
+            { backgroundColor: theme === colors.dark ? "#1a4731" : "#e6f9ec" },
+          ]}
+        >
+          <MaterialCommunityIcons
+            name="check-circle"
+            size={16}
+            color={theme === colors.dark ? "#48bb78" : "#4CAF50"}
+          />
+          <StyledLabel
+            text="Applied"
+            style={[
+              styles.appliedBadgeText,
+              { color: theme === colors.dark ? "#48bb78" : "#388e3c" },
+            ]}
+          />
         </View>
       )}
       <View style={styles.header}>
@@ -76,10 +101,7 @@ export default function JobRequest({ request, distance, alreadyApplied, onPress 
             text={userName}
             style={styles.clientImage}
           />
-          <StyledHeading
-            text={userName}
-            style={styles.clientName}
-          />
+          <StyledHeading text={userName} style={styles.clientName} />
         </View>
         <View style={styles.titleContainer}>
           <StyledHeading text={request.title} style={styles.title} />
@@ -129,7 +151,7 @@ export default function JobRequest({ request, distance, alreadyApplied, onPress 
             style={styles.dateIcon}
           />
           <StyledText
-            text={`${request.duration} day${request.duration > 1 ? 's' : ''}`}
+            text={`${request.duration} day${request.duration > 1 ? "s" : ""}`}
             style={styles.date}
           />
         </View>
@@ -166,13 +188,9 @@ export default function JobRequest({ request, distance, alreadyApplied, onPress 
 const styles = StyleSheet.create({
   requestCard: {
     marginBottom: 16,
-    elevation: 2,
-    shadowColor: "#000",
   },
   header: {
     marginBottom: 12,
-    // flexDirection:'row',
-    // justifyContent:'space-between'
   },
   titleContainer: {
     flexDirection: "row",
@@ -287,18 +305,16 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 8,
     right: 8,
+    borderRadius: mystyles.borderRadius,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#e6f9ec",
-    borderRadius: 10,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     paddingVertical: 2,
     zIndex: 10,
   },
   appliedBadgeText: {
-    fontSize: 11,
-    color: "#388e3c",
-    marginLeft: 3,
+    fontSize: 10,
     fontWeight: "bold",
+    marginLeft: 2,
   },
 });

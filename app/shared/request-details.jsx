@@ -63,6 +63,7 @@ export default function RequestDetailsScreen() {
 
   const fetchRequestDetails = async () => {
     try {
+      setLoading(true);
       const result = await getRequestById(id);
       if (result.success && result.data) {
         setRequest(result.data);

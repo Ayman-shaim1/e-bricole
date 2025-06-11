@@ -12,48 +12,60 @@ export const ThemeProvider = ({ children }) => {
 
   // Load saved theme preference on mount
   useEffect(() => {
+    let mounted = true;
+
     const loadTheme = async () => {
       try {
+        // Check if AsyncStorage is available
+        if (!AsyncStorage) {
+          console.warn('AsyncStorage is not available');
+          if (mounted) {
+            setIsLoading(false);
+          }
+          return;
+        }
+
         const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-        if (savedTheme) {
+        if (mounted && savedTheme) {
           setTheme(savedTheme);
         }
       } catch (error) {
         console.error('Error loading theme:', error);
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
+
     loadTheme();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const getCurrentTheme = () => {
-    // Return light theme as default if theme is not yet loaded
-    if (isLoading) {
-      return colors.light;
-    }
     return colors[theme] || colors.light;
   };
 
   const changeTheme = async (newTheme) => {
     try {
-      await AsyncStorage.setItem(THEME_STORAGE_KEY, newTheme);
+      if (AsyncStorage) {
+        await AsyncStorage.setItem(THEME_STORAGE_KEY, newTheme);
+      }
       setTheme(newTheme);
     } catch (error) {
       console.error('Error saving theme:', error);
     }
   };
 
-  // Don't render children until theme is loaded
-  if (isLoading) {
-    return null;
-  }
-
   return (
     <ThemeContext.Provider value={{ 
       theme, 
       changeTheme, 
-      getCurrentTheme
+      getCurrentTheme,
+      isLoading
     }}>
       {children}
     </ThemeContext.Provider>

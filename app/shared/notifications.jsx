@@ -12,11 +12,22 @@ import StyledHeading from "../../components/StyledHeading";
 import StyledText from "../../components/StyledText";
 import { useAuth } from "../../context/AuthContext";
 import { getNotifications } from "../../services/notificationService";
+import { subscribeToNotifications } from "../../services/realtimeService";
 import GoBackButton from "../../components/GoBackButton";
 import StyledCard from "../../components/StyledCard";
 import Divider from "../../components/Divider";
 import StyledLabel from "../../components/StyledLabel";
 import { colors } from "../../constants/colors";
+
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  const pad = (n) => n.toString().padStart(2, "0");
+  return `${pad(date.getDate())}/${pad(
+    date.getMonth() + 1
+  )}/${date.getFullYear()} at ${pad(date.getHours())}:${pad(
+    date.getMinutes()
+  )}`;
+};
 
 export default function NotificationsScreen() {
   const { user } = useAuth();
@@ -35,6 +46,16 @@ export default function NotificationsScreen() {
 
   useEffect(() => {
     fetchNotifications();
+
+    // Subscribe to realtime notifications
+    const unsubscribe = subscribeToNotifications(user.$id, (newNotification) => {
+      setNotifications((prevNotifications) => [newNotification, ...prevNotifications]);
+    });
+
+    // Cleanup subscription on unmount
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const onRefresh = () => {
@@ -47,16 +68,6 @@ export default function NotificationsScreen() {
       <View style={styles.header}>
         <GoBackButton />
         <StyledHeading text="Notifications" />
-        {unseenCount > 0 ? (
-          <View style={styles.badge}>
-            <StyledHeading
-              text={unseenCount.toString()}
-              style={{ color: colors.white, fontSize: 12 }}
-            />
-          </View>
-        ) : (
-          ""
-        )}
       </View>
       <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
         <TouchableOpacity>
@@ -71,9 +82,14 @@ export default function NotificationsScreen() {
           data={notifications}
           keyExtractor={(item) => item.$id}
           renderItem={({ item }) => (
-            <StyledCard>
-              <StyledHeading text={item.title} style={styles.title} />
+            <StyledCard style={!item.isSeen ? styles.unseenCard : null}>
+              <View style={styles.titleContainer}>
+                <StyledHeading text={item.title} style={styles.title} />
+                {!item.isSeen && <View style={styles.unseenDot} />}
+              </View>
               <StyledText text={item.messageContent} style={styles.content} />
+              <Divider />
+              <StyledLabel text={formatDate(item.$createdAt)} />
             </StyledCard>
           )}
           refreshControl={
@@ -93,11 +109,23 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
-    justifyContent: "space-between",
+  },
+  titleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   title: { fontSize: 16, fontWeight: "bold" },
-  content: { marginTop: 4, fontSize: 14 },
+  content: { fontSize: 14 },
+  unseenDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.warning,
+  },
+  unseenCard: {
+    backgroundColor: colors.primary + "10",
+  },
   badge: {
     backgroundColor: colors.primary,
     width: 30,

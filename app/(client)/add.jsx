@@ -163,7 +163,7 @@ export default function AddScreen() {
         serviceType: values.serviceType,
         address: {
           coordinates: values.address.coordinates,
-          textAddress: values.address.textAddress || values.address.address || "",
+          textAddress: values.address.address || "",
         },
         duration: parseInt(values.duration, 10),
         totalPrice: values.totalPrice,

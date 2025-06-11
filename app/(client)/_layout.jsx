@@ -27,11 +27,11 @@ export default function AppLayout() {
         headerShown: false,
         tabBarStyle: {
           backgroundColor: theme.cardColor,
-          borderTopColor: theme.iconColor + '20',
+          borderTopColor: theme.iconColor + "20",
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          fontFamily: 'Poppins-Regular',
+          fontFamily: "Poppins-Regular",
         },
       }}
     >
@@ -58,8 +58,10 @@ export default function AppLayout() {
         options={{
           title: "",
           tabBarIcon: ({ size }) => (
-            <View style={styles.addTabButton}>
-              <Ionicons name="add" size={size + 5} color={colors.white} />
+            <View style={styles.addTabButtonWrapper}>
+              <View style={styles.addTabButton}>
+                <Ionicons name="add" size={size + 5} color={colors.white} />
+              </View>
             </View>
           ),
         }}
@@ -82,7 +84,6 @@ export default function AppLayout() {
           ),
         }}
       />
-
     </Tabs>
   );
 }
@@ -90,10 +91,18 @@ export default function AppLayout() {
 const styles = StyleSheet.create({
   addTabButton: {
     backgroundColor: colors.primary,
-    borderRadius: 30,
+    borderRadius: 25,
     width: 50,
     height: 50,
     justifyContent: "center",
     alignItems: "center",
+  },
+  addTabButtonWrapper: {
+    backgroundColor: "white",
+    borderRadius: 30,
+    width: 60,
+    height: 60,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
