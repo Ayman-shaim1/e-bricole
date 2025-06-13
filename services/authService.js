@@ -1,5 +1,5 @@
 import { account, databases } from "../config/appwrite";
-import { ID } from "appwrite";
+import { ID } from "react-native-appwrite";
 import settings from "../config/settings";
 import { uploadFile } from "./uploadService";
 
@@ -152,16 +152,24 @@ export async function registerUser({
 
 export async function loginUser({ email, password }) {
   try {
-    const session = await account.createEmailSession(email, password);
-    const user = await account.get(); // Fetch user data
+    console.log("Attempting to create email session...");
+    // Use createEmailSession with the correct parameters
+    const session = await account.createEmailPasswordSession(email, password);
+    console.log("Session created successfully:", session.$id);
+
+    console.log("Fetching user data...");
+    const user = await account.get();
+    console.log("User data fetched successfully:", user.$id);
 
     // Get user document from database to check role
     try {
+      console.log("Fetching user document from database...");
       const userDoc = await databases.getDocument(
         DATABASE_ID,
         USERS_COLLECTION_ID,
         user.$id
       );
+      console.log("User document fetched successfully");
 
       // Check if the user is a client or artisan
       const isClient = userDoc.isClient === true;
@@ -172,7 +180,11 @@ export async function loginUser({ email, password }) {
       return { success: true, user, isClient: true };
     }
   } catch (error) {
-    console.log("Login error:", error.message);
+    console.log("Login error details:", {
+      message: error.message,
+      code: error.code,
+      type: error.type,
+    });
     return { success: false, error: error.message };
   }
 }

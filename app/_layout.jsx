@@ -5,7 +5,8 @@ import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { ThemeProvider } from "../context/ThemeContext";
 import { AuthProvider, useAuth } from "../context/AuthContext";
-
+import SplashComponent from "./splash";
+import { NotificationProvider } from "../context/NotificationContext";
 SplashScreen.preventAutoHideAsync();
 
 // Inner component for handling route protection and redirection
@@ -55,13 +56,15 @@ export default function Layout() {
   }, [fontsLoaded]);
 
   if (!fontsLoaded) {
-    return null;
+    return <SplashComponent />;
   }
 
   return (
     <ThemeProvider>
       <AuthProvider>
-        <RootLayoutNav />
+        <NotificationProvider>
+          <RootLayoutNav />
+        </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>
   );

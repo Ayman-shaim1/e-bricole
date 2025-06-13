@@ -11,7 +11,12 @@ import ThemedView from "../../components/ThemedView";
 import StyledHeading from "../../components/StyledHeading";
 import StyledText from "../../components/StyledText";
 import { useAuth } from "../../context/AuthContext";
-import { getNotifications } from "../../services/notificationService";
+import { useNotifications } from "../../context/NotificationContext";
+import {
+  getNotifications,
+  getUnseenNotificationCount,
+  markAllNotificationsAsSeen,
+} from "../../services/notificationService";
 import { subscribeToNotifications } from "../../services/realtimeService";
 import GoBackButton from "../../components/GoBackButton";
 import StyledCard from "../../components/StyledCard";
@@ -31,32 +36,96 @@ const formatDate = (dateString) => {
 
 export default function NotificationsScreen() {
   const { user } = useAuth();
+  const { setUnseenCount } = useNotifications();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const unseenCount = notifications.filter((n) => !n.isSeen).length;
+  const [unseenCount, setLocalUnseenCount] = useState(0);
+  const [markingAsSeen, setMarkingAsSeen] = useState(false);
+
+  const handleMarkAllAsSeen = async () => {
+    if (markingAsSeen || unseenCount === 0) return;
+    
+    setMarkingAsSeen(true);
+    const result = await markAllNotificationsAsSeen(user.$id);
+    
+    if (result.success) {
+      // Update both database and UI
+      setNotifications(prev => 
+        prev.map(notification => ({
+          ...notification,
+          isSeen: true
+        }))
+      );
+      // Reset unseen count to update both notifications screen and header
+      setLocalUnseenCount(0);
+      setUnseenCount(0);
+    }
+    setMarkingAsSeen(false);
+  };
 
   const fetchNotifications = async () => {
     setLoading(true);
     const res = await getNotifications(user.$id);
-    if (res.success) setNotifications(res.data);
+    if (res.success) {
+      // Keep the original isSeen state from the database for UI
+      setNotifications(res.data);
+    }
+    const count = await getUnseenNotificationCount(user.$id);
+    setLocalUnseenCount(count);
+    setUnseenCount(count);
     setLoading(false);
     setRefreshing(false);
   };
 
   useEffect(() => {
-    fetchNotifications();
+    const initializeNotifications = async () => {
+      // First fetch notifications to get the current state
+      const res = await getNotifications(user.$id);
+      if (res.success) {
+        setNotifications(res.data);
+      }
+      
+      // Get the current unseen count
+      const count = await getUnseenNotificationCount(user.$id);
+      setLocalUnseenCount(count);
+      setUnseenCount(count);
+      
+      // Then update the database without changing the UI state
+      await markAllNotificationsAsSeen(user.$id);
+      
+      setLoading(false);
+    };
 
-    // Subscribe to realtime notifications
-    const unsubscribe = subscribeToNotifications(user.$id, (newNotification) => {
-      setNotifications((prevNotifications) => [newNotification, ...prevNotifications]);
-    });
+    initializeNotifications();
+  }, []);
 
-    // Cleanup subscription on unmount
+  useEffect(() => {
+    const handleNewNotification = async (newNotification) => {
+      // Check if notification already exists in the list
+      const exists = notifications.some(n => n.$id === newNotification.$id);
+      if (!exists) {
+        // Add new notification to the top of the list with isSeen = false for UI
+        setNotifications(prev => [{
+          ...newNotification,
+          isSeen: false // Force isSeen to false for UI styling
+        }, ...prev]);
+      }
+    };
+
+    const unsubscribe = subscribeToNotifications(
+      user.$id,
+      handleNewNotification,
+      (prevCount) => {
+        setLocalUnseenCount(prevCount);
+        setUnseenCount(prevCount);
+      }
+    );
+
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [user.$id, notifications]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -66,12 +135,25 @@ export default function NotificationsScreen() {
   return (
     <ThemedView style={styles.container}>
       <View style={styles.header}>
-        <GoBackButton />
-        <StyledHeading text="Notifications" />
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <GoBackButton />
+          <StyledHeading text="Notifications" />
+        </View>
+        {unseenCount > 0 && (
+          <View style={styles.badge}>
+            <StyledLabel text={unseenCount.toString()} color="white" />
+          </View>
+        )}
       </View>
       <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
-        <TouchableOpacity>
-          <StyledLabel text="Mark all as read" color="primary" />
+        <TouchableOpacity 
+          onPress={handleMarkAllAsSeen}
+          disabled={markingAsSeen || unseenCount === 0}
+        >
+          <StyledLabel 
+            text={markingAsSeen ? "Marking as seen..." : "Mark all as seen"} 
+            color={markingAsSeen || unseenCount === 0 ? "gray" : "primary"} 
+          />
         </TouchableOpacity>
       </View>
       <Divider />
@@ -80,7 +162,7 @@ export default function NotificationsScreen() {
       ) : (
         <FlatList
           data={notifications}
-          keyExtractor={(item) => item.$id}
+          keyExtractor={(item) => `notification-${item.$id}-${item.$createdAt}`}
           renderItem={({ item }) => (
             <StyledCard style={!item.isSeen ? styles.unseenCard : null}>
               <View style={styles.titleContainer}>
@@ -109,6 +191,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    paddingRight: 10,
   },
   titleContainer: {
     flexDirection: "row",
@@ -128,11 +212,11 @@ const styles = StyleSheet.create({
   },
   badge: {
     backgroundColor: colors.primary,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
+    paddingHorizontal: 6,
   },
 });

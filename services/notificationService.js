@@ -1,5 +1,5 @@
 import { databases } from "../config/appwrite";
-import { ID, Query } from "appwrite";
+import { ID, Query } from "react-native-appwrite";
 import settings from "../config/settings";
 
 /**
@@ -64,5 +64,35 @@ export async function getUnseenNotificationCount(userId) {
     return response.documents.length;
   } catch (error) {
     return 0;
+  }
+}
+
+/**
+ * Marks all notifications as seen for a user
+ * @param {string} userId
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function markAllNotificationsAsSeen(userId) {
+  try {
+    const response = await databases.listDocuments(
+      settings.dataBaseId,
+      settings.notificationId,
+      [Query.equal("receiverUser", userId), Query.equal("isSeen", false)]
+    );
+
+    // Update each unseen notification
+    const updatePromises = response.documents.map(doc => 
+      databases.updateDocument(
+        settings.dataBaseId,
+        settings.notificationId,
+        doc.$id,
+        { isSeen: true }
+      )
+    );
+
+    await Promise.all(updatePromises);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 }

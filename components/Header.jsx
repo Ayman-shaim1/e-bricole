@@ -10,29 +10,29 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import { colors } from "../constants/colors";
 import StyledHeading from "./StyledHeading";
 import { useAuth } from "../context/AuthContext";
+import { useNotifications } from "../context/NotificationContext";
 import StyledAddressPicker from "./StyledAddressPicker";
 import useGeolocation from "../hooks/useGeolocation";
 import Avatar from "./Avatar";
 import { useRouter } from "expo-router";
 import { getUnseenNotificationCount } from "../services/notificationService";
+import { subscribeToNotifications } from "../services/realtimeService";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function Header() {
   const { user } = useAuth();
   const { location, error, isLoading } = useGeolocation();
   const [pickedLocation, setPickerLocation] = useState(null);
-  const [unseenCount, setUnseenCount] = useState(0);
+  const { unseenCount, setUnseenCount } = useNotifications();
   const router = useRouter();
 
   const handlePickAddress = (locationData) => {
-    // Handle both new format (with coordinates object) and legacy format (direct coordinates)
     if (locationData.coordinates) {
-      // New format: { coordinates: { latitude, longitude }, formattedAddress, timestamp }
       setPickerLocation({
         latitude: locationData.coordinates.latitude,
         longitude: locationData.coordinates.longitude,
       });
     } else if (locationData.latitude && locationData.longitude) {
-      // Legacy format: { latitude, longitude }
       setPickerLocation({
         latitude: locationData.latitude,
         longitude: locationData.longitude,
@@ -51,9 +51,30 @@ export default function Header() {
 
   useEffect(() => {
     if (user?.$id) {
+      // Initial count fetch
       getUnseenNotificationCount(user.$id).then(setUnseenCount);
+
+      // Subscribe to realtime updates
+      const unsubscribe = subscribeToNotifications(
+        user.$id,
+        () => {}, // We don't need to handle the notification here
+        (prevCount) => setUnseenCount(prevCount) // Update count when new notification arrives
+      );
+
+      return () => {
+        unsubscribe();
+      };
     }
   }, [user]);
+
+  // Update count when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (user?.$id) {
+        getUnseenNotificationCount(user.$id).then(setUnseenCount);
+      }
+    }, [user])
+  );
 
   return (
     <View style={styles.headerContent}>

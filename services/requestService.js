@@ -1,9 +1,7 @@
 import { databases } from "../config/appwrite";
-import { ID } from "appwrite";
+import { ID, Query } from "react-native-appwrite";
 import settings from "../config/settings";
 import { uploadFile } from "./uploadService";
-import { Query } from "appwrite";
-import { Alert } from "react-native";
 import { createNotification } from "./notificationService";
 
 /**
@@ -265,7 +263,10 @@ export async function getAllRequests(userId) {
     const response = await databases.listDocuments(
       settings.dataBaseId,
       settings.serviceRequestsId,
-      [Query.equal("user", userId), Query.orderDesc("$createdAt")]
+      [
+        Query.equal("user", userId),
+        Query.orderDesc("$createdAt")
+      ]
     );
     return {
       success: true,

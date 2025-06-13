@@ -37,8 +37,8 @@ export default function ClientRequest({ request }) {
 
   return (
     <Animated.View style={[{ transform: [{ scale: scaleAnim }] }]}>
-      <StyledCard 
-        style={styles.requestCard} 
+      <StyledCard
+        style={styles.requestCard}
         onPress={handlePress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -92,7 +92,9 @@ export default function ClientRequest({ request }) {
               style={styles.dateIcon}
             />
             <StyledText
-              text={`${request.duration || 0} day${(request.duration || 0) > 1 ? 's' : ''}`}
+              text={`${request.duration || 0} day${
+                (request.duration || 0) > 1 ? "s" : ""
+              }`}
               style={styles.date}
             />
           </View>
@@ -131,14 +133,6 @@ const styles = StyleSheet.create({
   requestCard: {
     marginBottom: 16,
     padding: 16,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
   },
   header: {
     marginBottom: 12,

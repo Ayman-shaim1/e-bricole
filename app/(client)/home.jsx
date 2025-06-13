@@ -1,5 +1,5 @@
+import React from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity } from "react-native";
-import React, { useEffect, useState } from "react";
 import ThemedView from "../../components/ThemedView";
 import Header from "../../components/Header";
 import StyledCard from "../../components/StyledCard";
@@ -8,11 +8,11 @@ import StyledLabel from "../../components/StyledLabel";
 import StyledText from "../../components/StyledText";
 import { getServicesTypes } from "../../services/serviceTypesService";
 
-export default function HomeScreen() {
-  const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true);
+const HomeScreen = () => {
+  const [services, setServices] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const fetchServices = async () => {
       try {
         setLoading(true);
@@ -120,7 +120,9 @@ export default function HomeScreen() {
       </ScrollView>
     </ThemedView>
   );
-}
+};
+
+export default HomeScreen;
 
 const styles = StyleSheet.create({
   container: {

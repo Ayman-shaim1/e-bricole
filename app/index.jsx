@@ -1,10 +1,12 @@
 import { Redirect } from "expo-router";
 import { useEffect, useState } from "react";
 import { checkSession } from "../services/authService";
+import SplashComponent from "./splash";
+import useNotificationListeners from "../hooks/useNotificationListeners";
 
 export default function Index() {
   const [target, setTarget] = useState(null);
-
+  useNotificationListeners();
   useEffect(() => {
     (async () => {
       try {
@@ -28,7 +30,7 @@ export default function Index() {
     })();
   }, []);
 
-  if (!target) return null;
+  if (!target) return <SplashComponent />;
 
   return <Redirect href={target} />;
 }
