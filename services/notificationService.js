@@ -22,6 +22,7 @@ export async function createNotification(data) {
       ID.unique(),
       notificationDoc
     );
+    console.log('notification response', response);
     return { success: true, notificationId: response.$id };
   } catch (error) {
     return { success: false, error: error.message };

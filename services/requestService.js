@@ -361,6 +361,7 @@ export async function submitServiceApplicationWithProposals(data) {
   let applicationId;
   let taskProposalIds = [];
   let notificationId;
+
   try {
     // 1. Format de la date
     let formattedStartDate;
@@ -373,10 +374,11 @@ export async function submitServiceApplicationWithProposals(data) {
       return { success: false, error: "Format de date invalide" };
     }
 
+    // 2. Create the application document
     const applicationDoc = {
       artisan: data.artisanId,
-      client: data.client,
-      serviceRequest: data.serviceRequest,
+      client: data.clientId,
+      serviceRequest: data.serviceRequestId,
       status: "pending",
       message: data.message,
       startDate: formattedStartDate,
@@ -391,11 +393,12 @@ export async function submitServiceApplicationWithProposals(data) {
     );
     applicationId = applicationResponse.$id;
 
+    // 3. Create task proposals
     for (const task of data.tasks) {
       const taskProposalDoc = {
         application: applicationId,
         task: task.taskId,
-        newPrice: task.newPrice,
+        newPrice: parseFloat(task.newPrice.toString().replace(",", ".")),
       };
       const taskProposalResponse = await databases.createDocument(
         settings.dataBaseId,
@@ -406,40 +409,52 @@ export async function submitServiceApplicationWithProposals(data) {
       taskProposalIds.push(taskProposalResponse.$id);
     }
 
+    // 4. Create notification
     const notifRes = await createNotification({
       senderUser: data.artisanId,
-      receiverUser: clientId,
+      receiverUser: data.clientId,
       title: "Nouvelle candidature reçue",
-      messageContent: `Vous avez reçu une nouvelle candidature pour "${serviceRequest.title}" le ${formattedDate}.`,
+      messageContent: `Vous avez reçu une nouvelle candidature pour votre demande de service.`,
     });
     notificationId = notifRes.notificationId;
 
     return { success: true, error: null };
   } catch (error) {
-    await databases.deleteDocument(
-      settings.dataBaseId,
-      settings.serviceApplicationsId,
-      applicationId
-    );
+    console.error("Error submitting service application with proposals:", error);
 
-    for (const taskProposalId of taskProposalIds) {
-      await databases.deleteDocument(
-        settings.dataBaseId,
-        settings.serviceTaskProposalsId,
-        taskProposalId
-      );
+    // Rollback: Delete all created documents in reverse order
+    try {
+      if (notificationId) {
+        await databases.deleteDocument(
+          settings.dataBaseId,
+          settings.notificationsId,
+          notificationId
+        );
+      }
+
+      for (const taskProposalId of taskProposalIds) {
+        await databases.deleteDocument(
+          settings.dataBaseId,
+          settings.serviceTaskProposalsId,
+          taskProposalId
+        );
+      }
+
+      if (applicationId) {
+        await databases.deleteDocument(
+          settings.dataBaseId,
+          settings.serviceApplicationsId,
+          applicationId
+        );
+      }
+    } catch (cleanupError) {
+      console.error("Error during cleanup:", cleanupError);
     }
 
-    await databases.deleteDocument(
-      settings.dataBaseId,
-      settings.notificationsId,
-      notificationId
-    );
-
-    console.error(
-      "Error submitting service application with proposals:",
-      error
-    );
+    return { 
+      success: false, 
+      error: error.message || "Une erreur est survenue lors de la soumission de la candidature" 
+    };
   }
 }
 
