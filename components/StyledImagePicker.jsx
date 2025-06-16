@@ -8,13 +8,12 @@ import { Feather } from "@expo/vector-icons";
 import * as FileSystem from 'expo-file-system';
 const IMAGE_ICON = require("../assets/icons/image.png");
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024; 
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
 
 export default function StyledImagePicker({ image, onImageChange, customLabel }) {
-  // Use internal state only if no external state is provided
   const [internalImage, setInternalImage] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   
-  // Determine which image and setter to use
   const currentImage = image !== undefined ? image : internalImage;
   const setCurrentImage = onImageChange || setInternalImage;
   
@@ -30,37 +29,89 @@ export default function StyledImagePicker({ image, onImageChange, customLabel })
       return false;
     }
   };
+
+  const compressImage = async (uri) => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.5, // Start with 50% quality
+        base64: false,
+      });
+
+      if (!result.canceled) {
+        const isValid = await checkImageSize(result.assets[0].uri);
+        if (isValid) {
+          return result.assets[0].uri;
+        } else {
+          // If still too large, try with lower quality
+          const compressedResult = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.3, // Try with 30% quality
+            base64: false,
+          });
+
+          if (!compressedResult.canceled) {
+            const isCompressedValid = await checkImageSize(compressedResult.assets[0].uri);
+            if (isCompressedValid) {
+              return compressedResult.assets[0].uri;
+            }
+          }
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Error compressing image:', error);
+      return null;
+    }
+  };
   
   const pickImageHandler = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      alert("Permission to access media library is required!");
-      return;
-    }
+    try {
+      setIsLoading(true);
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "Please grant permission to access your photos to upload images.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
 
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      const isValid = await checkImageSize(result.assets[0].uri);
-      if (isValid) {
-        setCurrentImage(result.assets[0].uri);
+      const compressedUri = await compressImage();
+      
+      if (compressedUri) {
+        setCurrentImage(compressedUri);
       } else {
         Alert.alert(
           "Image Size Error",
-          "The selected image exceeds the 5MB size limit. Please select a smaller image.",
+          "The selected image is too large. Please select an image smaller than 5MB.",
           [{ text: "OK" }]
         );
       }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert(
+        "Error",
+        "An error occurred while selecting the image. Please try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <TouchableOpacity style={styles.picker} onPress={pickImageHandler}>
+    <TouchableOpacity 
+      style={[styles.picker, isLoading && styles.pickerDisabled]} 
+      onPress={pickImageHandler}
+      disabled={isLoading}
+    >
       {currentImage ? (
         <View style={styles.imageContainer}>
           <TouchableOpacity
@@ -75,11 +126,21 @@ export default function StyledImagePicker({ image, onImageChange, customLabel })
         <Image source={IMAGE_ICON} style={styles.iconImage} />
       )}
 
-      <StyledLabel text={customLabel?.title || "choose your image"} color={"primary"} />
+      <StyledLabel 
+        text={customLabel?.title || "choose your image"} 
+        color={"primary"} 
+      />
       <StyledLabel
         text={customLabel?.subtitle || "click on the box to select an image"}
         color={"darkGray"}
       />
+      {isLoading && (
+        <StyledLabel
+          text="Processing image..."
+          color={"primary"}
+          style={styles.loadingText}
+        />
+      )}
     </TouchableOpacity>
   );
 }
@@ -121,5 +182,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: mystyle.borderRadius,
     alignItems: "center",
+  },
+  pickerDisabled: {
+    opacity: 0.7,
+  },
+  loadingText: {
+    marginTop: 5,
+    fontSize: 12,
   },
 });

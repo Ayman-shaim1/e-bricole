@@ -163,6 +163,7 @@ export default function NotificationsScreen() {
         <FlatList
           data={notifications}
           keyExtractor={(item) => `notification-${item.$id}-${item.$createdAt}`}
+          showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <StyledCard style={!item.isSeen ? styles.unseenCard : null}>
               <View style={styles.titleContainer}>

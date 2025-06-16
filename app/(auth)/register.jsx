@@ -67,8 +67,8 @@ export default function Register() {
             { value: "", label: "-- select option --" },
             ...data.map((item) => ({
               value: item.id,
-              label: item.title
-            }))
+              label: item.title,
+            })),
           ];
           setServiceTypes(formattedServiceTypes);
         }
@@ -100,9 +100,16 @@ export default function Register() {
       });
 
       if (result.success) {
+        resetForm();
         Alert.alert("Success", "Registration successful!", [
-          { text: "OK", onPress: () => resetForm() },
+          {
+            text: "OK",
+            onPress: () => {
+              // resetForm()
+            },
+          },
         ]);
+
         // You could navigate to login or home screen here
       } else {
         Alert.alert("Registration Error", result.error);
@@ -127,6 +134,7 @@ export default function Register() {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           <GoBackButton />
           {/* <Image source={LOGO} style={styles.logo} /> */}
@@ -148,7 +156,7 @@ export default function Register() {
             initialValues={getInitialValues()}
             validationSchema={getRegisterSchema(activeTab)}
             onSubmit={handleRegister}
-            enableReinitialize={true} 
+            enableReinitialize={true}
           >
             {({ isSubmitting, setFieldValue }) => (
               <>
@@ -183,7 +191,11 @@ export default function Register() {
                       name="serviceType"
                       label="service type :"
                       icon={SERVICE_ICON}
-                      options={serviceTypes.length > 0 ? serviceTypes : [{ value: "", label: "-- select option --" }]}
+                      options={
+                        serviceTypes.length > 0
+                          ? serviceTypes
+                          : [{ value: "", label: "-- select option --" }]
+                      }
                     />
 
                     <FormInput

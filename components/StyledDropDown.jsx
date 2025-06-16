@@ -1,10 +1,10 @@
 import {
-  FlatList,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
   Image,
+  ScrollView,
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import StyledTextInput from "./StyledTextInput";
@@ -22,7 +22,7 @@ export default function StyledDropdown({
   labelKey = "label",
 }) {
   const [showModal, setShowModal] = useState(false);
-  const [selectedLabel, setSelectedLabel] = useState(selectedOptionText);
+  const [selectedLabel, setSelectedLabel] = useState("-- select option --");
 
   useEffect(() => {
     // Update selected label when selectedOption changes
@@ -32,7 +32,7 @@ export default function StyledDropdown({
         setSelectedLabel(selected[labelKey]);
       }
     } else {
-      setSelectedLabel("");
+      setSelectedLabel("-- select option --");
     }
   }, [selectedOption, options]);
 
@@ -49,19 +49,24 @@ export default function StyledDropdown({
         onPress={() => setShowModal(true)}
         icon={icon}
         value={selectedLabel}
-        placeholder="Select an option"
+        placeholder="-- select option --"
       />
       <BottomModal
         style={styles.modalContainer}
         visible={showModal}
         onClose={() => setShowModal(false)}
       >
-        <FlatList
-          data={options}
-          renderItem={({ item }) => {
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          bounces={false}
+        >
+          {options.map((item, index) => {
             const isSelected = item[valueKey] === selectedOption;
+            const key = item[valueKey] || `option-${index}`; // Ensure unique key
             return (
               <TouchableOpacity
+                key={key}
                 style={[
                   styles.optionContainer,
                   isSelected && styles.selectedOption
@@ -77,12 +82,8 @@ export default function StyledDropdown({
                 />
               </TouchableOpacity>
             );
-          }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          bounces={false}
-          overScrollMode="never"
-        />
+          })}
+        </ScrollView>
       </BottomModal>
     </>
   );

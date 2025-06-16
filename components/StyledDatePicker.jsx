@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { View, Text, TouchableOpacity, Platform } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import StyledLabel from "./StyledLabel";
+import { useTheme } from "../context/ThemeContext";
+import { colors } from "../constants/colors";
 
 export default function StyledDatePicker({
   label,
@@ -12,6 +14,8 @@ export default function StyledDatePicker({
   ...props
 }) {
   const [show, setShow] = useState(false);
+  const { getCurrentTheme } = useTheme();
+  const theme = getCurrentTheme();
 
   const handleChange = (event, selectedDate) => {
     setShow(false);
@@ -28,21 +32,19 @@ export default function StyledDatePicker({
         style={{
           padding: 12,
           borderWidth: 1,
-          borderColor: "#ccc",
+          borderColor: theme.iconColor,
           borderRadius: 8,
-          marginBottom:10
+          marginBottom: 10,
+          backgroundColor: theme.textInputBg
         }}
       >
-        <StyledLabel
-          text={
-            value
-              ? value instanceof Date
-                ? value.toLocaleDateString()
-                : new Date(value).toLocaleDateString()
-              : placeholder
-          }
-          style={{ backgroundColor: "red" }}
-        />
+        <Text style={{ color: theme.textColor }}>
+          {value
+            ? value instanceof Date
+              ? value.toLocaleDateString()
+              : new Date(value).toLocaleDateString()
+            : placeholder}
+        </Text>
       </TouchableOpacity>
       {show && (
         <DateTimePicker
@@ -50,6 +52,8 @@ export default function StyledDatePicker({
           mode={mode}
           display="default"
           onChange={handleChange}
+          textColor={theme.textColor}
+          {...props}
         />
       )}
     </View>

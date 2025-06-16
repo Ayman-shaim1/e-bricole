@@ -124,8 +124,7 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-  },
+  container: {},
 
   title: {
     marginBottom: 20,

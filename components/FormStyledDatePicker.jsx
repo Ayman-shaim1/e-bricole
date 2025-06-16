@@ -4,6 +4,7 @@ import { useField } from "formik";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import StyledLabel from "./StyledLabel";
 import { colors } from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 
 /**
  * A reusable form date picker component that integrates with Formik
@@ -28,6 +29,8 @@ export default function FormStyledDatePicker({
 }) {
   const [field, meta, helpers] = useField(name);
   const [show, setShow] = useState(false);
+  const { getCurrentTheme } = useTheme();
+  const theme = getCurrentTheme();
 
   const onChange = (event, selectedDate) => {
     setShow(Platform.OS === 'ios');
@@ -53,12 +56,12 @@ export default function FormStyledDatePicker({
         style={{ 
           padding: 12, 
           borderWidth: 1, 
-          borderColor: '#ccc', 
+          borderColor: theme.iconColor, 
           borderRadius: 8,
-          backgroundColor: colors.white 
+          backgroundColor: theme.textInputBg 
         }}
       >
-        <Text>{formatDate(field.value)}</Text>
+        <Text style={{ color: theme.textColor }}>{formatDate(field.value)}</Text>
       </TouchableOpacity>
       {show && (
         <DateTimePicker
@@ -67,10 +70,12 @@ export default function FormStyledDatePicker({
           display="default"
           onChange={onChange}
           minimumDate={new Date()} // Prevent selecting past dates
+          textColor={theme.textColor}
+          {...props}
         />
       )}
       {meta.touched && meta.error && (
-        <Text style={{ color: "red" }}>{meta.error}</Text>
+        <Text style={{ color: colors.danger }}>{meta.error}</Text>
       )}
     </View>
   );

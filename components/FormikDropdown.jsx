@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { View, StyleSheet, Text } from "react-native";
 import { useField } from "formik";
 import StyledDropdown from "./StyledDropDown";
@@ -43,16 +43,14 @@ const FormikDropDown = ({
     };
   });
 
-  // Find the selected option text
-  const selectedOption = transformedOptions.find(option => 
-    option.value === field.value
-  );
-  
-  // If no value is selected, show the placeholder text from the first option
-  const selectedOptionText = field.value ? (selectedOption?.label || '') : transformedOptions[0]?.label || '';
+  // Set default value on mount if no value is set
+  useEffect(() => {
+    if (!field.value) {
+      helpers.setValue("");
+    }
+  }, []);
 
   const handleOptionSelect = (value) => {
-    // If the value is an object, extract just the value part
     const actualValue = typeof value === 'object' ? value.value : value;
     helpers.setValue(actualValue);
     helpers.setTouched(true);
@@ -60,7 +58,7 @@ const FormikDropDown = ({
 
   // Show error if field is touched and either has no value or is set to the default option
   const showError = meta.touched && meta.error && 
-    (!field.value || field.value === "" || selectedOptionText === "-- select option --");
+    (!field.value || field.value === "");
 
   return (
     <View style={[styles.container]}>
@@ -70,7 +68,6 @@ const FormikDropDown = ({
         icon={icon}
         options={transformedOptions}
         selectedOption={field.value}
-        selectedOptionText={selectedOptionText}
         setOption={handleOptionSelect}
         {...dropdownProps}
       />

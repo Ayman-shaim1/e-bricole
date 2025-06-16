@@ -2,11 +2,21 @@ import { Redirect } from "expo-router";
 import { useEffect, useState } from "react";
 import { checkSession } from "../services/authService";
 import SplashComponent from "./splash";
-import useNotificationListeners from "../hooks/useNotificationListeners";
+// import useNotificationListeners from "../hooks/useNotificationListeners";
+// import * as Notifications from "expo-notifications";
+
+// Configuration du comportement des notifications
+// Notifications.setNotificationHandler({
+//   handleNotification: async () => ({
+//     shouldShowBanner: true,
+//     shouldPlaySound: true,
+//     shouldSetBadge: false,
+//   }),
+// });
 
 export default function Index() {
   const [target, setTarget] = useState(null);
-  useNotificationListeners();
+  // useNotificationListeners();
   useEffect(() => {
     (async () => {
       try {
@@ -14,14 +24,13 @@ export default function Index() {
         if (session.loggedIn) {
           // Redirect based on user type
           const isClient = session.isClient === true;
-          
+
           if (isClient) {
             setTarget("/(client)/home");
           } else {
             setTarget("/(artisan)/dashboard");
           }
-        }
-        else {
+        } else {
           setTarget("/(auth)/login");
         }
       } catch (error) {
@@ -30,7 +39,23 @@ export default function Index() {
     })();
   }, []);
 
+  // useEffect(() => {
+  //   registerForPushNotificationsAsync();
+  // }, []);
+
   if (!target) return <SplashComponent />;
 
   return <Redirect href={target} />;
 }
+
+
+// async function registerForPushNotificationsAsync() {
+//   const { status } = await Notifications.requestPermissionsAsync();
+//   if (status !== "granted") {
+//     alert("Permission refusée");
+//     return;
+//   }
+
+//   const { data: token } = await Notifications.getExpoPushTokenAsync();
+//   console.log("✅ Expo Push Token:", token);
+// }

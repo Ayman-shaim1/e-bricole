@@ -7,153 +7,22 @@ import { uploadFile } from "./uploadService";
 // because settings.js exports the result of getCurrentSettings()
 const DATABASE_ID = settings.dataBaseId;
 const USERS_COLLECTION_ID = settings.usersId;
-/**
- * Register a new user with Appwrite
- *
- * This function takes a two-phase approach:
- * 1. First, it validates and prepares all data (including uploading the profile image)
- * 2. Only after all preparations are successful, it creates the user account
- */
-export async function registerUser({
-  name,
-  email,
-  password,
-  isClient,
-  profileImage,
-  skills,
-  serviceType,
-  profession,
-  experienceYears,
-}) {
-  try {
-    console.log("Starting registration process...");
 
-    // PHASE 1: Validate and prepare all data before creating the user
-
-    // Step 1: Prepare user data document
-    console.log("Preparing user data...");
-    const userData = {
-      name,
-      email,
-      isClient,
-    };
-
-    // Add artisan-specific fields if the user is an artisan
-    if (!isClient) {
-      if (skills && skills.length > 0) userData.skills = skills;
-      if (serviceType && serviceType !== "-- select option --") {
-        // Store the serviceType ID as a relation
-        userData.serviceType = serviceType;
-      }
-      if (profession) userData.profession = profession;
-      if (experienceYears) userData.experienceYears = experienceYears;
-    }
-
-    // Step 2: Upload profile image if provided (before user creation)
-    let profileUrl = null;
-    let profileId = null;
-
-    if (profileImage) {
-      try {
-        console.log("Uploading profile image...");
-        const uploadResult = await uploadFile(profileImage);
-        if (uploadResult.success) {
-          profileUrl = uploadResult.fileUrl;
-          profileId = uploadResult.fileId;
-          console.log("Profile image uploaded successfully:", profileId);
-
-          // Add image fields to user data - use profileImage as the attribute name
-          userData.profileImage = profileUrl;
-          userData.profileImageId = profileId;
-        } else {
-          // If the user specifically provided a profile image but upload failed,
-          // we should abort the registration process
-          console.error("Error uploading profile image:", uploadResult.error);
-          return {
-            success: false,
-            error: `Profile image upload failed: ${uploadResult.error}`,
-          };
-        }
-      } catch (uploadError) {
-        console.error("Error uploading profile image:", uploadError.message);
-        return {
-          success: false,
-          error: `Profile image upload failed: ${uploadError.message}`,
-        };
-      }
-    }
-
-    // Step 3: Validate the user data structure against the database schema
-    // This is a mock validation - in a real app, you might want to query the collection schema
-    console.log("Validating user data structure...");
-    try {
-      // Check if experienceYears is a valid integer if provided
-      if (userData.experienceYears !== undefined) {
-        const yearsAsInt = parseInt(userData.experienceYears, 10);
-        if (isNaN(yearsAsInt)) {
-          throw new Error("Experience years must be a valid integer");
-        }
-        userData.experienceYears = yearsAsInt; // Convert to integer
-      }
-
-      // Add more validations as needed
-      console.log("User data validation successful");
-    } catch (validationError) {
-      console.error("Data validation error:", validationError.message);
-      return { success: false, error: validationError.message };
-    }
-
-    // PHASE 2: Create the user account and database document
-
-    // Step 4: Create the user account in auth
-    console.log("Creating user account...");
-    const uniqueId = ID.unique();
-    const user = await account.create(uniqueId, email, password, name);
-    const userId = user.$id;
-    console.log("User account created with ID:", userId);
-
-    try {
-      // Step 5: Create the user document with all provided information
-      console.log("Creating user document in database...");
-      await databases.createDocument(
-        settings.dataBaseId,
-        settings.usersId,
-        userId,
-        userData
-      );
-      console.log("User document created successfully");
-
-      return { success: true, userId };
-    } catch (dbError) {
-      // If database document creation fails, delete the user account
-      console.error("Failed to create user document:", dbError.message);
-
-      try {
-        // Create a session to delete the user
-        const session = await account.createEmailSession(email, password);
-        await account.deleteSession(session.$id);
-        // Use the correct method to delete the account
-        await account.deleteSelf();
-        console.log("Rolled back user creation due to database error");
-      } catch (rollbackError) {
-        console.error(
-          "Failed to rollback user creation:",
-          rollbackError.message
-        );
-      }
-
-      return { success: false, error: dbError.message };
-    }
-  } catch (error) {
-    console.error("Registration error:", error.message);
-    return { success: false, error: error.message };
-  }
-}
 
 export async function loginUser({ email, password }) {
   try {
     console.log("Attempting to create email session...");
-    // Use createEmailSession with the correct parameters
+    
+    // First, try to delete any existing session
+    try {
+      await account.deleteSession("current");
+      console.log("Existing session deleted successfully");
+    } catch (deleteError) {
+      // Ignore errors if no session exists
+      console.log("No existing session to delete");
+    }
+
+    // Now create a new session
     const session = await account.createEmailPasswordSession(email, password);
     console.log("Session created successfully:", session.$id);
 
@@ -188,6 +57,145 @@ export async function loginUser({ email, password }) {
     return { success: false, error: error.message };
   }
 }
+
+
+/**
+ * Register a new user with react-native-appwrite
+ *
+ * This function takes a two-phase approach:
+ * 1. First, it validates and prepares all data (including uploading the profile image)
+ * 2. Only after all preparations are successful, it creates the us er account
+ */
+export async function registerUser({
+  name,
+  email,
+  password,
+  isClient,
+  profileImage,
+  skills,
+  serviceType,
+  profession,
+  experienceYears,
+}) {
+  let userId = null;
+  let uploadedFileId = null;
+
+  try {
+    console.log("Starting registration process...");
+
+    // PHASE 1: Upload profile image if provided
+    let profileUrl = null;
+    let profileId = null;
+
+    if (profileImage) {
+      try {
+        console.log("Uploading profile image...");
+        const uploadResult = await uploadFile(profileImage);
+        if (uploadResult.success) {
+          profileUrl = uploadResult.fileUrl;
+          profileId = uploadResult.fileId;
+          uploadedFileId = profileId; // Store for potential rollback
+          console.log("Profile image uploaded successfully:", profileId);
+        } else {
+          throw new Error(uploadResult.error || "Failed to upload profile image");
+        }
+      } catch (uploadError) {
+        console.error("Error uploading profile image:", uploadError.message);
+        throw new Error("Failed to upload profile image: " + uploadError.message);
+      }
+    }
+
+    // PHASE 2: Create the user account
+    console.log("Creating user account...");
+    const uniqueId = ID.unique();
+    const user = await account.create(uniqueId, email, password, name);
+    userId = user.$id;
+    console.log("User account created with ID:", userId);
+
+    // PHASE 3: Create a session for the new user
+    console.log("Creating user session...");
+    const session = await account.createEmailPasswordSession(email, password);
+    console.log("User session created successfully");
+
+    // PHASE 4: Prepare user data document
+    console.log("Preparing user data...");
+    const userData = {
+      name,
+      email,
+      isClient,
+    };
+
+    // Add artisan-specific fields if the user is an artisan
+    if (!isClient) {
+      if (skills && skills.length > 0) userData.skills = skills;
+      if (serviceType && serviceType !== "-- select option --") {
+        userData.serviceType = serviceType;
+      }
+      if (profession) userData.profession = profession;
+      if (experienceYears) userData.experienceYears = experienceYears;
+    }
+
+    // Add profile image data if available
+    if (profileUrl && profileId) {
+      userData.profileImage = profileUrl;
+      userData.profileImageId = profileId;
+    }
+
+    // PHASE 5: Validate the user data
+    console.log("Validating user data structure...");
+    try {
+      if (userData.experienceYears !== undefined) {
+        const yearsAsInt = parseInt(userData.experienceYears, 10);
+        if (isNaN(yearsAsInt)) {
+          throw new Error("Experience years must be a valid integer");
+        }
+        userData.experienceYears = yearsAsInt;
+      }
+      console.log("User data validation successful");
+    } catch (validationError) {
+      throw new Error("Data validation error: " + validationError.message);
+    }
+
+    // PHASE 6: Create the user document
+    try {
+      console.log("Creating user document in database...");
+      await databases.createDocument(
+        settings.dataBaseId,
+        settings.usersId,
+        userId,
+        userData
+      );
+      console.log("User document created successfully");
+
+      return { success: true, userId };
+    } catch (dbError) {
+      throw new Error("Failed to create user document: " + dbError.message);
+    }
+  } catch (error) {
+    console.error("Registration error:", error.message);
+    
+    // ROLLBACK: Clean up any created resources
+    try {
+      // 1. Delete uploaded file if it exists
+      if (uploadedFileId) {
+        console.log("Rolling back: Deleting uploaded file...");
+        await deleteFile(uploadedFileId);
+      }
+
+      // 2. Delete user account if it was created
+      if (userId) {
+        console.log("Rolling back: Deleting user account...");
+        await account.deleteSelf();
+      }
+    } catch (rollbackError) {
+      console.error("Error during rollback:", rollbackError.message);
+    }
+
+    return { success: false, error: error.message };
+  }
+}
+
+
 
 export async function checkSession() {
   try {

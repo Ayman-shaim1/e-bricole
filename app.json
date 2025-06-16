@@ -7,16 +7,25 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "icon": "./assets/images/logo.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "jsEngine": "jsc",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ebricole.app"
+      "bundleIdentifier": "com.ebricole.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app uses your location to show nearby services.",
+        "NSLocationAlwaysUsageDescription": "This app needs access to your location even when the app is in the background."
+      }
     },
     "android": {
       "edgeToEdgeEnabled": true,
       "package": "com.ebricole.app",
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
+      "permissions": ["android.permission.RECORD_AUDIO"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -33,10 +42,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/white_logo.png",
-          "color": "#ffffff",
-          "sounds": [
-            "./assets/notification-sound.wav"
-          ]
+          "color": "#ffffff"
         }
       ]
     ],

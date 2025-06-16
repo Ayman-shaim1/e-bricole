@@ -263,10 +263,7 @@ export async function getAllRequests(userId) {
     const response = await databases.listDocuments(
       settings.dataBaseId,
       settings.serviceRequestsId,
-      [
-        Query.equal("user", userId),
-        Query.orderDesc("$createdAt")
-      ]
+      [Query.equal("user", userId), Query.orderDesc("$createdAt")]
     );
     return {
       success: true,
@@ -361,108 +358,88 @@ export async function getJobsByLocationAndType(
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 export async function submitServiceApplicationWithProposals(data) {
-  let applicationId = null;
-  let createdTaskProposalIds = [];
-  let notificationId = null;
+  let applicationId;
+  let taskProposalIds = [];
+  let notificationId;
   try {
-    // Format the startDate properly
+    // 1. Format de la date
     let formattedStartDate;
-    if (data.startDate instanceof Date) {
-      formattedStartDate = data.startDate.toISOString();
-    } else if (typeof data.startDate === "string") {
-      formattedStartDate = new Date(data.startDate).toISOString();
-    } else {
-      throw new Error("Invalid startDate format");
+    try {
+      formattedStartDate =
+        data.startDate instanceof Date
+          ? data.startDate.toISOString()
+          : new Date(data.startDate).toISOString();
+    } catch {
+      return { success: false, error: "Format de date invalide" };
     }
-    const clientId =
-      typeof data.clientId === "object" && data.clientId.$id
-        ? data.clientId.$id
-        : data.clientId;
-    const newDuration = parseInt(data.newDuration, 10);
-    // 1. Créer la candidature principale
-    const appRes = await databases.createDocument(
+
+    const applicationDoc = {
+      artisan: data.artisanId,
+      client: data.client,
+      serviceRequest: data.serviceRequest,
+      status: "pending",
+      message: data.message,
+      startDate: formattedStartDate,
+      newDuration: data.newDuration,
+    };
+
+    const applicationResponse = await databases.createDocument(
       settings.dataBaseId,
       settings.serviceApplicationsId,
       ID.unique(),
-      {
-        message: data.message,
-        startDate: formattedStartDate,
-        status: "pending",
-        newDuration: newDuration,
-        serviceRequest: data.serviceRequestId,
-        artisan: data.artisanId,
-        client: clientId,
-      }
+      applicationDoc
     );
-    applicationId = appRes.$id;
-    // 2. Créer les propositions de tâches une par une pour éviter les problèmes de concurrence
+    applicationId = applicationResponse.$id;
+
     for (const task of data.tasks) {
-      const taskRes = await databases.createDocument(
+      const taskProposalDoc = {
+        application: applicationId,
+        task: task.taskId,
+        newPrice: task.newPrice,
+      };
+      const taskProposalResponse = await databases.createDocument(
         settings.dataBaseId,
         settings.serviceTaskProposalsId,
         ID.unique(),
-        {
-          newPrice: parseFloat(task.newPrice.toString().replace(",", ".")),
-          serviceTask: task.taskId,
-          serviceApplication: applicationId,
-        }
+        taskProposalDoc
       );
-      createdTaskProposalIds.push(taskRes.$id);
+      taskProposalIds.push(taskProposalResponse.$id);
     }
-    // 3. Créer la notification pour le client
-    // Fetch the service request to get its title and createdAt
-    const serviceRequest = await databases.getDocument(
-      settings.dataBaseId,
-      settings.serviceRequestsId,
-      data.serviceRequestId
-    );
-    const requestTitle = serviceRequest.title;
-    const createdAt = new Date(serviceRequest.$createdAt);
-    const pad = (n) => n.toString().padStart(2, "0");
-    const formattedDate = `${pad(createdAt.getDate())}/${pad(
-      createdAt.getMonth() + 1
-    )}/${createdAt.getFullYear()} at ${pad(createdAt.getHours())}:${pad(
-      createdAt.getMinutes()
-    )}`;
+
     const notifRes = await createNotification({
       senderUser: data.artisanId,
       receiverUser: clientId,
-      title: "New Application Received",
-      messageContent: `You have received a new application for your service request ("${requestTitle}") that you made here at ${formattedDate}. Please review the details and respond to the applicant if you are interested.`,
+      title: "Nouvelle candidature reçue",
+      messageContent: `Vous avez reçu une nouvelle candidature pour "${serviceRequest.title}" le ${formattedDate}.`,
     });
-    if (!notifRes.success) throw new Error(notifRes.error);
     notificationId = notifRes.notificationId;
-    return { success: true };
+
+    return { success: true, error: null };
   } catch (error) {
-    // Rollback: delete everything created
-    if (notificationId) {
-      try {
-        await databases.deleteDocument(
-          settings.dataBaseId,
-          settings.notificationsId,
-          notificationId
-        );
-      } catch {}
+    await databases.deleteDocument(
+      settings.dataBaseId,
+      settings.serviceApplicationsId,
+      applicationId
+    );
+
+    for (const taskProposalId of taskProposalIds) {
+      await databases.deleteDocument(
+        settings.dataBaseId,
+        settings.serviceTaskProposalsId,
+        taskProposalId
+      );
     }
-    for (const taskId of createdTaskProposalIds) {
-      try {
-        await databases.deleteDocument(
-          settings.dataBaseId,
-          settings.serviceTaskProposalsId,
-          taskId
-        );
-      } catch {}
-    }
-    if (applicationId) {
-      try {
-        await databases.deleteDocument(
-          settings.dataBaseId,
-          settings.serviceApplicationsId,
-          applicationId
-        );
-      } catch {}
-    }
-    return { success: false, error: error.message };
+
+    await databases.deleteDocument(
+      settings.dataBaseId,
+      settings.notificationsId,
+      notificationId
+    );
+
+    console.error(
+      "Error submitting service application with proposals:",
+      error
+    );
   }
 }
 
@@ -479,7 +456,7 @@ export async function hasUserAppliedToRequest(serviceRequestId, artisanId) {
       settings.serviceApplicationsId,
       [
         Query.equal("serviceRequest", serviceRequestId),
-        Query.equal("artisan", artisanId)
+        Query.equal("artisan", artisanId),
       ]
     );
     return response.documents.length > 0;

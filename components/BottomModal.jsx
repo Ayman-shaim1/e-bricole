@@ -5,7 +5,9 @@ import {
   View,
   PanResponder,
   ScrollView,
+  Animated,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import CloseButton from "./CloseButton";
 import { colors } from "../constants/colors";
 import { styles as mystyles } from "../constants/styles";
@@ -15,94 +17,94 @@ export default function BottomModal({
   visible = false,
   children,
   onClose,
-  top = 45,
+  height = 650,
 }) {
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
-  const [dragY, setDragY] = useState(0);
+  const dragY = useRef(new Animated.Value(0)).current;
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (_, gestureState) => {
-        setDragY(gestureState.dy);
+        if (gestureState.dy > 0) {
+          dragY.setValue(gestureState.dy);
+        }
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy >= 300) {
-          onClose();
+        const threshold = Math.max(150, height / 2);
+        if (gestureState.dy >= threshold) {
+          Animated.timing(dragY, {
+            toValue: height, // slide all the way down
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            dragY.setValue(0); // reset for next time
+            onClose();
+          });
         } else {
-          setDragY(0);
+          Animated.spring(dragY, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start();
         }
       },
     })
   ).current;
 
   useEffect(() => {
-    if (visible) {
-      setDragY(0);
+    if (!visible) {
+      dragY.setValue(0);
     }
   }, [visible]);
 
   return (
-    <Modal
-      visible={visible}
-      style={styles.modal}
-      animationType="fade"
-      transparent={true}
-    >
-      <View style={styles.overlay}>
-        <View
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.fullscreenOverlay}>
+        <Animated.View
           style={[
-            styles.modalWrapper,
+            styles.modalContent,
             {
-              transform: [{ translateY: Math.max(dragY, 0) }],
-              top: `${top}%`,
+              backgroundColor: theme.backgroundColor,
+              height,
+              transform: [{ translateY: dragY }],
             },
           ]}
           {...panResponder.panHandlers}
         >
-          <View
-            style={[
-              styles.modalContent,
-              { backgroundColor: theme.backgroundColor },
-            ]}
-          >
-            <View style={styles.line}></View>
-            <CloseButton style={styles.btnClose} onPress={onClose} />
-            <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.line} />
+          <CloseButton style={styles.btnClose} onPress={onClose} />
+          <SafeAreaView style={{ flex: 1 }}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
               {children}
             </ScrollView>
-          </View>
-        </View>
+          </SafeAreaView>
+        </Animated.View>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  modal: {
-    marginTop: "100%",
-    backgroundColor: colors.primary,
-  },
-  overlay: {
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  fullscreenOverlay: {
     flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
-  modalWrapper: {
-    paddingTop: 5,
-    borderRadius: mystyles.borderRadius,
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
+  modalContent: {
+    width: "100%",
+    position: "relative",
+    borderTopLeftRadius: mystyles.borderRadius,
+    borderTopRightRadius: mystyles.borderRadius,
+    paddingHorizontal: 15,
+    paddingTop: 10,
+    overflow: "hidden",
   },
   btnClose: {
     alignSelf: "flex-end",
-  },
-  modalContent: {
-    height: "100%",
-    padding: 10,
-    borderRadius: mystyles.borderRadius,
   },
   line: {
     height: 4,
@@ -110,5 +112,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray,
     alignSelf: "center",
     borderRadius: mystyles.borderRadius,
+    marginBottom: 10,
   },
 });

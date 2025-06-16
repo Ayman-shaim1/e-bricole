@@ -3,10 +3,8 @@ import { ID } from "react-native-appwrite";
 import settings from "../config/settings";
 import * as FileSystem from "expo-file-system";
 
-// Storage is already initialized in appwrite.js
-
 /**
- * Uploads a file to Appwrite Storage using a direct fetch approach
+ * Uploads a file to Appwrite Storage
  * @param {string} uri - The local URI of the file to upload
  * @param {string} fileType - The MIME type of the file (e.g., 'image/jpeg')
  * @returns {Promise<{success: boolean, fileUrl: string|null, fileId: string|null, error: string|null}>}
@@ -27,35 +25,29 @@ export async function uploadFile(uri, fileType = "image/jpeg") {
 
     console.log("File exists, size:", fileInfo.size);
 
-    // For React Native, we need to use a direct fetch approach
-    // Get the Appwrite endpoint and project ID from the client
-    const endpoint = client.config.endpoint;
-    const projectId = client.config.project;
+    // Get the file extension from the URI
+    const fileExtension = uri.split(".").pop().toLowerCase();
+    const mimeType = fileExtension === "png" ? "image/png" : "image/jpeg";
 
-    // Construct the URL for the Appwrite Storage API
-    const url = `${endpoint}/storage/buckets/${settings.bucketId}/files`;
+    // Extract the filename from the URI
+    const filename =
+      uri.split("/").pop() || `image-${Date.now()}.${fileExtension}`;
 
     // Generate a unique file ID
     const fileId = ID.unique();
 
     // Create a FormData object
     const formData = new FormData();
-
-    // Extract the filename from the URI
-    const filename = uri.split("/").pop() || `file-${Date.now()}.jpg`;
-
-    // Append the file and fileId to the FormData
-    formData.append("fileId", fileId);
+    formData.append("fileId", fileId); // ✅ add fileId in the body
     formData.append("file", {
       uri: uri,
       name: filename,
-      type: fileType,
+      type: mimeType,
     });
 
-    // Skip permissions in the FormData - we'll use the default permissions
-    // This avoids the permission format issues
-
-    console.log("Uploading file to Appwrite...");
+    // Get the endpoint and project ID
+    const endpoint = client.config.endpoint;
+    const projectId = client.config.project;
 
     // Get the current session token for authentication
     let sessionToken = "";
@@ -64,36 +56,34 @@ export async function uploadFile(uri, fileType = "image/jpeg") {
       sessionToken = currentSession?.secret || "";
     } catch (sessionError) {
       console.log("No active session, uploading without authentication");
-      // Continue without a session token
     }
+
+    // Construct the URL for the Appwrite Storage API
+    const url = `${endpoint}/storage/buckets/${settings.bucketId}/files`;
 
     // Make the fetch request
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "X-Appwrite-Project": projectId,
-        "X-Appwrite-Session": sessionToken,
+        ...(sessionToken && { "X-Appwrite-Session": sessionToken }),
+        // DO NOT manually set Content-Type, let fetch handle it for FormData
       },
       body: formData,
     });
 
-    // Parse the response
-    const result = await response.json();
-
     if (!response.ok) {
-      throw new Error(result.message || "Failed to upload file");
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to upload file");
     }
 
+    const result = await response.json();
     console.log("File uploaded successfully, result:", result);
 
-    // Get the file ID from the response
-    const responseFileId = result.$id || fileId;
+    // Get the file URL
+    const fileUrl = `${endpoint}/storage/buckets/${settings.bucketId}/files/${result.$id}/view?project=${projectId}`;
 
-    // Return the file URL for viewing with project and mode parameters
-    const fileUrl = `${endpoint}/storage/buckets/${settings.bucketId}/files/${responseFileId}/view?project=${projectId}&mode=admin`;
-
-    console.log("File uploaded successfully, URL:", fileUrl);
-    return { success: true, fileUrl, fileId, error: null };
+    return { success: true, fileUrl, fileId: result.$id, error: null };
   } catch (error) {
     console.error("Error uploading file:", error);
     return {

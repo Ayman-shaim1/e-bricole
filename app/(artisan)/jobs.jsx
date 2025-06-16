@@ -115,15 +115,17 @@ export default function JobsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[theme.primary]}
-            tintColor={theme.primary}
+            colors={[theme?.primary || '#007AFF']}
+            tintColor={theme?.primary || '#007AFF'}
           />
         }
         ListEmptyComponent={() => (
           <StyledText
             text={
-              loading
-                ? "Chargement..."
+              !location && !selectedLocation
+                ? "Chargement de la localisation..."
+                : loading
+                ? "Chargement des jobs..."
                 : error
                 ? `Erreur: ${error}`
                 : "Aucun job disponible"
