@@ -11,9 +11,9 @@ export async function getServicesTypes() {
       settings.dataBaseId,
       settings.servicesTypesId
     );
-    return response.documents.map(doc => ({
+    return response.documents.map((doc) => ({
       id: doc.$id,
-      title: doc.title
+      title: doc.title,
     }));
   } catch (error) {
     console.error("Error fetching service types:", error);

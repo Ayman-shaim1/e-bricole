@@ -358,6 +358,10 @@ export async function getJobsByLocationAndType(
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 export async function submitServiceApplicationWithProposals(data) {
+  console.log(
+    "Starting submitServiceApplicationWithProposals with data:",
+    JSON.stringify(data, null, 2)
+  );
   let applicationId;
   let taskProposalIds = [];
   let notificationId;
@@ -370,20 +374,26 @@ export async function submitServiceApplicationWithProposals(data) {
         data.startDate instanceof Date
           ? data.startDate.toISOString()
           : new Date(data.startDate).toISOString();
-    } catch {
+      console.log("Formatted start date:", formattedStartDate);
+    } catch (dateError) {
+      console.error("Date formatting error:", dateError);
       return { success: false, error: "Format de date invalide" };
     }
 
     // 2. Create the application document
     const applicationDoc = {
       artisan: data.artisanId,
-      client: data.clientId,
+      client: data.clientId.$id,
       serviceRequest: data.serviceRequestId,
       status: "pending",
       message: data.message,
       startDate: formattedStartDate,
-      newDuration: data.newDuration,
+      newDuration: Number(data.newDuration),
     };
+    console.log(
+      "Creating application document:",
+      JSON.stringify(applicationDoc, null, 2)
+    );
 
     const applicationResponse = await databases.createDocument(
       settings.dataBaseId,
@@ -392,39 +402,70 @@ export async function submitServiceApplicationWithProposals(data) {
       applicationDoc
     );
     applicationId = applicationResponse.$id;
+    console.log("Application created successfully with ID:", applicationId);
 
     // 3. Create task proposals
+    console.log(
+      "Starting to create task proposals for tasks:",
+      JSON.stringify(data.tasks, null, 2)
+    );
+
     for (const task of data.tasks) {
       const taskProposalDoc = {
-        application: applicationId,
-        task: task.taskId,
+        serviceApplication: applicationId,
+        serviceTask: task.taskId,
         newPrice: parseFloat(task.newPrice.toString().replace(",", ".")),
       };
+      console.log(
+        "Creating task proposal:",
+        JSON.stringify(taskProposalDoc, null, 2)
+      );
+      const uniqueId = ID.unique();
+      console.log("Generated unique ID for task proposal:", uniqueId);
+
       const taskProposalResponse = await databases.createDocument(
         settings.dataBaseId,
         settings.serviceTaskProposalsId,
-        ID.unique(),
+        uniqueId,
         taskProposalDoc
       );
       taskProposalIds.push(taskProposalResponse.$id);
+      console.log("Task proposal created with ID:", taskProposalResponse.$id);
     }
 
     // 4. Create notification
+    console.log("Creating notification for client:", data.clientId);
+    
+    // Fetch service request details first
+    const serviceRequestResponse = await databases.getDocument(
+      settings.dataBaseId,
+      settings.serviceRequestsId,
+      data.serviceRequestId
+    );
+
     const notifRes = await createNotification({
       senderUser: data.artisanId,
-      receiverUser: data.clientId,
-      title: "Nouvelle candidature reçue",
-      messageContent: `Vous avez reçu une nouvelle candidature pour votre demande de service.`,
+      receiverUser: data.clientId.$id,
+      title: "New Application Received",
+      messageContent: `You have received a new application for "${serviceRequestResponse.title}" on ${new Date(data.startDate).toLocaleDateString('en-US')} at ${new Date(data.startDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}.`,
     });
-    notificationId = notifRes.notificationId;
 
+    notificationId = notifRes.notificationId;
+    console.log("Notification created with ID:", notificationId);
+
+    console.log("Service application submitted successfully");
     return { success: true, error: null };
   } catch (error) {
-    console.error("Error submitting service application with proposals:", error);
+    console.error(
+      "Error submitting service application with proposals:",
+      error
+    );
 
     // Rollback: Delete all created documents in reverse order
     try {
+      console.log("Starting rollback process...");
       if (notificationId) {
+        console.log("Deleting notification:", notificationId);
         await databases.deleteDocument(
           settings.dataBaseId,
           settings.notificationsId,
@@ -433,6 +474,7 @@ export async function submitServiceApplicationWithProposals(data) {
       }
 
       for (const taskProposalId of taskProposalIds) {
+        console.log("Deleting task proposal:", taskProposalId);
         await databases.deleteDocument(
           settings.dataBaseId,
           settings.serviceTaskProposalsId,
@@ -441,19 +483,23 @@ export async function submitServiceApplicationWithProposals(data) {
       }
 
       if (applicationId) {
+        console.log("Deleting application:", applicationId);
         await databases.deleteDocument(
           settings.dataBaseId,
           settings.serviceApplicationsId,
           applicationId
         );
       }
+      console.log("Rollback completed");
     } catch (cleanupError) {
       console.error("Error during cleanup:", cleanupError);
     }
 
-    return { 
-      success: false, 
-      error: error.message || "Une erreur est survenue lors de la soumission de la candidature" 
+    return {
+      success: false,
+      error:
+        error.message ||
+        "Une erreur est survenue lors de la soumission de la candidature",
     };
   }
 }

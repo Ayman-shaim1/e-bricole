@@ -7,7 +7,6 @@ const client = new Client();
 client
   .setEndpoint("https://fra.cloud.appwrite.io/v1")
   .setProject("682cda25001d5287c1df");
-
 // Initialize services
 const account = new Account(client);
 const databases = new Databases(client);

@@ -42,10 +42,12 @@ import {
   hasUserAppliedToRequest,
 } from "../../services/requestService";
 import FormStyledDatePicker from "../../components/FormStyledDatePicker";
+import { useRouter } from "expo-router";
 
 export default function RequestDetailsScreen() {
   const { id, onJobApplied } = useLocalSearchParams();
   const { user } = useAuth();
+  const router = useRouter();
   const [visibleNegoModal, setVisibleNegoModal] = useState(false);
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -268,6 +270,20 @@ export default function RequestDetailsScreen() {
         }
       >
         {topInfo}
+        {user?.isClient && (
+          <View style={styles.buttonContainer}>
+            <StyledButton
+              text="View Applications"
+              onPress={() =>
+                router.push(
+                  `shared/artisan-applications?requestId=${request.$id}`
+                )
+              }
+              color="primary"
+              style={styles.viewApplicationsButton}
+            />
+          </View>
+        )}
         <StyledCard>
           <StyledText text={request.description} />
           <Divider />
@@ -445,7 +461,6 @@ export default function RequestDetailsScreen() {
                   setFormError(null);
                   setFormSuccess(false);
                 }}
-      
               >
                 <StyledHeading
                   text={
@@ -712,4 +727,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   negotiateButton: {},
+  viewApplicationsButton: {
+    marginTop: 10,
+  },
 });
