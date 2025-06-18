@@ -435,7 +435,7 @@ export async function submitServiceApplicationWithProposals(data) {
 
     // 4. Create notification
     console.log("Creating notification for client:", data.clientId);
-    
+
     // Fetch service request details first
     const serviceRequestResponse = await databases.getDocument(
       settings.dataBaseId,
@@ -447,7 +447,14 @@ export async function submitServiceApplicationWithProposals(data) {
       senderUser: data.artisanId,
       receiverUser: data.clientId.$id,
       title: "New Application Received",
-      messageContent: `You have received a new application for "${serviceRequestResponse.title}" on ${new Date(data.startDate).toLocaleDateString('en-US')} at ${new Date(data.startDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}.`,
+      messageContent: `You have received a new application for "${
+        serviceRequestResponse.title
+      }" on ${new Date(data.startDate).toLocaleDateString(
+        "en-US"
+      )} at ${new Date(data.startDate).toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}.`,
     });
 
     notificationId = notifRes.notificationId;
@@ -523,5 +530,38 @@ export async function hasUserAppliedToRequest(serviceRequestId, artisanId) {
     return response.documents.length > 0;
   } catch (error) {
     return false; // fallback: allow apply if error
+  }
+}
+
+/**
+ * Gets all service applications for a specific service request
+ * @param {string} serviceRequestId - The ID of the service request
+ * @returns {Promise<Array>} Array of service application documents
+ */
+export async function getServiceApplications(serviceRequestId) {
+  try {
+    let applications = [];
+    const response = await databases.listDocuments(
+      settings.dataBaseId,
+      settings.serviceApplicationsId,
+      [Query.equal("serviceRequest", serviceRequestId)]
+    );
+
+    for (const application of response.documents) {
+      const serviceTaskProposals = await databases.listDocuments(
+        settings.dataBaseId,
+        settings.serviceTaskProposalsId,
+        [Query.equal("serviceApplication", application.$id)]
+      );
+      applications.push({
+        ...application,
+        serviceTaskProposals: serviceTaskProposals.documents,
+      });
+    }
+
+    return applications;
+  } catch (error) {
+    console.error("Error fetching service applications:", error);
+    return [];
   }
 }

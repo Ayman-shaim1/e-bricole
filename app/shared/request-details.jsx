@@ -63,6 +63,7 @@ export default function RequestDetailsScreen() {
   const [alreadyApplied, setAlreadyApplied] = useState(false);
   const [checkingApplied, setCheckingApplied] = useState(true);
 
+
   const fetchRequestDetails = async () => {
     try {
       setLoading(true);
@@ -719,7 +720,6 @@ const styles = StyleSheet.create({
     borderRadius: mystyles.borderRadius,
   },
   buttonContainer: {
-    marginBottom: 20,
   },
   postulerButton: {
     width: "100%",

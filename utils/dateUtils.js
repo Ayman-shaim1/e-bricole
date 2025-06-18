@@ -18,4 +18,33 @@ export const formatDate = (dateString, showTime = false) => {
   };
 
   return date.toLocaleDateString('fr-FR', options);
+};
+
+/**
+ * Formats a date string to dd/mm/yyyy at hh:mm format
+ * @param {string} dateString - The date string to format
+ * @returns {string} Formatted date string in dd/mm/yyyy at hh:mm format
+ */
+export const formatDateWithTime = (dateString) => {
+  if (!dateString) return "No date";
+  
+  try {
+    const date = new Date(dateString);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return "Invalid date";
+    }
+    
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    
+    return `${day}/${month}/${year} at ${hours}:${minutes}`;
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return "Invalid date";
+  }
 }; 
