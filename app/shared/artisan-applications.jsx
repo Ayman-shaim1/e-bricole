@@ -6,16 +6,16 @@ import StyledHeading from "../../components/StyledHeading";
 import GoBackButton from "../../components/GoBackButton";
 import { getServiceApplications } from "../../services/requestService";
 import StyledText from "../../components/StyledText";
-import StyledCard from "../../components/StyledCard";
-import Avatar from "../../components/Avatar";
-import StyledLabel from "../../components/StyledLabel";
-import { formatDateWithTime } from "../../utils/dateUtils";
-import Divider from "../../components/Divider";
+import ArtisanApplicationCard from "../../components/ArtisanApplicationCard";
+import { colors } from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function ArtisanApplications() {
   const { requestId } = useLocalSearchParams();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(false);
+  const { getCurrentTheme } = useTheme();
+  const theme = getCurrentTheme();
 
   const fetchApplications = async () => {
     setLoading(true);
@@ -27,103 +27,79 @@ export default function ArtisanApplications() {
   useEffect(() => {
     fetchApplications();
   }, []);
+
+  const renderApplicationCard = ({ item: application }) => {
+    return <ArtisanApplicationCard application={application} />;
+  };
+
   return (
     <ThemedView>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 1 }}>
+      <View style={styles.header}>
         <GoBackButton />
-        <StyledHeading text="Applications" style={{ marginTop: 5 }} />
+        <StyledHeading text="Applications" style={styles.headerTitle} />
       </View>
-      {loading && <ActivityIndicator size="large" />}
-      {!loading && applications.length === 0 ? (
-        <StyledText text="No applications found" />
+      
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <StyledText text="Loading applications..." style={[styles.loadingText, { color: theme.textColor }]} />
+        </View>
+      ) : applications.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <StyledText text="No applications found" style={[styles.emptyText, { color: theme.textColor }]} />
+          <StyledText text="Artisans will appear here once they apply" style={[styles.emptySubtext, { color: theme.textColor }]} />
+        </View>
       ) : (
         <FlatList
+          showsVerticalScrollIndicator={false}
           data={applications}
           keyExtractor={(item) => item.$id}
-          renderItem={({ item: application }) => {
-            return (
-              <StyledCard>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 10,
-                  }}
-                >
-                  <Avatar
-                    source={{ uri: application?.artisan?.profileImage }}
-                    text={application?.artisan?.name}
-                  />
-                  <StyledHeading
-                    text={application?.artisan?.name || "Unknown Artisan"}
-                  />
-                </View>
-                <View
-                  style={{
-                    marginBottom: 20,
-                  }}
-                >
-                  <StyledLabel
-                    text={`your proposed duration : ${application?.serviceRequest?.duration} days`}
-                  />
-                  <StyledLabel
-                    text={`negotiated duration : ${application?.newDuration} days`}
-                  />
-                </View>
-                {application?.serviceTaskProposals?.length > 0 &&
-                  application?.serviceTaskProposals.map((proposal) => (
-                    <View key={proposal.$id} style={{ marginBottom: 20 }}>
-                      <StyledText
-                        color={"primary"}
-                        text={`${proposal.serviceTask.title}`}
-                      />
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 0,
-                        }}
-                      >
-                        <StyledLabel
-                          text={`your proposed price : ${proposal.serviceTask.price}$`}
-                        />
-                        {Number(proposal.serviceTask.price) !==
-                          Number(proposal.newPrice) && (
-                          <View
-                            style={{
-                              flexDirection: "row",
-                              alignItems: "center",
-                              gap: 0,
-                            }}
-                          >
-                            <StyledLabel text="- negotiated price : " />
-                            <StyledLabel
-                              text={`${proposal.newPrice}$`}
-                              color="primary"
-                            />
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  ))}
-
-                <StyledLabel
-                  text={`Message from artisan  (${application?.artisan?.name}): `}
-                />
-                <StyledText text={application?.message} />
-                <Divider />
-                <StyledLabel
-                  text={
-                    formatDateWithTime(application?.$createdAt) || "No date"
-                  }
-                />
-              </StyledCard>
-            );
-          }}
+          renderItem={renderApplicationCard}
+          contentContainerStyle={styles.listContainer}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
       )}
     </ThemedView>
   );
 }
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 20,
+  },
+  headerTitle: {
+    marginTop: 5,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 15,
+  },
+  loadingText: {
+    fontSize: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  listContainer: {
+    paddingBottom: 20,
+  },
+  separator: {
+    height: 15,
+  },
+});

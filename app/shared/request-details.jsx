@@ -20,7 +20,7 @@ import GoBackButton from "../../components/GoBackButton";
 import StyledButton from "../../components/StyledButton";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../constants/colors";
-import { getRequestById } from "../../services/requestService";
+import { getRequestById, getServiceApplications } from "../../services/requestService";
 import StatusBadge from "../../components/StatusBadge";
 import Divider from "../../components/Divider";
 import { displayedSplitText } from "../../utils/displayedSplitText";
@@ -62,7 +62,7 @@ export default function RequestDetailsScreen() {
   const [formSuccess, setFormSuccess] = useState(false);
   const [alreadyApplied, setAlreadyApplied] = useState(false);
   const [checkingApplied, setCheckingApplied] = useState(true);
-
+  const [applicationCount, setApplicationCount] = useState(0);
 
   const fetchRequestDetails = async () => {
     try {
@@ -81,10 +81,25 @@ export default function RequestDetailsScreen() {
     }
   };
 
+  const fetchApplicationCount = async () => {
+    if (!id || !user?.isClient) return;
+    
+    try {
+      const applications = await getServiceApplications(id);
+      setApplicationCount(applications?.length || 0);
+    } catch (error) {
+      console.error("Error fetching application count:", error);
+      setApplicationCount(0);
+    }
+  };
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchRequestDetails();
-  }, []);
+    if (user?.isClient) {
+      fetchApplicationCount();
+    }
+  }, [user?.isClient]);
 
   const handleImageLoad = (imageIndex) => {
     setImageLoadingStates((prev) => ({
@@ -196,6 +211,12 @@ export default function RequestDetailsScreen() {
       .finally(() => setCheckingApplied(false));
   }, [id, user]);
 
+  useEffect(() => {
+    if (user?.isClient && id) {
+      fetchApplicationCount();
+    }
+  }, [user?.isClient, id]);
+
   if (loading) {
     return (
       <ThemedView style={styles.container}>
@@ -283,6 +304,14 @@ export default function RequestDetailsScreen() {
               color="primary"
               style={styles.viewApplicationsButton}
             />
+            <View style={styles.applicationCountCard}>
+              <Ionicons name="people-outline" size={20} color={colors.primary} />
+              <StyledText
+                text={`${applicationCount} application${applicationCount !== 1 ? 's' : ''} received`}
+                style={styles.applicationCountText}
+                color="primary"
+              />
+            </View>
           </View>
         )}
         <StyledCard>
@@ -575,6 +604,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 10,
   },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  applicationCountContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  applicationCountText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
   datesContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -720,6 +763,7 @@ const styles = StyleSheet.create({
     borderRadius: mystyles.borderRadius,
   },
   buttonContainer: {
+    marginBottom: 15,
   },
   postulerButton: {
     width: "100%",
@@ -728,6 +772,21 @@ const styles = StyleSheet.create({
   },
   negotiateButton: {},
   viewApplicationsButton: {
-    marginTop: 10,
+    marginBottom: 10,
+  },
+  applicationCountCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    backgroundColor: colors.accentLight3,
+    borderRadius: 20,
+    alignSelf: "center",
+  },
+  applicationCountText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

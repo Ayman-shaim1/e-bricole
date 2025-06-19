@@ -58,7 +58,7 @@ export default function AppLayout() {
         options={{
           title: "",
           tabBarIcon: ({ size }) => (
-            <View style={styles.addTabButtonWrapper}>
+            <View style={[styles.addTabButtonWrapper,{backgroundColor: theme.cardColor}]}>
               <View style={styles.addTabButton}>
                 <Ionicons name="add" size={size + 5} color={colors.white} />
               </View>
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   addTabButtonWrapper: {
-    backgroundColor: "white",
+   
     borderRadius: 30,
     width: 60,
     height: 60,
