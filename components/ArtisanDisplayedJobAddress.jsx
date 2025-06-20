@@ -5,16 +5,17 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
-  useColorScheme,
 } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import { colors } from "../constants/colors";
+import { getMapStyle } from "../constants/mapStyles";
 import { Ionicons } from "@expo/vector-icons";
 import useGeolocation from "../hooks/useGeolocation";
 import { styles as mystyles } from "../constants/styles";
 import { useDirections } from "../hooks/useDirections";
 import StyledLabel from "./StyledLabel";
 import StyledCard from "./StyledCard";
+import { useTheme } from "../context/ThemeContext";
 
 const { width } = Dimensions.get("window");
 
@@ -52,8 +53,13 @@ export default function ArtisanDisplayedJobAddress({
   longitude,
   textAddress,
 }) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const { getCurrentTheme, theme: themeName } = useTheme();
+  const theme = getCurrentTheme();
+  const isDark = themeName === 'dark';
+  
+  // Debug logging
+  console.log('ArtisanDisplayedJobAddress - Theme:', themeName, 'isDark:', isDark);
+  
   const [routeCoords, setRouteCoords] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const { location } = useGeolocation();
@@ -67,6 +73,11 @@ export default function ArtisanDisplayedJobAddress({
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   });
+
+  // Log map style changes
+  useEffect(() => {
+    console.log('Map style changed - isDark:', isDark, 'style:', getMapStyle(isDark));
+  }, [isDark]);
 
   // Fetch route when location is available
   useEffect(() => {
@@ -159,11 +170,13 @@ export default function ArtisanDisplayedJobAddress({
         activeOpacity={0.8}
       >
         <MapView
+          key={`map-${isDark ? 'dark' : 'light'}`}
           style={styles.miniMap}
           region={jobRegion}
           pointerEvents="none"
           scrollEnabled={false}
-          customMapStyle={isDark ? darkMapStyle : []}
+          mapType={isDark ? "none" : "standard"}
+          customMapStyle={getMapStyle(isDark)}
         >
           <Marker
             coordinate={{ latitude, longitude }}
@@ -172,7 +185,10 @@ export default function ArtisanDisplayedJobAddress({
           />
         </MapView>
       </TouchableOpacity>
-      <View style={styles.addressRow}>
+      <View style={[styles.addressRow, { 
+        borderColor: colors.primary,
+        backgroundColor: theme.cardColor 
+      }]}>
         <Ionicons name="location" size={18} color={colors.primary} />
         <StyledLabel text={textAddress} />
         {distance && (
@@ -199,9 +215,7 @@ export default function ArtisanDisplayedJobAddress({
               style={[
                 styles.closeButton,
                 {
-                  backgroundColor: isDark
-                    ? colors.dark.cardColor
-                    : colors.white,
+                  backgroundColor: theme.cardColor,
                 },
               ]}
               onPress={() => setModalVisible(false)}
@@ -209,7 +223,7 @@ export default function ArtisanDisplayedJobAddress({
               <Ionicons
                 name="close"
                 size={28}
-                color={isDark ? colors.dark.textColor : colors.light.textColor}
+                color={theme.textColor}
               />
             </TouchableOpacity>
             <View style={styles.zoomControls}>
@@ -217,9 +231,7 @@ export default function ArtisanDisplayedJobAddress({
                 style={[
                   styles.zoomBtn,
                   {
-                    backgroundColor: isDark
-                      ? colors.dark.cardColor
-                      : colors.white,
+                    backgroundColor: theme.cardColor,
                   },
                 ]}
                 onPress={() => handleZoom(0.5)}
@@ -230,9 +242,7 @@ export default function ArtisanDisplayedJobAddress({
                 style={[
                   styles.zoomBtn,
                   {
-                    backgroundColor: isDark
-                      ? colors.dark.cardColor
-                      : colors.white,
+                    backgroundColor: theme.cardColor,
                   },
                 ]}
                 onPress={() => handleZoom(2)}
@@ -241,12 +251,14 @@ export default function ArtisanDisplayedJobAddress({
               </TouchableOpacity>
             </View>
             <MapView
+              key={`fullmap-${isDark ? 'dark' : 'light'}`}
               ref={mapRef}
               style={styles.fullMap}
               initialRegion={modalRegion}
               region={modalRegion}
               showsUserLocation={false}
-              customMapStyle={isDark ? darkMapStyle : []}
+              mapType={isDark ? "none" : "standard"}
+              customMapStyle={getMapStyle(isDark)}
             >
               <Marker
                 coordinate={{ latitude, longitude }}
@@ -272,7 +284,7 @@ export default function ArtisanDisplayedJobAddress({
                 />
               )}
             </MapView>
-            <StyledCard style={styles.legendContainer}>
+            <StyledCard style={[styles.legendContainer, { backgroundColor: theme.cardColor }]}>
               <View style={styles.legendItem}>
                 <View
                   style={[
@@ -280,7 +292,7 @@ export default function ArtisanDisplayedJobAddress({
                     { backgroundColor: colors.danger },
                   ]}
                 />
-                <StyledLabel text="Your Position" style={styles.legendText} />
+                <StyledLabel text="Your Position" style={[styles.legendText, { color: theme.textColor }]} />
               </View>
               <View style={styles.legendItem}>
                 <View
@@ -289,13 +301,13 @@ export default function ArtisanDisplayedJobAddress({
                     { backgroundColor: colors.primary },
                   ]}
                 />
-                <StyledLabel text="Job Location" style={styles.legendText} />
+                <StyledLabel text="Job Location" style={[styles.legendText, { color: theme.textColor }]} />
               </View>
             </StyledCard>
-            <StyledCard style={styles.addressOverlay}>
+            <StyledCard style={[styles.addressOverlay, { backgroundColor: theme.cardColor }]}>
               <StyledLabel
                 text={textAddress}
-                style={styles.overlayAddress}
+                style={[styles.overlayAddress, { color: theme.textColor }]}
                 numberOfLines={2}
               />
               {distance && (
@@ -307,11 +319,11 @@ export default function ArtisanDisplayedJobAddress({
               <View style={styles.overlayCoordsRow}>
                 <StyledLabel
                   text={`Lat: ${latitude.toFixed(6)}`}
-                  style={styles.overlayCoord}
+                  style={[styles.overlayCoord, { color: theme.iconColor }]}
                 />
                 <StyledLabel
                   text={`Lng: ${longitude.toFixed(6)}`}
-                  style={styles.overlayCoord}
+                  style={[styles.overlayCoord, { color: theme.iconColor }]}
                 />
               </View>
             </StyledCard>
@@ -321,41 +333,6 @@ export default function ArtisanDisplayedJobAddress({
     </View>
   );
 }
-
-const darkMapStyle = [
-  {
-    elementType: "geometry",
-    stylers: [{ color: "#242f3e" }],
-  },
-  {
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#746855" }],
-  },
-  {
-    elementType: "labels.text.stroke",
-    stylers: [{ color: "#242f3e" }],
-  },
-  {
-    featureType: "road",
-    elementType: "geometry",
-    stylers: [{ color: "#38414e" }],
-  },
-  {
-    featureType: "road",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#212a37" }],
-  },
-  {
-    featureType: "road",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#9ca5b3" }],
-  },
-  {
-    featureType: "water",
-    elementType: "geometry",
-    stylers: [{ color: "#17263c" }],
-  },
-];
 
 const styles = StyleSheet.create({
   container: {

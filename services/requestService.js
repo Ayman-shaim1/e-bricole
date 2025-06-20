@@ -455,6 +455,11 @@ export async function submitServiceApplicationWithProposals(data) {
         hour: "2-digit",
         minute: "2-digit",
       })}.`,
+      type: "application",
+      jsonData: JSON.stringify({
+        serviceApplicationId: applicationId,
+        serviceRequestId: data.serviceRequestId,
+      }),
     });
 
     notificationId = notifRes.notificationId;
@@ -565,3 +570,5 @@ export async function getServiceApplications(serviceRequestId) {
     return [];
   }
 }
+
+export async function chooseArtisan(serviceApplicationId, artisanId) {}

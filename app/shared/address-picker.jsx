@@ -21,6 +21,8 @@ import useAddressSearch from "../../hooks/useAddressSearch";
 import StyledCard from "../../components/StyledCard";
 import StyledLabel from "../../components/StyledLabel";
 import { useTheme } from "../../context/ThemeContext";
+import { colors } from "../../constants/colors";
+import { getMapStyle } from "../../constants/mapStyles";
 
 const callbackRegistry = new Map();
 
@@ -36,8 +38,12 @@ export default function AddressPickerScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
   const mapRef = useRef(null);
-  const { getCurrentTheme } = useTheme();
+  const { getCurrentTheme, theme: themeName } = useTheme();
   const theme = getCurrentTheme();
+  const isDark = themeName === 'dark';
+  
+  // Debug logging
+  console.log('AddressPicker - Theme:', themeName, 'isDark:', isDark);
 
   const { latitude, longitude, callbackId } = params;
   const initialCoordinates = {
@@ -255,6 +261,7 @@ export default function AddressPickerScreen() {
 
       {/* Carte */}
       <MapView
+        key={`address-map-${isDark ? 'dark' : 'light'}`}
         ref={mapRef}
         style={getStyles(theme).map}
         initialRegion={{
@@ -267,6 +274,8 @@ export default function AddressPickerScreen() {
         onRegionChangeComplete={handleRegionChange}
         showsUserLocation
         showsMyLocationButton={false}
+        mapType={isDark ? "none" : "standard"}
+        customMapStyle={getMapStyle(isDark)}
       >
         <Marker
           coordinate={selectedLocation}

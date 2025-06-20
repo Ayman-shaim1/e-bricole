@@ -14,6 +14,8 @@ export async function createNotification(data) {
       receiverUser: data.receiverUser,
       title: data.title,
       messageContent: data.messageContent,
+      type: data.type,
+      jsonData: data.jsonData,
       isSeen: false,
     };
     const response = await databases.createDocument(
@@ -22,7 +24,7 @@ export async function createNotification(data) {
       ID.unique(),
       notificationDoc
     );
-    console.log('notification response', response);
+    console.log("notification response", response);
     return { success: true, notificationId: response.$id };
   } catch (error) {
     return { success: false, error: error.message };
@@ -57,10 +59,7 @@ export async function getUnseenNotificationCount(userId) {
     const response = await databases.listDocuments(
       settings.dataBaseId,
       settings.notificationId,
-      [
-        Query.equal("receiverUser", userId),
-        Query.equal("isSeen", false)
-      ]
+      [Query.equal("receiverUser", userId), Query.equal("isSeen", false)]
     );
     return response.documents.length;
   } catch (error) {
@@ -82,7 +81,7 @@ export async function markAllNotificationsAsSeen(userId) {
     );
 
     // Update each unseen notification
-    const updatePromises = response.documents.map(doc => 
+    const updatePromises = response.documents.map((doc) =>
       databases.updateDocument(
         settings.dataBaseId,
         settings.notificationId,

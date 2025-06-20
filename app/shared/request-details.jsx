@@ -346,23 +346,24 @@ export default function RequestDetailsScreen() {
               text={request.serviceType.title}
               style={styles.infoText}
             />
-          </View>
+          </View> 
           {user?.isClient && (
             <View style={styles.infoRow}>
               <Ionicons name="location" size={20} color={colors.primary} />
               <StyledText text={request.textAddress} style={styles.infoText} />
             </View>
           )}
-          <View style={styles.imagesContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.imagesContainer}
+          >
             {request.images.map((image, index) => (
               <TouchableOpacity
                 key={index}
                 onPress={() => openImage(image)}
                 style={styles.imageWrapper}
               >
-                {!imageLoadingStates[index] && (
-                  <ImageSkeleton width={150} height={150} />
-                )}
                 <Image
                   style={[
                     styles.image,
@@ -372,9 +373,14 @@ export default function RequestDetailsScreen() {
                   resizeMode="cover"
                   onLoad={() => handleImageLoad(index)}
                 />
+                {!imageLoadingStates[index] && (
+                  <View style={styles.imageLoadingContainer}>
+                    <ImageSkeleton width={120} height={120} />
+                  </View>
+                )}
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         </StyledCard>
         <Modal
           visible={selectedImage !== null}
@@ -412,7 +418,7 @@ export default function RequestDetailsScreen() {
                   size={24}
                   color={colors.primary}
                 />
-                <StyledHeading text={task.title} />
+                <StyledHeading text={displayedSplitText(task.title, 25)} />
               </View>
               <StyledText
                 text={task.description}
@@ -644,15 +650,16 @@ const styles = StyleSheet.create({
   tasksHeading: { marginTop: 30, alignSelf: "center" },
   imagesContainer: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: 10,
     marginTop: 15,
+    paddingHorizontal: 15,
   },
   image: {
-    width: 150,
-    height: 150,
+    width: 120,
+    height: 120,
     borderRadius: mystyles.borderRadius,
     elevation: 5,
+    flexShrink: 0,
   },
   hiddenImage: {
     opacity: 0,
@@ -748,8 +755,8 @@ const styles = StyleSheet.create({
   },
   imageWrapper: {
     position: "relative",
-    width: 150,
-    height: 150,
+    width: 120,
+    height: 120,
   },
   imageLoadingContainer: {
     position: "absolute",

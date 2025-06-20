@@ -219,6 +219,14 @@ export default function ArtisanApplicationCard({ application }) {
             color="primary"
             style={styles.showProfileButton}
           />
+          <StyledButton
+            text="Choose"
+            onPress={() => {
+              alert("Choose artisan");
+            }}
+            color="success"
+            style={styles.chooseButton}
+          />
         </View>
       </StyledCard>
 
@@ -249,144 +257,183 @@ export default function ArtisanApplicationCard({ application }) {
                 <Avatar
                   source={artisanData?.profileImage}
                   text={artisanData?.name}
-                  size={'xl'}
+                  size={"xl"}
                 />
               </View>
             </View>
 
-            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-              {loading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={colors.primary} />
-                  <StyledText 
-                    text="Loading profile..." 
-                    style={[styles.loadingText, { color: theme.textColor }]} 
-                  />
-                </View>
-              ) : artisanData ? (
-                <>
-                  {/* Profile Name and Email */}
-                  <View style={styles.profileNameContainer}>
-                    <StyledHeading 
-                      text={artisanData.name} 
-                      style={[styles.profileName, { color: theme.textColor }]} 
+            <View style={styles.profileInfoContainer}>
+              <View style={styles.profileNameContainer}>
+                <StyledHeading
+                  text={artisanData?.name}
+                  style={styles.profileName}
+                />
+              </View>
+
+              <ScrollView
+                style={styles.profileDetailsScroll}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.profileDetailsContent}
+              >
+                {/* Contact Information */}
+                <View style={styles.infoSection}>
+                  <View style={styles.sectionHeader}>
+                    <Ionicons
+                      name="person-outline"
+                      size={20}
+                      color={colors.primary}
                     />
-                    <View style={styles.emailContainer}>
-                      <Ionicons name="mail-outline" size={16} color={theme.textColor} />
-                      <StyledText 
-                        text={artisanData.email} 
-                        style={[styles.profileEmail, { color: theme.textColor }]} 
+                    <StyledLabel
+                      text="Contact Information"
+                      style={styles.sectionTitle}
+                      color="primary"
+                    />
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Ionicons
+                      name="mail-outline"
+                      size={16}
+                      color={theme.textColor}
+                    />
+                    <StyledText
+                      text={artisanData?.email}
+                      style={[styles.infoText, { color: theme.textColor }]}
+                    />
+                  </View>
+                </View>
+
+                {/* Professional Information */}
+                <View style={styles.infoSection}>
+                  <View style={styles.sectionHeader}>
+                    <MaterialCommunityIcons
+                      name="briefcase-outline"
+                      size={20}
+                      color={colors.primary}
+                    />
+                    <StyledLabel
+                      text="Professional Details"
+                      style={styles.sectionTitle}
+                      color="primary"
+                    />
+                  </View>
+                  <View style={styles.infoRow}>
+                    <MaterialCommunityIcons
+                      name="account-tie-outline"
+                      size={16}
+                      color={theme.textColor}
+                    />
+                    <StyledText
+                      text={artisanData?.serviceType?.title || "Service Type"}
+                      style={[styles.infoText, { color: theme.textColor }]}
+                    />
+                  </View>
+                  <View style={styles.infoRow}>
+                    <MaterialCommunityIcons
+                      name="clock-outline"
+                      size={16}
+                      color={theme.textColor}
+                    />
+                    <StyledText
+                      text={`${
+                        artisanData?.experienceYears || 0
+                      } years of experience`}
+                      style={[styles.infoText, { color: theme.textColor }]}
+                    />
+                  </View>
+                  <View style={styles.infoRow}>
+                    <MaterialCommunityIcons
+                      name="account-group-outline"
+                      size={16}
+                      color={theme.textColor}
+                    />
+                    <StyledText
+                      text={
+                        artisanData?.isClient
+                          ? "Client Account"
+                          : "Professional Artisan"
+                      }
+                      style={[styles.infoText, { color: theme.textColor }]}
+                    />
+                  </View>
+                </View>
+
+                {/* Education & Certifications */}
+                <View style={styles.infoSection}>
+                  <View style={styles.sectionHeader}>
+                    <MaterialCommunityIcons
+                      name="school-outline"
+                      size={20}
+                      color={colors.primary}
+                    />
+                    <StyledLabel
+                      text="Education & Certifications"
+                      style={styles.sectionTitle}
+                      color="primary"
+                    />
+                  </View>
+                  <View style={styles.educationItem}>
+                    <View style={styles.educationHeader}>
+                      
+                      <StyledText
+                        text={artisanData?.profession || "Not specified"}
+                        style={[
+                          styles.educationTitle,
+                          { color: theme.textColor },
+                        ]}
                       />
                     </View>
                   </View>
-
-                  {/* Professional Information */}
-                  <StyledCard style={[styles.infoCard, { backgroundColor: theme.backgroundColor }]}>
-                    <View style={styles.infoCardHeader}>
-                      <MaterialCommunityIcons 
-                        name="briefcase-outline" 
-                        size={24} 
-                        color={colors.primary} 
-                      />
-                      <StyledHeading 
-                        text="Professional Information" 
-                        style={[styles.infoCardTitle, { color: theme.textColor }]} 
-                      />
-                    </View>
-                    <View style={styles.infoCardContent}>
-                      <View style={styles.infoRow}>
-                        <Ionicons name="construct-outline" size={20} color={colors.primary} />
-                        <View style={styles.infoTextContainer}>
-                          <StyledText 
-                            text="Profession" 
-                            style={[styles.infoLabel, { color: theme.textColor }]} 
-                          />
-                          <StyledText 
-                            text={artisanData.profession || "Not specified"} 
-                            style={[styles.infoValue, { color: theme.textColor }]} 
-                          />
-                        </View>
-                      </View>
-                      
-                      <View style={styles.infoRow}>
-                        <Ionicons name="time-outline" size={20} color={colors.primary} />
-                        <View style={styles.infoTextContainer}>
-                          <StyledText 
-                            text="Experience" 
-                            style={[styles.infoLabel, { color: theme.textColor }]} 
-                          />
-                          <StyledText 
-                            text={`${artisanData.experienceYears || 0} years`} 
-                            style={[styles.infoValue, { color: theme.textColor }]} 
-                          />
-                        </View>
-                      </View>
-
-                      <View style={styles.infoRow}>
-                        <MaterialCommunityIcons name="wrench-outline" size={20} color={colors.primary} />
-                        <View style={styles.infoTextContainer}>
-                          <StyledText 
-                            text="Service Type" 
-                            style={[styles.infoLabel, { color: theme.textColor }]} 
-                          />
-                          <StyledText 
-                            text={artisanData.serviceType?.title || artisanData.serviceType || "Not specified"} 
-                            style={[styles.infoValue, { color: theme.textColor }]} 
-                          />
-                        </View>
-                      </View>
-                    </View>
-                  </StyledCard>
-
-                  {/* Skills */}
-                  {artisanData.skills && artisanData.skills.length > 0 && (
-                    <StyledCard style={[styles.infoCard, { backgroundColor: theme.backgroundColor }]}>
-                      <View style={styles.infoCardHeader}>
-                        <MaterialCommunityIcons 
-                          name="lightbulb-outline" 
-                          size={24} 
-                          color={colors.primary} 
-                        />
-                        <StyledHeading 
-                          text="Skills & Expertise" 
-                          style={[styles.infoCardTitle, { color: theme.textColor }]} 
-                        />
-                      </View>
-                      <View style={styles.skillsContainer}>
-                        {artisanData.skills.map((skill, index) => (
-                          <View 
-                            key={index} 
-                            style={[styles.skillBadge, { backgroundColor: colors.primary + '20' }]}
-                          >
-                            <StyledText 
-                              text={skill} 
-                              style={[styles.skillText, { color: colors.primary }]} 
-                            />
-                          </View>
-                        ))}
-                      </View>
-                    </StyledCard>
-                  )}
-                </>
-              ) : (
-                <View style={styles.noDataContainer}>
-                  <StyledHeading 
-                    text="Profile Not Found" 
-                    style={[styles.noDataTitle, { color: theme.textColor }]} 
-                  />
-                  <StyledText 
-                    text="Unable to load artisan profile information." 
-                    style={[styles.noDataText, { color: theme.textColor }]} 
-                  />
-                  <StyledButton
-                    text="Try Again"
-                    onPress={openProfileModal}
-                    color="primary"
-                    style={styles.noDataButton}
-                  />
                 </View>
-              )}
-            </ScrollView>
+
+                {/* Skills */}
+                {artisanData?.skills && artisanData.skills.length > 0 && (
+                  <View style={styles.infoSection}>
+                    <View style={styles.sectionHeader}>
+                      <MaterialCommunityIcons
+                        name="lightning-bolt-outline"
+                        size={20}
+                        color={colors.primary}
+                      />
+                      <StyledLabel
+                        text="Skills & Expertise"
+                        style={styles.sectionTitle}
+                        color="primary"
+                      />
+                    </View>
+                    <View style={styles.skillsContainer}>
+                      {artisanData.skills.map((skill, index) => (
+                        <View
+                          key={index}
+                          style={[
+                            styles.skillBadge,
+                            { backgroundColor: colors.primary + "10" },
+                          ]}
+                        >
+                          <StyledText
+                            text={skill}
+                            style={[
+                              styles.skillText,
+                              { color: colors.primary },
+                            ]}
+                          />
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* Loading state */}
+                {loading && (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <StyledText
+                      text="Loading profile..."
+                      style={[styles.loadingText, { color: theme.textColor }]}
+                    />
+                  </View>
+                )}
+              </ScrollView>
+            </View>
           </View>
         </View>
       </Modal>
@@ -525,8 +572,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    width: "90%",
-    maxHeight: "85%",
+    width: "95%",
+    height: "80%",
     borderRadius: mystyles.borderRadius,
     overflow: "hidden",
     paddingHorizontal: mystyles.paddingHorizontal,
@@ -602,7 +649,9 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 14,
+    marginBottom: 16,
+    paddingLeft: 4,
   },
   infoTextContainer: {
     flex: 1,
@@ -618,20 +667,31 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
+    marginTop: 8,
   },
   skillBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
   },
   skillText: {
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: "500",
   },
   actionButtons: {
     padding: 20,
     gap: 10,
   },
   actionButton: {
+    marginBottom: 0,
+  },
+  buttonSection: {
+    gap: 12,
+  },
+  showProfileButton: {
+    marginBottom: 0,
+  },
+  chooseButton: {
     marginBottom: 0,
   },
   loadingContainer: {
@@ -710,5 +770,125 @@ const styles = StyleSheet.create({
   },
   dataValue: {
     fontSize: 14,
+  },
+  profileInfoContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  profileProfession: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: "500",
+    marginTop: 5,
+  },
+  profileDetailsScroll: {
+    flex: 1,
+    marginTop: 20,
+  },
+  profileDetailsContent: {
+    paddingBottom: 30,
+  },
+  infoSection: {
+    marginBottom: 32,
+    paddingBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0, 0, 0, 0.06)",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 20,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    marginBottom: 16,
+    paddingLeft: 4,
+  },
+  infoText: {
+    fontSize: 15,
+    flex: 1,
+    lineHeight: 22,
+  },
+  skillsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 8,
+  },
+  skillBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+  },
+  skillText: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  educationCard: {
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.02)",
+    borderWidth: 1,
+    borderColor: "rgba(0, 0, 0, 0.04)",
+  },
+  educationHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  educationIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary + "12",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 2,
+  },
+  educationContent: {
+    flex: 1,
+  },
+  educationTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    lineHeight: 22,
+    marginBottom: 4,
+  },
+  educationInstitution: {
+    fontSize: 14,
+    lineHeight: 20,
+    opacity: 0.8,
+  },
+  educationYearContainer: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: colors.primary + "15",
+    borderWidth: 1,
+    borderColor: colors.primary + "25",
+  },
+  educationYear: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  noEducationContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.02)",
+    borderWidth: 1,
+    borderColor: "rgba(0, 0, 0, 0.04)",
+  },
+  noEducationText: {
+    fontSize: 14,
+    fontWeight: "500",
+    opacity: 0.7,
   },
 });
