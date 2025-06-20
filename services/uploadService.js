@@ -1,5 +1,5 @@
 import { client, storage, account } from "../config/appwrite";
-import { ID } from "react-native-appwrite";
+import { ID } from "appwrite";
 import settings from "../config/settings";
 import * as FileSystem from "expo-file-system";
 

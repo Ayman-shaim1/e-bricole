@@ -139,21 +139,39 @@ export default function NotificationsScreen() {
   };
 
   const handleShowNotification = (notification) => {
-    console.log("Notification type:", notification.type, typeof notification.type);
+    console.log(
+      "Notification type:",
+      notification.type,
+      typeof notification.type
+    );
     console.log("Notification jsonData:", notification.jsonData);
-    
+
     if (notification.type === "application" && notification.jsonData) {
       try {
         const data = JSON.parse(notification.jsonData);
         console.log("Parsed jsonData:", data);
-        if (data.serviceRequestId) {
+        console.log("serviceApplicationId:", data.serviceApplicationId);
+        console.log("serviceApplicationId type:", typeof data.serviceApplicationId);
+        console.log("serviceApplicationId length:", data.serviceApplicationId?.length);
+        
+        if (data.serviceApplicationId) {
+          // Validate the ID format
+          if (data.serviceApplicationId.length > 36 || !/^[a-zA-Z0-9_]+$/.test(data.serviceApplicationId)) {
+            console.error("Invalid serviceApplicationId format:", data.serviceApplicationId);
+            alert("This notification contains an invalid application ID. Please contact support.");
+            return;
+          }
+          
           router.push({
-            pathname: "/shared/request-details",
-            params: { id: data.serviceRequestId },
+            pathname: "/shared/application-details",
+            params: { applicationId: data.serviceApplicationId },
           });
+        } else {
+          alert("Application ID not found in notification data.");
         }
       } catch (error) {
         console.error("Error parsing notification jsonData:", error);
+        alert("Error processing notification data. Please try again.");
       }
     }
   };
@@ -191,13 +209,6 @@ export default function NotificationsScreen() {
           keyExtractor={(item) => `notification-${item.$id}-${item.$createdAt}`}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => {
-            console.log("Rendering notification:", {
-              id: item.$id,
-              type: item.type,
-              typeOf: typeof item.type,
-              title: item.title
-            });
-            
             return (
               <StyledCard style={!item.isSeen ? styles.unseenCard : null}>
                 <View style={styles.titleContainer}>
@@ -205,12 +216,10 @@ export default function NotificationsScreen() {
                   {!item.isSeen && <View style={styles.unseenDot} />}
                 </View>
                 <StyledText text={item.messageContent} style={styles.content} />
-                <StyledText text={`Type: ${item.type} (${typeof item.type})`} style={styles.content} />
-                <StyledText text={item.jsonData} style={styles.content} />
                 {item.type === "application" && (
                   <View style={styles.buttonContainer}>
                     <StyledButton
-                      text="Show notification"
+                      text="Show application"
                       onPress={() => handleShowNotification(item)}
                       color="primary"
                       style={styles.showButton}

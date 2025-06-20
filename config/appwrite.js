@@ -1,6 +1,6 @@
-import { Client, Account, Databases, Storage } from "react-native-appwrite";
+import { Client, Account, Databases, Storage } from "appwrite";
 
-// Initialize the react-native-appwrite client
+// Initialize the Appwrite client
 const client = new Client();
 
 // Set the endpoint and project ID

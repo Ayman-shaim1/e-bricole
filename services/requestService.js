@@ -1,5 +1,5 @@
 import { databases } from "../config/appwrite";
-import { ID, Query } from "react-native-appwrite";
+import { ID, Query } from "appwrite";
 import settings from "../config/settings";
 import { uploadFile } from "./uploadService";
 import { createNotification } from "./notificationService";
@@ -480,7 +480,7 @@ export async function submitServiceApplicationWithProposals(data) {
         console.log("Deleting notification:", notificationId);
         await databases.deleteDocument(
           settings.dataBaseId,
-          settings.notificationsId,
+          settings.notificationId,
           notificationId
         );
       }

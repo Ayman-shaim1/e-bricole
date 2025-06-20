@@ -1,5 +1,5 @@
 import { databases } from "../config/appwrite";
-import { ID, Query } from "react-native-appwrite";
+import { ID, Query } from "appwrite";
 import settings from "../config/settings";
 
 /**
