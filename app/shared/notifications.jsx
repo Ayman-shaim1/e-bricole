@@ -22,7 +22,9 @@ import GoBackButton from "../../components/GoBackButton";
 import StyledCard from "../../components/StyledCard";
 import Divider from "../../components/Divider";
 import StyledLabel from "../../components/StyledLabel";
+import StyledButton from "../../components/StyledButton";
 import { colors } from "../../constants/colors";
+import { useRouter } from "expo-router";
 
 const formatDate = (dateString) => {
   const date = new Date(dateString);
@@ -37,6 +39,7 @@ const formatDate = (dateString) => {
 export default function NotificationsScreen() {
   const { user } = useAuth();
   const { setUnseenCount } = useNotifications();
+  const router = useRouter();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,16 +48,16 @@ export default function NotificationsScreen() {
 
   const handleMarkAllAsSeen = async () => {
     if (markingAsSeen || unseenCount === 0) return;
-    
+
     setMarkingAsSeen(true);
     const result = await markAllNotificationsAsSeen(user.$id);
-    
+
     if (result.success) {
       // Update both database and UI
-      setNotifications(prev => 
-        prev.map(notification => ({
+      setNotifications((prev) =>
+        prev.map((notification) => ({
           ...notification,
-          isSeen: true
+          isSeen: true,
         }))
       );
       // Reset unseen count to update both notifications screen and header
@@ -85,15 +88,15 @@ export default function NotificationsScreen() {
       if (res.success) {
         setNotifications(res.data);
       }
-      
+
       // Get the current unseen count
       const count = await getUnseenNotificationCount(user.$id);
       setLocalUnseenCount(count);
       setUnseenCount(count);
-      
+
       // Then update the database without changing the UI state
       await markAllNotificationsAsSeen(user.$id);
-      
+
       setLoading(false);
     };
 
@@ -103,13 +106,16 @@ export default function NotificationsScreen() {
   useEffect(() => {
     const handleNewNotification = async (newNotification) => {
       // Check if notification already exists in the list
-      const exists = notifications.some(n => n.$id === newNotification.$id);
+      const exists = notifications.some((n) => n.$id === newNotification.$id);
       if (!exists) {
         // Add new notification to the top of the list with isSeen = false for UI
-        setNotifications(prev => [{
-          ...newNotification,
-          isSeen: false // Force isSeen to false for UI styling
-        }, ...prev]);
+        setNotifications((prev) => [
+          {
+            ...newNotification,
+            isSeen: false, // Force isSeen to false for UI styling
+          },
+          ...prev,
+        ]);
       }
     };
 
@@ -132,6 +138,26 @@ export default function NotificationsScreen() {
     fetchNotifications();
   };
 
+  const handleShowNotification = (notification) => {
+    console.log("Notification type:", notification.type, typeof notification.type);
+    console.log("Notification jsonData:", notification.jsonData);
+    
+    if (notification.type === "application" && notification.jsonData) {
+      try {
+        const data = JSON.parse(notification.jsonData);
+        console.log("Parsed jsonData:", data);
+        if (data.serviceRequestId) {
+          router.push({
+            pathname: "/shared/request-details",
+            params: { id: data.serviceRequestId },
+          });
+        }
+      } catch (error) {
+        console.error("Error parsing notification jsonData:", error);
+      }
+    }
+  };
+
   return (
     <ThemedView style={styles.container}>
       <View style={styles.header}>
@@ -146,13 +172,13 @@ export default function NotificationsScreen() {
         )}
       </View>
       <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={handleMarkAllAsSeen}
           disabled={markingAsSeen || unseenCount === 0}
         >
-          <StyledLabel 
-            text={markingAsSeen ? "Marking as seen..." : "Mark all as seen"} 
-            color={markingAsSeen || unseenCount === 0 ? "gray" : "primary"} 
+          <StyledLabel
+            text={markingAsSeen ? "Marking as seen..." : "Mark all as seen"}
+            color={markingAsSeen || unseenCount === 0 ? "gray" : "primary"}
           />
         </TouchableOpacity>
       </View>
@@ -164,17 +190,38 @@ export default function NotificationsScreen() {
           data={notifications}
           keyExtractor={(item) => `notification-${item.$id}-${item.$createdAt}`}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <StyledCard style={!item.isSeen ? styles.unseenCard : null}>
-              <View style={styles.titleContainer}>
-                <StyledHeading text={item.title} style={styles.title} />
-                {!item.isSeen && <View style={styles.unseenDot} />}
-              </View>
-              <StyledText text={item.messageContent} style={styles.content} />
-              <Divider />
-              <StyledLabel text={formatDate(item.$createdAt)} />
-            </StyledCard>
-          )}
+          renderItem={({ item }) => {
+            console.log("Rendering notification:", {
+              id: item.$id,
+              type: item.type,
+              typeOf: typeof item.type,
+              title: item.title
+            });
+            
+            return (
+              <StyledCard style={!item.isSeen ? styles.unseenCard : null}>
+                <View style={styles.titleContainer}>
+                  <StyledHeading text={item.title} style={styles.title} />
+                  {!item.isSeen && <View style={styles.unseenDot} />}
+                </View>
+                <StyledText text={item.messageContent} style={styles.content} />
+                <StyledText text={`Type: ${item.type} (${typeof item.type})`} style={styles.content} />
+                <StyledText text={item.jsonData} style={styles.content} />
+                {item.type === "application" && (
+                  <View style={styles.buttonContainer}>
+                    <StyledButton
+                      text="Show notification"
+                      onPress={() => handleShowNotification(item)}
+                      color="primary"
+                      style={styles.showButton}
+                    />
+                  </View>
+                )}
+                <Divider />
+                <StyledLabel text={formatDate(item.$createdAt)} />
+              </StyledCard>
+            );
+          }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
@@ -202,6 +249,14 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 16, fontWeight: "bold" },
   content: { fontSize: 14 },
+  buttonContainer: {
+    marginTop: 10,
+    alignItems: "flex-start",
+  },
+  showButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
   unseenDot: {
     width: 8,
     height: 8,
