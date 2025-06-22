@@ -42,13 +42,6 @@ export default function ArtisanApplicationCard({ application }) {
     setArtisanData(null);
   };
 
-  const navigateToDetails = () => {
-    router.push({
-      pathname: "/shared/application-details",
-      params: { applicationId: application.$id },
-    });
-  };
-
   return (
     <>
       <StyledCard style={styles.applicationCard}>
@@ -223,15 +216,9 @@ export default function ArtisanApplicationCard({ application }) {
         {/* Show Profile Button */}
         <View style={styles.buttonSection}>
           <StyledButton
-            text="View Details"
-            onPress={navigateToDetails}
-            color="primary"
-            style={styles.viewDetailsButton}
-          />
-          <StyledButton
             text="Show Profile"
             onPress={openProfileModal}
-            color="secondary"
+            color="primary"
             style={styles.showProfileButton}
           />
           <StyledButton
@@ -388,7 +375,6 @@ export default function ArtisanApplicationCard({ application }) {
                   </View>
                   <View style={styles.educationItem}>
                     <View style={styles.educationHeader}>
-                      
                       <StyledText
                         text={artisanData?.profession || "Not specified"}
                         style={[

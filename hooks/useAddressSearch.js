@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import settings from "../config/settings";
 
 /**
- * Hook pour rechercher des adresses avec autocomplétion en utilisant l'API OpenRouteService
+ * Hook pour rechercher des adresses avec autocomplétion en utilisant Nominatim
  * @returns {Object} { suggestions, loading, error, searchAddresses, clearSuggestions }
  */
 const useAddressSearch = () => {
@@ -11,7 +11,7 @@ const useAddressSearch = () => {
   const [error, setError] = useState(null);
 
 
-  const searchAddresses = useCallback(async (query) => {
+  const searchAddresses = useCallback(async (query, retryCount = 0) => {
     if (!query || query.trim().length < 3) {
       setSuggestions([]);
       return;
@@ -21,52 +21,48 @@ const useAddressSearch = () => {
     setError(null);
 
     try {
-      // Utilisation de l'API OpenRouteService Geocoding
-      const apiUrl = `https://api.openrouteservice.org/geocode/search?api_key=${
-        settings.openRouteApiKey
-      }&text=${encodeURIComponent(query)}&size=5&layers=address,venue`;
-
-      const response = await fetch(apiUrl, {
+      // Utiliser directement Nominatim au lieu d'OpenRouteService
+      const fallbackUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`;
+      
+      // Utiliser AbortController pour le timeout
+      const fallbackController = new AbortController();
+      const fallbackTimeoutId = setTimeout(() => fallbackController.abort(), 10000);
+      
+      const fallbackResponse = await fetch(fallbackUrl, {
         headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
+          'Accept': 'application/json',
+          'User-Agent': 'E-Bricole-App/1.0',
         },
+        signal: fallbackController.signal,
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(
-          "Erreur de l'API OpenRouteService:",
-          response.status,
-          errorText
-        );
-        throw new Error(
-          `Erreur ${response.status} lors de la recherche d'adresses`
-        );
+      
+      clearTimeout(fallbackTimeoutId);
+      
+      if (fallbackResponse.ok) {
+        const fallbackData = await fallbackResponse.json();
+        
+        if (fallbackData && fallbackData.length > 0) {
+          const formattedSuggestions = fallbackData.map((item) => ({
+            id: item.place_id?.toString() || Math.random().toString(),
+            displayName: item.display_name,
+            latitude: parseFloat(item.lat),
+            longitude: parseFloat(item.lon),
+            formattedAddress: item.display_name,
+            description: item.display_name,
+            country: item.address?.country,
+            region: item.address?.state,
+            locality: item.address?.city || item.address?.town,
+          }));
+          
+          setSuggestions(formattedSuggestions);
+          return formattedSuggestions;
+        } else {
+          setSuggestions([]);
+          return [];
+        }
+      } else {
+        throw new Error(`Erreur ${fallbackResponse.status} lors de la recherche d'adresses`);
       }
-
-      const data = await response.json();
-
-      if (!data.features || data.features.length === 0) {
-        setSuggestions([]);
-        return [];
-      }
-
-      // Formater les résultats pour l'affichage
-      const formattedSuggestions = data.features.map((feature) => ({
-        id: feature.properties?.id || Math.random().toString(),
-        displayName: feature.properties?.label || feature.properties?.name,
-        latitude: feature.geometry.coordinates[1], // OpenRouteService retourne [longitude, latitude]
-        longitude: feature.geometry.coordinates[0],
-        formattedAddress: feature.properties?.label || feature.properties?.name,
-        description: feature.properties?.label || feature.properties?.name,
-        country: feature.properties?.country,
-        region: feature.properties?.region,
-        locality: feature.properties?.locality,
-      }));
-
-      setSuggestions(formattedSuggestions);
-      return formattedSuggestions;
     } catch (err) {
       console.error("Erreur de recherche d'adresses:", err.message);
       setError(err);

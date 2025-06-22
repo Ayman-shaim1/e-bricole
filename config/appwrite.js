@@ -1,3 +1,16 @@
+// Add localStorage polyfill for React Native
+if (typeof window !== 'undefined' && !window.localStorage) {
+  window.localStorage = {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+    clear: () => {},
+    key: () => null,
+    length: 0
+  };
+}
+
+import 'react-native-url-polyfill/auto';
 import { Client, Account, Databases, Storage } from "appwrite";
 
 // Initialize the Appwrite client

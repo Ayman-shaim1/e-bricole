@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import settings from '../config/settings';
 
 /**
- * Hook pour récupérer l'adresse à partir des coordonnées GPS en utilisant l'API OpenRouteService
+ * Hook pour récupérer l'adresse à partir des coordonnées GPS en utilisant Nominatim
  * @returns {Object} { data, loading, error, reverseGeocode }
  */
 const useReverseGeocode = () => {
@@ -10,7 +10,7 @@ const useReverseGeocode = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const reverseGeocode = useCallback(async (lat, lon) => {
+  const reverseGeocode = useCallback(async (lat, lon, retryCount = 0) => {
     if (!lat || !lon) {
       setError(new Error('Latitude et longitude sont requises'));
       return null;
@@ -20,45 +20,42 @@ const useReverseGeocode = () => {
     setError(null);
     
     try {
-      const apiUrl = `https://api.openrouteservice.org/geocode/reverse?api_key=${settings.openRouteApiKey}&point.lon=${lon}&point.lat=${lat}&size=1`;
-
-      const response = await fetch(apiUrl, {
+      // Utiliser directement Nominatim au lieu d'OpenRouteService
+      const fallbackUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
+      
+      // Utiliser AbortController pour le timeout
+      const fallbackController = new AbortController();
+      const fallbackTimeoutId = setTimeout(() => fallbackController.abort(), 10000);
+      
+      const fallbackResponse = await fetch(fallbackUrl, {
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json',
+          'User-Agent': 'E-Bricole-App/1.0',
         },
+        signal: fallbackController.signal,
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Erreur de l'API OpenRouteService:", response.status, errorText);
-        throw new Error(
-          `Erreur ${response.status} lors de la récupération de l'adresse`
-        );
-      }
-
-      const result = await response.json();
       
-      if (result.features && result.features.length > 0) {
-        const feature = result.features[0];
+      clearTimeout(fallbackTimeoutId);
+      
+      if (fallbackResponse.ok) {
+        const fallbackResult = await fallbackResponse.json();
         const formattedData = {
-          display_name: feature.properties.label,
+          display_name: fallbackResult.display_name,
           address: {
-            road: feature.properties.street || feature.properties.name,
-            city: feature.properties.locality || feature.properties.localadmin,
-            country: feature.properties.country,
-            house_number: feature.properties.housenumber,
-            postcode: feature.properties.postalcode,
+            road: fallbackResult.address?.road,
+            city: fallbackResult.address?.city || fallbackResult.address?.town,
+            country: fallbackResult.address?.country,
+            house_number: fallbackResult.address?.house_number,
+            postcode: fallbackResult.address?.postcode,
           },
-          lat: feature.geometry.coordinates[1],
-          lon: feature.geometry.coordinates[0],
+          lat: parseFloat(fallbackResult.lat),
+          lon: parseFloat(fallbackResult.lon),
         };
         
         setData(formattedData);
         return formattedData;
       } else {
-        setData(null);
-        return null;
+        throw new Error(`Erreur ${fallbackResponse.status} lors de la récupération de l'adresse`);
       }
     } catch (err) {
       console.error("Erreur de géocodage inverse:", err.message);

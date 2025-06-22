@@ -2,10 +2,24 @@ import { useState, useCallback } from "react";
 import settings from "../config/settings";
 
 const formatDistance = (meters) => {
-  if (meters >= 1000) {
-    return `${(meters / 1000).toFixed(1)} km`;
+  if (meters < 1000) {
+    return `${Math.round(meters)}m`;
+  } else {
+    return `${(meters / 1000).toFixed(1)}km`;
   }
-  return `${Math.round(meters)} m`;
+};
+
+// Fonction de calcul de distance approximative (formule de Haversine)
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371; // Rayon de la Terre en km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
 };
 
 export const useDirections = () => {
@@ -18,40 +32,27 @@ export const useDirections = () => {
       setLoading(true);
       setError(null);
 
-      const BASE_URL = "https://api.openrouteservice.org/v2";
-      const ENDPOINT = "/directions/driving-car";
-      const url = `${BASE_URL}${ENDPOINT}?api_key=${settings.openRouteApiKey}&start=${start.longitude},${start.latitude}&end=${end.longitude},${end.latitude}`;
-
-      const response = await fetch(url);
+      // Utiliser directement le calcul de distance local
+      console.log("Utilisation du calcul de distance local...");
       
-      if (!response.ok) {
-        throw new Error("Failed to fetch directions");
-      }
-
-      const data = await response.json();
+      const distance = calculateDistance(start.latitude, start.longitude, end.latitude, end.longitude);
+      const formattedDistance = formatDistance(distance * 1000); // Convertir en mètres
       
-      if (data.features && data.features[0]) {
-        const feature = data.features[0];
-        const coordinates = feature.geometry.coordinates;
-        const { distance, duration } = feature.properties.segments[0];
-        const formattedDistance = formatDistance(distance);
-
-        setDirections({
-          coordinates,
-          distance,
-          formattedDistance,
-          duration,
-        });
-        return {
-          coordinates,
-          distance,
-          formattedDistance,
-          duration,
-        };
-      } else {
-        throw new Error("No route found");
-      }
+      const localDirections = {
+        coordinates: [
+          [start.longitude, start.latitude],
+          [end.longitude, end.latitude]
+        ],
+        distance: distance * 1000,
+        formattedDistance,
+        duration: distance * 60, // Estimation: 1 minute par km
+      };
+      
+      setDirections(localDirections);
+      return localDirections;
+      
     } catch (err) {
+      console.error("Erreur de calcul de distance:", err.message);
       setError(err instanceof Error ? err.message : "An error occurred");
       setDirections(null);
       return null;

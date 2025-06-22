@@ -3,6 +3,7 @@ import Constants from "expo-constants";
 const settings = {
   dev: {
     openRouteApiKey: "5b3ce3597851110001cf62487457825666a7441fbf7b9ac578303d3b",
+    useOpenRouteService: false,
     dataBaseId: "682cdbba00195948bbf9",
     bucketId: "682cdbfe0034f6665cf5",
     usersId: "682cdbc3001f92934aa7",
@@ -15,6 +16,7 @@ const settings = {
   },
   staging: {
     openRouteApiKey: "5b3ce3597851110001cf62487457825666a7441fbf7b9ac578303d3b",
+    useOpenRouteService: false,
     dataBaseId: "682cdbba00195948bbf9",
     bucketId: "682cdbfe0034f6665cf5",
     usersId: "682cdbc3001f92934aa7",
@@ -27,6 +29,7 @@ const settings = {
   },
   prod: {
     openRouteApiKey: "5b3ce3597851110001cf62487457825666a7441fbf7b9ac578303d3b",
+    useOpenRouteService: false,
     dataBaseId: "682cdbba00195948bbf9",
     bucketId: "682cdbfe0034f6665cf5",
     usersId: "682cdbc3001f92934aa7",

@@ -31,7 +31,6 @@
     "expo-splash-screen": "0.30.9",
     "expo-status-bar": "~2.2.3",
     "formik": "^2.4.6",
-    "native-notify": "^4.0.9",
     "react": "19.0.0",
     "react-native": "^0.79.2",
     "react-native-appwrite": "^0.9.2",

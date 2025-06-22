@@ -1,3 +1,16 @@
+// Add localStorage polyfill for React Native
+if (typeof window !== 'undefined' && !window.localStorage) {
+  window.localStorage = {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+    clear: () => {},
+    key: () => null,
+    length: 0
+  };
+}
+
+import 'react-native-url-polyfill/auto';
 import { StyleSheet } from "react-native";
 import React, { useEffect } from "react";
 import { Stack, useSegments, useRouter } from "expo-router";
@@ -43,6 +56,7 @@ function RootLayoutNav() {
 }
 
 export default function Layout() {
+
   const [fontsLoaded] = useFonts({
     "Poppins-Regular": require("../assets/fonts/Poppins-Regular.ttf"),
     "Poppins-Bold": require("../assets/fonts/Poppins-Bold.ttf"),
@@ -70,4 +84,3 @@ export default function Layout() {
   );
 }
 
-const styles = StyleSheet.create({});

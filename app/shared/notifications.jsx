@@ -94,14 +94,37 @@ export default function NotificationsScreen() {
       setLocalUnseenCount(count);
       setUnseenCount(count);
 
-      // Then update the database without changing the UI state
-      await markAllNotificationsAsSeen(user.$id);
-
       setLoading(false);
     };
 
     initializeNotifications();
   }, []);
+
+  // Mark notifications as seen when user stays on the page for more than 2 seconds
+  useEffect(() => {
+    if (notifications.length > 0 && unseenCount > 0) {
+      const timer = setTimeout(async () => {
+        // Only mark as seen if there are still unseen notifications
+        const currentUnseenCount = await getUnseenNotificationCount(user.$id);
+        if (currentUnseenCount > 0) {
+          const result = await markAllNotificationsAsSeen(user.$id);
+          if (result.success) {
+            // Update UI to show notifications as seen
+            setNotifications((prev) =>
+              prev.map((notification) => ({
+                ...notification,
+                isSeen: true,
+              }))
+            );
+            setLocalUnseenCount(0);
+            setUnseenCount(0);
+          }
+        }
+      }, 3000); // 3 seconds delay to give user time to see new notifications
+
+      return () => clearTimeout(timer);
+    }
+  }, [notifications, unseenCount, user.$id]);
 
   useEffect(() => {
     const handleNewNotification = async (newNotification) => {
@@ -116,6 +139,10 @@ export default function NotificationsScreen() {
           },
           ...prev,
         ]);
+        
+        // Update unseen count
+        setLocalUnseenCount(prev => prev + 1);
+        setUnseenCount(prev => prev + 1);
       }
     };
 
