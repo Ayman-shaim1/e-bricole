@@ -2,19 +2,10 @@ import { Redirect } from "expo-router";
 import { useEffect, useState } from "react";
 import { checkSession } from "../services/authService";
 import SplashComponent from "./splash";
-// import useNotificationListeners from "../hooks/useNotificationListeners";
-// import * as Notifications from "expo-notifications";
-
-// Configuration du comportement des notifications
-// Notifications.setNotificationHandler({
-//   handleNotification: async () => ({
-//     shouldShowBanner: true,
-//     shouldPlaySound: true,
-//     shouldSetBadge: false,
-//   }),
-// });
+// import registerNNPushToken from 'native-notify';
 
 export default function Index() {
+  // registerNNPushToken(30842, 'V74ObSdRBvhZ1iPlRAbCMt');
   const [target, setTarget] = useState(null);
   // useNotificationListeners();
   useEffect(() => {
@@ -49,13 +40,3 @@ export default function Index() {
 }
 
 
-// async function registerForPushNotificationsAsync() {
-//   const { status } = await Notifications.requestPermissionsAsync();
-//   if (status !== "granted") {
-//     alert("Permission refusée");
-//     return;
-//   }
-
-//   const { data: token } = await Notifications.getExpoPushTokenAsync();
-//   console.log("✅ Expo Push Token:", token);
-// }

@@ -7,6 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
+import { useRouter } from "expo-router";
 import StyledCard from "./StyledCard";
 import StyledHeading from "./StyledHeading";
 import StyledText from "./StyledText";
@@ -21,6 +22,7 @@ import { styles as mystyles } from "../constants/styles";
 import { getArtisanById } from "../services/userService";
 
 export default function ArtisanApplicationCard({ application }) {
+  const router = useRouter();
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -38,6 +40,13 @@ export default function ArtisanApplicationCard({ application }) {
   const closeProfileModal = () => {
     setShowProfileModal(false);
     setArtisanData(null);
+  };
+
+  const navigateToDetails = () => {
+    router.push({
+      pathname: "/shared/application-details",
+      params: { applicationId: application.$id },
+    });
   };
 
   return (
@@ -214,9 +223,15 @@ export default function ArtisanApplicationCard({ application }) {
         {/* Show Profile Button */}
         <View style={styles.buttonSection}>
           <StyledButton
+            text="View Details"
+            onPress={navigateToDetails}
+            color="primary"
+            style={styles.viewDetailsButton}
+          />
+          <StyledButton
             text="Show Profile"
             onPress={openProfileModal}
-            color="primary"
+            color="secondary"
             style={styles.showProfileButton}
           />
           <StyledButton
@@ -687,6 +702,9 @@ const styles = StyleSheet.create({
   },
   buttonSection: {
     gap: 12,
+  },
+  viewDetailsButton: {
+    marginBottom: 0,
   },
   showProfileButton: {
     marginBottom: 0,

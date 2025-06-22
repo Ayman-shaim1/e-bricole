@@ -571,4 +571,46 @@ export async function getServiceApplications(serviceRequestId) {
   }
 }
 
+/**
+ * Gets a single service application by ID with its task proposals
+ * @param {string} applicationId - The ID of the service application
+ * @returns {Promise<{success: boolean, data: Object|null, error: string|null}>}
+ */
+export async function getServiceApplicationById(applicationId) {
+  try {
+    // Get the application document
+    const applicationResponse = await databases.getDocument(
+      settings.dataBaseId,
+      settings.serviceApplicationsId,
+      applicationId
+    );
+
+    // Get the task proposals for this application
+    const serviceTaskProposals = await databases.listDocuments(
+      settings.dataBaseId,
+      settings.serviceTaskProposalsId,
+      [Query.equal("serviceApplication", applicationId)]
+    );
+
+    // Combine the data
+    const application = {
+      ...applicationResponse,
+      serviceTaskProposals: serviceTaskProposals.documents,
+    };
+
+    return {
+      success: true,
+      data: application,
+      error: null,
+    };
+  } catch (error) {
+    console.error("Error fetching service application:", error);
+    return {
+      success: false,
+      data: null,
+      error: error.message,
+    };
+  }
+}
+
 export async function chooseArtisan(serviceApplicationId, artisanId) {}
