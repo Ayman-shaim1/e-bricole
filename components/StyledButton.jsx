@@ -16,6 +16,7 @@ export default function StyledButton({
   textColor,
   backgroundColor,
   style,
+  disabled = false,
 }) {
   const bgColor = backgroundColor ? backgroundColor : colors[color];
   const labelColor = textColor
@@ -30,14 +31,20 @@ export default function StyledButton({
     ? colors.black
     : colors.white;
 
+  // Apply disabled styling
+  const disabledBgColor = disabled ? colors.gray : bgColor;
+  const disabledLabelColor = disabled ? colors.white : labelColor;
+  const disabledIconColor = disabled ? colors.white : finalIconColor;
+
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={disabled ? null : onPress}
       style={[
         styles.button,
-        { backgroundColor: bgColor },
+        { backgroundColor: disabledBgColor },
         { ...style },
         color === "white" && { borderWidth: 1, borderColor: colors.gray },
+        disabled && styles.disabledButton,
       ]}
     >
       {icon &&
@@ -45,7 +52,7 @@ export default function StyledButton({
           <FeatherIcon
             name={icon}
             size={iconSize}
-            color={finalIconColor}
+            color={disabledIconColor}
             style={styles.icon}
           />
         ) : (
@@ -54,7 +61,7 @@ export default function StyledButton({
           })
         ))}
       {image && <Image source={image} style={styles.image} />}
-      <StyledLabel text={text} color={labelColor} />
+      <StyledLabel text={text} color={disabledLabelColor} />
     </TouchableOpacity>
   );
 }
@@ -73,5 +80,8 @@ const styles = StyleSheet.create({
   icon: {
     marginRight: 10,
     marginBottom: 1,
+  },
+  disabledButton: {
+    backgroundColor: colors.gray,
   },
 });

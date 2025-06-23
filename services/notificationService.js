@@ -27,6 +27,9 @@ export async function registerForPushNotificationsAsync() {
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: "#FF231F7C",
+      enableVibrate: true,
+      enableLights: true,
+      showBadge: true,
     });
   }
 
@@ -207,6 +210,7 @@ export async function sendPushNotification(expoPushToken, title, body, data = {}
       title: title,
       body: body,
       data: data,
+      badge: 1,
     };
 
     const response = await fetch('https://exp.host/--/api/v2/push/send', {

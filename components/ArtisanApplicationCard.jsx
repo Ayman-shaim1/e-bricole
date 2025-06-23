@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import StyledCard from "./StyledCard";
@@ -16,18 +17,22 @@ import Avatar from "./Avatar";
 import { formatDate, formatDateWithTime } from "../utils/dateUtils";
 import { colors } from "../constants/colors";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import StyledButton from "./StyledButton";
 import { styles as mystyles } from "../constants/styles";
 import { getArtisanById } from "../services/userService";
+import { chooseArtisan } from "../services/requestService";
 
-export default function ArtisanApplicationCard({ application }) {
+export default function ArtisanApplicationCard({ application, onArtisanChosen, serviceRequestStatus }) {
   const router = useRouter();
   const { getCurrentTheme } = useTheme();
+  const { user, isClient } = useAuth();
   const theme = getCurrentTheme();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [artisanData, setArtisanData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [choosing, setChoosing] = useState(false);
 
   const openProfileModal = async () => {
     setShowProfileModal(true);
@@ -40,6 +45,68 @@ export default function ArtisanApplicationCard({ application }) {
   const closeProfileModal = () => {
     setShowProfileModal(false);
     setArtisanData(null);
+  };
+
+  const handleChooseArtisan = async () => {
+    // Check if the current user is a client
+    if (!isClient()) {
+      Alert.alert("Error", "Only clients can choose artisans for service requests.");
+      return;
+    }
+
+    // Check if the application has already been processed
+    if (application.status !== "pending") {
+      Alert.alert("Error", "This application has already been processed.");
+      return;
+    }
+
+    Alert.alert(
+      "Choose Artisan",
+      `Are you sure you want to choose ${application?.artisan?.name} for this project?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Choose",
+          style: "default",
+          onPress: async () => {
+            try {
+              setChoosing(true);
+              const result = await chooseArtisan(application.$id, application.artisan.$id, user.$id);
+              
+              if (result.success) {
+                Alert.alert(
+                  "Success",
+                  `${application?.artisan?.name} has been selected for this project!`,
+                  [
+                    {
+                      text: "OK",
+                      onPress: () => {
+                        // Call the callback to refresh the parent component
+                        if (onArtisanChosen) {
+                          onArtisanChosen();
+                        }
+                        // Go back to the previous page
+                        router.back();
+                      },
+                    },
+                  ]
+                );
+              } else {
+                Alert.alert("Error", result.error || "Failed to choose artisan");
+              }
+            } catch (error) {
+              console.error("Error choosing artisan:", error);
+              Alert.alert("Error", "An unexpected error occurred");
+            } finally {
+              setChoosing(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -221,14 +288,15 @@ export default function ArtisanApplicationCard({ application }) {
             color="primary"
             style={styles.showProfileButton}
           />
-          <StyledButton
-            text="Choose"
-            onPress={() => {
-              alert("Choose artisan");
-            }}
-            color="success"
-            style={styles.chooseButton}
-          />
+          {isClient() && application.status === "pending" && serviceRequestStatus === "in progress" && (
+            <StyledButton
+              text={choosing ? "Choosing..." : "Choose"}
+              onPress={handleChooseArtisan}
+              color="success"
+              style={styles.chooseButton}
+              disabled={choosing}
+            />
+          )}
         </View>
       </StyledCard>
 
@@ -469,15 +537,6 @@ const styles = StyleSheet.create({
   },
   applicationDate: {
     fontSize: 12,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: "600",
   },
   section: {
     marginBottom: 20,

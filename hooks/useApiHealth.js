@@ -1,76 +1,82 @@
 import { useState, useEffect } from 'react';
-import settings from '../config/settings';
+import NetInfo from '@react-native-community/netinfo';
+import { getConnectionStatus } from '../services/realtimeService';
 
 /**
  * Hook pour vérifier la santé des APIs utilisées dans l'application
- * @returns {Object} { openRouteHealth, nominatimHealth, loading, error }
+ * @returns {Object} { isOnline, connectionType, realtimeStatus, getHealthStatus }
  */
-const useApiHealth = () => {
-  const [openRouteHealth, setOpenRouteHealth] = useState(null);
-  const [nominatimHealth, setNominatimHealth] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+export const useApiHealth = () => {
+  const [isOnline, setIsOnline] = useState(true);
+  const [connectionType, setConnectionType] = useState(null);
+  const [realtimeStatus, setRealtimeStatus] = useState({ isConnected: false });
 
   useEffect(() => {
-    const checkApis = async () => {
+    const checkNetworkStatus = async () => {
       try {
-        setLoading(true);
-        setError(null);
-
-        // Vérifier Nominatim (maintenant l'API principale)
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
-          
-          const response = await fetch(
-            'https://nominatim.openstreetmap.org/search?format=json&q=test&limit=1',
-            {
-              headers: {
-                'Accept': 'application/json',
-                'User-Agent': 'E-Bricole-App/1.0',
-              },
-              signal: controller.signal,
-            }
-          );
-          
-          clearTimeout(timeoutId);
-          
-          setNominatimHealth({
-            status: response.ok ? 'healthy' : 'error',
-            statusCode: response.status,
-            message: response.ok ? 'API fonctionnelle' : `Erreur ${response.status}`,
-          });
-        } catch (err) {
-          setNominatimHealth({
-            status: 'error',
-            statusCode: null,
-            message: err.message,
-          });
-        }
-
-        // Marquer OpenRouteService comme indisponible
-        setOpenRouteHealth({
-          status: 'error',
-          statusCode: 502,
-          message: 'API indisponible (502 Bad Gateway)',
-        });
-
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+        const netInfo = await NetInfo.fetch();
+        setIsOnline(netInfo.isConnected);
+        setConnectionType(netInfo.type);
+      } catch (error) {
+        console.error('Error checking network status:', error);
+        setIsOnline(false);
       }
     };
 
-    checkApis();
+    // Check initial network status
+    checkNetworkStatus();
+
+    // Set up network status listener
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsOnline(state.isConnected);
+      setConnectionType(state.type);
+      
+      if (!state.isConnected) {
+        console.warn('Network connection lost');
+      } else {
+        console.log('Network connection restored');
+      }
+    });
+
+    // Check realtime status periodically
+    const realtimeInterval = setInterval(() => {
+      setRealtimeStatus(getConnectionStatus());
+    }, 3000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(realtimeInterval);
+    };
   }, []);
 
-  return {
-    openRouteHealth,
-    nominatimHealth,
-    loading,
-    error,
-  };
-};
+  const getHealthStatus = () => {
+    if (!isOnline) {
+      return {
+        status: 'offline',
+        message: 'No internet connection',
+        severity: 'error'
+      };
+    }
 
-export default useApiHealth; 
+    if (!realtimeStatus.isConnected) {
+      return {
+        status: 'realtime_disconnected',
+        message: 'Realtime connection issues',
+        severity: 'warning'
+      };
+    }
+
+    return {
+      status: 'healthy',
+      message: 'All systems operational',
+      severity: 'success'
+    };
+  };
+
+  return {
+    isOnline,
+    connectionType,
+    realtimeStatus,
+    getHealthStatus
+  };
+}; 

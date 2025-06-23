@@ -613,4 +613,325 @@ export async function getServiceApplicationById(applicationId) {
   }
 }
 
-export async function chooseArtisan(serviceApplicationId, artisanId) {}
+/**
+ * Chooses an artisan for a service request and updates all related statuses
+ * @param {string} serviceApplicationId - The ID of the selected service application
+ * @param {string} artisanId - The ID of the selected artisan
+ * @param {string} currentUserId - The ID of the current user (client)
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function chooseArtisan(
+  serviceApplicationId,
+  artisanId,
+  currentUserId
+) {
+  console.log("Starting chooseArtisan with:", {
+    serviceApplicationId,
+    artisanId,
+    currentUserId,
+  });
+
+  let selectedApplication = null;
+  let serviceRequestId = null;
+  let clientId = null;
+
+  try {
+    // 1. Get the selected application details
+    const applicationResult = await getServiceApplicationById(
+      serviceApplicationId
+    );
+    if (!applicationResult.success || !applicationResult.data) {
+      throw new Error("Failed to fetch application details");
+    }
+
+    selectedApplication = applicationResult.data;
+    serviceRequestId = selectedApplication.serviceRequest.$id;
+    clientId = selectedApplication.client.$id;
+
+    console.log("clientId", clientId);
+    console.log("currentUserId", currentUserId);
+    // 2. Verify that the current user is the client who created the service request
+    if (clientId !== currentUserId) {
+      throw new Error(
+        "You are not authorized to choose an artisan for this service request"
+      );
+    }
+
+    // 3. Get the service request to check its status
+    const serviceRequest = await databases.getDocument(
+      settings.dataBaseId,
+      settings.serviceRequestsId,
+      serviceRequestId
+    );
+
+    // 4. Verify that the service request is in "in progress" status
+    if (serviceRequest.status !== "in progress") {
+      throw new Error(
+        "This service request is not available for artisan selection"
+      );
+    }
+
+    console.log("Selected application:", {
+      applicationId: selectedApplication.$id,
+      serviceRequestId,
+      clientId,
+      artisanId: selectedApplication.artisan,
+    });
+
+    // 5. Get all applications for this service request
+    const allApplications = await getServiceApplications(serviceRequestId);
+    console.log(`Found ${allApplications.length} total applications`);
+
+    // 6. Update all applications: set selected to "accepted", others to "refused"
+    const updatePromises = allApplications.map(async (application) => {
+      const newStatus =
+        application.$id === serviceApplicationId ? "accepted" : "refused";
+      console.log(
+        `Updating application ${application.$id} to status: ${newStatus}`
+      );
+
+      return databases.updateDocument(
+        settings.dataBaseId,
+        settings.serviceApplicationsId,
+        application.$id,
+        { status: newStatus }
+      );
+    });
+
+    await Promise.all(updatePromises);
+    console.log("All applications updated successfully");
+
+    // 7. Update service request status to "pre-begin"
+    console.log("Updating service request status to pre-begin");
+    await databases.updateDocument(
+      settings.dataBaseId,
+      settings.serviceRequestsId,
+      serviceRequestId,
+      { status: "pre-begin" }
+    );
+
+    // 8. Get all service tasks for this request and update their status
+    if (serviceRequest.serviceTasks && serviceRequest.serviceTasks.length > 0) {
+      console.log(
+        `Updating ${serviceRequest.serviceTasks.length} service tasks to pre-begin`
+      );
+
+      const taskUpdatePromises = serviceRequest.serviceTasks.map(
+        async (task) => {
+          return databases.updateDocument(
+            settings.dataBaseId,
+            settings.serviceTasksId,
+            task.$id,
+            { status: "pre-begin" }
+          );
+        }
+      );
+
+      await Promise.all(taskUpdatePromises);
+      console.log("All service tasks updated successfully");
+    }
+
+    // 9. Create notification for the selected artisan
+    console.log("Creating notification for selected artisan");
+    const notificationResult = await createNotification({
+      senderUser: clientId,
+      receiverUser: artisanId,
+      title: "Application Accepted!",
+      messageContent: `Congratulations! Your application for "${serviceRequest.title}" has been accepted. The project is now in pre-begin phase.`,
+      type: "application_accepted",
+      jsonData: JSON.stringify({
+        serviceApplicationId: serviceApplicationId,
+        serviceRequestId: serviceRequestId,
+        status: "accepted",
+      }),
+    });
+
+    if (!notificationResult.success) {
+      console.warn("Failed to create notification:", notificationResult.error);
+    } else {
+      console.log("Notification created successfully for selected artisan");
+    }
+
+    // 10. Create notifications for rejected artisans
+    const rejectedApplications = allApplications.filter(
+      (app) => app.$id !== serviceApplicationId
+    );
+    console.log(
+      `Creating notifications for ${rejectedApplications.length} rejected artisans`
+    );
+
+    for (const rejectedApp of rejectedApplications) {
+      try {
+        const rejectNotificationResult = await createNotification({
+          senderUser: clientId,
+          receiverUser: rejectedApp.artisan,
+          title: "Application Update",
+          messageContent: `Thank you for your interest in "${serviceRequest.title}". We have selected another artisan for this project.`,
+          type: "application_rejected",
+          jsonData: JSON.stringify({
+            serviceApplicationId: rejectedApp.$id,
+            serviceRequestId: serviceRequestId,
+            status: "refused",
+          }),
+        });
+
+        if (!rejectNotificationResult.success) {
+          console.warn(
+            "Failed to create rejection notification:",
+            rejectNotificationResult.error
+          );
+        }
+      } catch (rejectError) {
+        console.error("Error creating rejection notification:", rejectError);
+      }
+    }
+
+    console.log("chooseArtisan completed successfully");
+    return { success: true };
+  } catch (error) {
+    console.error("Error in chooseArtisan:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to choose artisan",
+    };
+  }
+}
+
+/**
+ * Gets current jobs for an artisan (accepted applications)
+ * @param {string} artisanId - The ID of the artisan
+ * @returns {Promise<{success: boolean, data: Array, error: string|null}>}
+ */
+export async function getArtisanCurrentJobs(artisanId) {
+  try {
+    console.log("Fetching current jobs for artisan:", artisanId);
+    
+    // Get all accepted applications for this artisan
+    const response = await databases.listDocuments(
+      settings.dataBaseId,
+      settings.serviceApplicationsId,
+      [
+        Query.equal("artisan", artisanId),
+        Query.equal("status", "accepted"),
+        Query.orderDesc("$updatedAt")
+      ]
+    );
+
+    console.log("Found applications:", response.documents.length);
+    console.log("Applications:", response.documents.map(app => ({
+      id: app.$id,
+      status: app.status,
+      serviceRequest: app.serviceRequest,
+      updatedAt: app.$updatedAt
+    })));
+
+    // For each application, get the service request and task proposals
+    const jobsWithDetails = await Promise.all(
+      response.documents.map(async (application) => {
+        try {
+          // Extract service request ID - handle both object and direct ID cases
+          const serviceRequestId = typeof application.serviceRequest === 'object' 
+            ? application.serviceRequest.$id 
+            : application.serviceRequest;
+          
+          console.log("Processing application:", application.$id, "ServiceRequest ID:", serviceRequestId);
+          
+          // Validate service request ID
+          if (!serviceRequestId || typeof serviceRequestId !== 'string' || serviceRequestId.length > 36) {
+            console.error("Invalid service request ID:", serviceRequestId);
+            return null;
+          }
+          
+          // Get service request details
+          const serviceRequest = await databases.getDocument(
+            settings.dataBaseId,
+            settings.serviceRequestsId,
+            serviceRequestId
+          );
+
+          // Get task proposals for this application
+          const taskProposals = await databases.listDocuments(
+            settings.dataBaseId,
+            settings.serviceTaskProposalsId,
+            [Query.equal("serviceApplication", application.$id)]
+          );
+
+          return {
+            ...application,
+            serviceRequest,
+            serviceTaskProposals: taskProposals.documents,
+          };
+        } catch (error) {
+          console.error("Error fetching details for application:", application.$id, error);
+          return null;
+        }
+      })
+    );
+
+    // Filter out any null results from failed fetches
+    const validJobs = jobsWithDetails.filter(job => job !== null);
+    
+    console.log("Valid jobs with details:", validJobs.length);
+
+    return {
+      success: true,
+      data: validJobs,
+      error: null,
+    };
+  } catch (error) {
+    console.error("Error fetching artisan current jobs:", error);
+    return {
+      success: false,
+      data: [],
+      error: error.message,
+    };
+  }
+}
+
+/**
+ * Debug function to get all applications for an artisan
+ * @param {string} artisanId - The ID of the artisan
+ * @returns {Promise<{success: boolean, data: Array, error: string|null}>}
+ */
+export async function debugArtisanApplications(artisanId) {
+  try {
+    console.log("Debug: Fetching ALL applications for artisan:", artisanId);
+    
+    // Get all applications for this artisan (any status)
+    const response = await databases.listDocuments(
+      settings.dataBaseId,
+      settings.serviceApplicationsId,
+      [
+        Query.equal("artisan", artisanId),
+        Query.orderDesc("$updatedAt")
+      ]
+    );
+
+    console.log("Debug: Total applications found:", response.documents.length);
+    console.log("Debug: Applications by status:", response.documents.reduce((acc, app) => {
+      acc[app.status] = (acc[app.status] || 0) + 1;
+      return acc;
+    }, {}));
+    
+    console.log("Debug: All applications:", response.documents.map(app => ({
+      id: app.$id,
+      status: app.status,
+      serviceRequest: app.serviceRequest,
+      createdAt: app.$createdAt,
+      updatedAt: app.$updatedAt
+    })));
+
+    return {
+      success: true,
+      data: response.documents,
+      error: null,
+    };
+  } catch (error) {
+    console.error("Debug: Error fetching artisan applications:", error);
+    return {
+      success: false,
+      data: [],
+      error: error.message,
+    };
+  }
+}

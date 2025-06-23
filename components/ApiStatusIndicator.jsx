@@ -1,117 +1,66 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import StyledLabel from './StyledLabel';
-import StyledCard from './StyledCard';
+import StyledText from './StyledText';
 import { colors } from '../constants/colors';
-import useApiHealth from '../hooks/useApiHealth';
+import { useApiHealth } from '../hooks/useApiHealth';
 
-export default function ApiStatusIndicator() {
-  const { openRouteHealth, nominatimHealth, loading, error } = useApiHealth();
+const ApiStatusIndicator = ({ showOnlyWhenIssues = true }) => {
+  const { getHealthStatus } = useApiHealth();
+  const healthStatus = getHealthStatus();
 
-  if (loading) {
-    return (
-      <StyledCard style={styles.container}>
-        <StyledLabel text="Vérification des APIs..." color="primary" />
-      </StyledCard>
-    );
+  // Don't show anything if everything is healthy and showOnlyWhenIssues is true
+  if (showOnlyWhenIssues && healthStatus.status === 'healthy') {
+    return null;
   }
 
-  if (error) {
-    return (
-      <StyledCard style={styles.container}>
-        <StyledLabel text={`Erreur de vérification: ${error}`} color="danger" />
-      </StyledCard>
-    );
-  }
+  const getStatusColor = () => {
+    switch (healthStatus.severity) {
+      case 'error':
+        return colors.error || '#ff4444';
+      case 'warning':
+        return colors.warning || '#ffaa00';
+      case 'success':
+        return colors.success || '#00aa00';
+      default:
+        return colors.primary;
+    }
+  };
+
+  const getStatusIcon = () => {
+    switch (healthStatus.status) {
+      case 'offline':
+        return '📡';
+      case 'realtime_disconnected':
+        return '🔌';
+      case 'healthy':
+        return '✅';
+      default:
+        return '❓';
+    }
+  };
 
   return (
-    <StyledCard style={styles.container}>
-      <StyledLabel text="État des APIs:" style={styles.title} />
-      
-      <View style={styles.apiStatus}>
-        <View style={styles.apiItem}>
-          <StyledLabel text="Nominatim (actuel):" style={styles.apiName} />
-          <View style={[
-            styles.statusDot, 
-            { backgroundColor: nominatimHealth?.status === 'healthy' ? colors.success : colors.danger }
-          ]} />
-          <StyledLabel 
-            text={nominatimHealth?.message || 'Inconnu'} 
-            color={nominatimHealth?.status === 'healthy' ? 'success' : 'danger'}
-            style={styles.statusText}
-          />
-        </View>
-        
-        <View style={styles.apiItem}>
-          <StyledLabel text="OpenRouteService (désactivé):" style={styles.apiName} />
-          <View style={[
-            styles.statusDot, 
-            { backgroundColor: colors.gray }
-          ]} />
-          <StyledLabel 
-            text="API temporairement indisponible" 
-            color="gray"
-            style={styles.statusText}
-          />
-        </View>
-      </View>
-      
-      <StyledLabel 
-        text="ℹ️ Utilisation de Nominatim (OpenStreetMap) pour la géolocalisation" 
-        color="primary" 
-        style={styles.info}
+    <View style={[styles.container, { backgroundColor: getStatusColor() + '20' }]}>
+      <StyledText 
+        text={`${getStatusIcon()} ${healthStatus.message}`}
+        style={[styles.text, { color: getStatusColor() }]}
       />
-      
-      {nominatimHealth?.status === 'error' && (
-        <StyledLabel 
-          text="❌ L'API de géolocalisation est actuellement indisponible" 
-          color="danger" 
-          style={styles.warning}
-        />
-      )}
-    </StyledCard>
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
-    margin: 10,
-    padding: 15,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    padding: 8,
+    marginHorizontal: 10,
+    borderRadius: 8,
     marginBottom: 10,
   },
-  apiStatus: {
-    gap: 8,
-  },
-  apiItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  apiName: {
-    flex: 1,
-    fontSize: 14,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  statusText: {
+  text: {
     fontSize: 12,
-    flex: 2,
+    textAlign: 'center',
+    fontWeight: '500',
   },
-  info: {
-    marginTop: 10,
-    fontSize: 12,
-    fontStyle: 'italic',
-  },
-  warning: {
-    marginTop: 10,
-    fontSize: 12,
-    fontStyle: 'italic',
-  },
-}); 
+});
+
+export default ApiStatusIndicator; 

@@ -11,7 +11,7 @@ import {
   Alert,
 } from "react-native";
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useFocusEffect } from "expo-router";
 import ThemedView from "../../components/ThemedView";
 import StyledHeading from "../../components/StyledHeading";
 import StyledText from "../../components/StyledText";
@@ -217,6 +217,18 @@ export default function RequestDetailsScreen() {
     }
   }, [user?.isClient, id]);
 
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (id) {
+        fetchRequestDetails();
+        if (user?.isClient) {
+          fetchApplicationCount();
+        }
+      }
+    }, [id, user?.isClient])
+  );
+
   if (loading) {
     return (
       <ThemedView style={styles.container}>
@@ -292,7 +304,7 @@ export default function RequestDetailsScreen() {
         }
       >
         {topInfo}
-        {user?.isClient && (
+        {user?.isClient && request.status === "in progress" && (
           <View style={styles.buttonContainer}>
             <StyledButton
               text="View Applications"

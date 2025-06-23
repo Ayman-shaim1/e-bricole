@@ -17,12 +17,16 @@ import {
   getUnseenNotificationCount,
   markAllNotificationsAsSeen,
 } from "../../services/notificationService";
-import { subscribeToNotifications } from "../../services/realtimeService";
+import {
+  subscribeToNotifications,
+  getConnectionStatus,
+} from "../../services/realtimeService";
 import GoBackButton from "../../components/GoBackButton";
 import StyledCard from "../../components/StyledCard";
 import Divider from "../../components/Divider";
 import StyledLabel from "../../components/StyledLabel";
 import StyledButton from "../../components/StyledButton";
+import ApiStatusIndicator from "../../components/ApiStatusIndicator";
 import { colors } from "../../constants/colors";
 import { useRouter } from "expo-router";
 
@@ -45,6 +49,9 @@ export default function NotificationsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [unseenCount, setLocalUnseenCount] = useState(0);
   const [markingAsSeen, setMarkingAsSeen] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState({
+    isConnected: false,
+  });
 
   const handleMarkAllAsSeen = async () => {
     if (markingAsSeen || unseenCount === 0) return;
@@ -83,18 +90,23 @@ export default function NotificationsScreen() {
 
   useEffect(() => {
     const initializeNotifications = async () => {
-      // First fetch notifications to get the current state
-      const res = await getNotifications(user.$id);
-      if (res.success) {
-        setNotifications(res.data);
+      try {
+        // First fetch notifications to get the current state
+        const res = await getNotifications(user.$id);
+        if (res.success) {
+          setNotifications(res.data);
+        }
+
+        // Get the current unseen count
+        const count = await getUnseenNotificationCount(user.$id);
+        setLocalUnseenCount(count);
+        setUnseenCount(count);
+
+        setLoading(false);
+      } catch (error) {
+        console.error("Error initializing notifications:", error);
+        setLoading(false);
       }
-
-      // Get the current unseen count
-      const count = await getUnseenNotificationCount(user.$id);
-      setLocalUnseenCount(count);
-      setUnseenCount(count);
-
-      setLoading(false);
     };
 
     initializeNotifications();
@@ -127,36 +139,60 @@ export default function NotificationsScreen() {
   }, [notifications, unseenCount, user.$id]);
 
   useEffect(() => {
-    const handleNewNotification = async (newNotification) => {
-      // Check if notification already exists in the list
-      const exists = notifications.some((n) => n.$id === newNotification.$id);
-      if (!exists) {
-        // Add new notification to the top of the list with isSeen = false for UI
-        setNotifications((prev) => [
-          {
-            ...newNotification,
-            isSeen: false, // Force isSeen to false for UI styling
-          },
-          ...prev,
-        ]);
-        
-        // Update unseen count
-        setLocalUnseenCount(prev => prev + 1);
-        setUnseenCount(prev => prev + 1);
+    let unsubscribe = null;
+
+    const setupRealtimeSubscription = () => {
+      try {
+        const handleNewNotification = async (newNotification) => {
+          // Check if notification already exists in the list
+          const exists = notifications.some(
+            (n) => n.$id === newNotification.$id
+          );
+          if (!exists) {
+            // Add new notification to the top of the list with isSeen = false for UI
+            setNotifications((prev) => [
+              {
+                ...newNotification,
+                isSeen: false, // Force isSeen to false for UI styling
+              },
+              ...prev,
+            ]);
+
+            // Update unseen count
+            setLocalUnseenCount((prev) => prev + 1);
+            setUnseenCount((prev) => prev + 1);
+          }
+        };
+
+        unsubscribe = subscribeToNotifications(
+          user.$id,
+          handleNewNotification,
+          (prevCount) => {
+            setLocalUnseenCount(prevCount);
+            setUnseenCount(prevCount);
+          }
+        );
+      } catch (error) {
+        console.error("Error setting up realtime subscription:", error);
       }
     };
 
-    const unsubscribe = subscribeToNotifications(
-      user.$id,
-      handleNewNotification,
-      (prevCount) => {
-        setLocalUnseenCount(prevCount);
-        setUnseenCount(prevCount);
-      }
-    );
+    setupRealtimeSubscription();
+
+    // Update connection status periodically
+    const statusInterval = setInterval(() => {
+      setConnectionStatus(getConnectionStatus());
+    }, 5000);
 
     return () => {
-      unsubscribe();
+      if (unsubscribe) {
+        try {
+          unsubscribe();
+        } catch (error) {
+          console.error("Error unsubscribing from notifications:", error);
+        }
+      }
+      clearInterval(statusInterval);
     };
   }, [user.$id, notifications]);
 
@@ -178,17 +214,31 @@ export default function NotificationsScreen() {
         const data = JSON.parse(notification.jsonData);
         console.log("Parsed jsonData:", data);
         console.log("serviceApplicationId:", data.serviceApplicationId);
-        console.log("serviceApplicationId type:", typeof data.serviceApplicationId);
-        console.log("serviceApplicationId length:", data.serviceApplicationId?.length);
-        
+        console.log(
+          "serviceApplicationId type:",
+          typeof data.serviceApplicationId
+        );
+        console.log(
+          "serviceApplicationId length:",
+          data.serviceApplicationId?.length
+        );
+
         if (data.serviceApplicationId) {
           // Validate the ID format
-          if (data.serviceApplicationId.length > 36 || !/^[a-zA-Z0-9_]+$/.test(data.serviceApplicationId)) {
-            console.error("Invalid serviceApplicationId format:", data.serviceApplicationId);
-            alert("This notification contains an invalid application ID. Please contact support.");
+          if (
+            data.serviceApplicationId.length > 36 ||
+            !/^[a-zA-Z0-9_]+$/.test(data.serviceApplicationId)
+          ) {
+            console.error(
+              "Invalid serviceApplicationId format:",
+              data.serviceApplicationId
+            );
+            alert(
+              "This notification contains an invalid application ID. Please contact support."
+            );
             return;
           }
-          
+
           router.push({
             pathname: "/shared/application-details",
             params: { applicationId: data.serviceApplicationId },
@@ -216,6 +266,7 @@ export default function NotificationsScreen() {
           </View>
         )}
       </View>
+
       <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
         <TouchableOpacity
           onPress={handleMarkAllAsSeen}
@@ -310,5 +361,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 6,
+  },
+  connectionWarning: {
+    backgroundColor: colors.warning + "20",
+    padding: 8,
+    marginHorizontal: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  warningText: {
+    fontSize: 12,
+    color: colors.warning,
+    textAlign: "center",
   },
 });

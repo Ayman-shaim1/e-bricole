@@ -1,24 +1,70 @@
-import * as Notifications from 'expo-notifications';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { subscribeToNotifications, cleanupAllSubscriptions, getConnectionStatus } from '../services/realtimeService';
+import { useNotifications } from '../context/NotificationContext';
 
-export default function useNotificationListeners() {
+export const useNotificationListeners = (userId) => {
+  const { setUnseenCount } = useNotifications();
+  const unsubscribeRef = useRef(null);
+  const isSubscribedRef = useRef(false);
+
   useEffect(() => {
-    // Quand une notification arrive (app au premier plan)
-    const receivedSubscription = Notifications.addNotificationReceivedListener(notification => {
-      console.log('🔔 Notification reçue :', notification);
-    });
+    if (!userId || isSubscribedRef.current) {
+      return;
+    }
 
-    // Quand l'utilisateur clique sur une notification (foreground ou background)
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('📲 Notification cliquée :', response);
-      // Exemple d'action : naviguer vers un écran
-      // navigation.navigate(response.notification.request.content.data.screen);
-    });
+    const setupSubscription = () => {
+      try {
+        const handleNewNotification = (newNotification) => {
+          console.log('New notification received:', newNotification.$id);
+          // The notification will be handled by the notifications screen
+        };
 
-    // Nettoyage
-    return () => {
-      receivedSubscription.remove();
-      responseSubscription.remove();
+        const handleCountUpdate = (newCount) => {
+          setUnseenCount(newCount);
+        };
+
+        unsubscribeRef.current = subscribeToNotifications(
+          userId,
+          handleNewNotification,
+          handleCountUpdate
+        );
+
+        isSubscribedRef.current = true;
+        console.log('Notification listeners set up for user:', userId);
+      } catch (error) {
+        console.error('Error setting up notification listeners:', error);
+      }
     };
-  }, []);
-}
+
+    setupSubscription();
+
+    return () => {
+      if (unsubscribeRef.current) {
+        try {
+          unsubscribeRef.current();
+          isSubscribedRef.current = false;
+          console.log('Notification listeners cleaned up for user:', userId);
+        } catch (error) {
+          console.error('Error cleaning up notification listeners:', error);
+        }
+      }
+    };
+  }, [userId, setUnseenCount]);
+
+  // Cleanup function for component unmount
+  const cleanup = () => {
+    if (unsubscribeRef.current) {
+      try {
+        unsubscribeRef.current();
+        isSubscribedRef.current = false;
+      } catch (error) {
+        console.error('Error in cleanup:', error);
+      }
+    }
+  };
+
+  return {
+    cleanup,
+    getConnectionStatus
+  };
+};

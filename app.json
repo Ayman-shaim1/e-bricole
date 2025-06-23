@@ -28,7 +28,11 @@
       "package": "com.ebricole.app",
       "permissions": [
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "notification": {
+        "icon": "./assets/images/white_logo.png",
+        "color": "#ffffff"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -44,7 +48,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/white_logo.png",
+          "icon": "./assets/images/logo.png",
           "color": "#ffffff"
         }
       ]

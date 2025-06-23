@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import StyledCard from "../../components/StyledCard";
@@ -19,15 +20,17 @@ import StyledButton from "../../components/StyledButton";
 import { formatDate, formatDateWithTime } from "../../utils/dateUtils";
 import { colors } from "../../constants/colors";
 import { useTheme } from "../../context/ThemeContext";
+import { useAuth } from "../../context/AuthContext";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles as mystyles } from "../../constants/styles";
 import { getArtisanById } from "../../services/userService";
-import { getServiceApplicationById } from "../../services/requestService";
+import { getServiceApplicationById, chooseArtisan } from "../../services/requestService";
 
 export default function ApplicationDetailsScreen() {
   const { applicationId } = useLocalSearchParams();
   const router = useRouter();
   const { getCurrentTheme } = useTheme();
+  const { user, isClient } = useAuth();
   const theme = getCurrentTheme();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [artisanData, setArtisanData] = useState(null);
@@ -35,6 +38,7 @@ export default function ApplicationDetailsScreen() {
   const [application, setApplication] = useState(null);
   const [applicationLoading, setApplicationLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [choosing, setChoosing] = useState(false);
 
   // Fetch application data
   const fetchApplication = async () => {
@@ -87,6 +91,63 @@ export default function ApplicationDetailsScreen() {
     } else {
       router.back();
     }
+  };
+
+  const handleChooseArtisan = async () => {
+    // Check if the current user is a client
+    if (!isClient()) {
+      Alert.alert("Error", "Only clients can choose artisans for service requests.");
+      return;
+    }
+
+    // Check if the application has already been processed
+    if (application.status !== "pending") {
+      Alert.alert("Error", "This application has already been processed.");
+      return;
+    }
+
+    Alert.alert(
+      "Choose Artisan",
+      `Are you sure you want to choose ${application?.artisan?.name} for this project?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Choose",
+          style: "default",
+          onPress: async () => {
+            try {
+              setChoosing(true);
+              const result = await chooseArtisan(applicationId, application.artisan.$id, user.$id);
+              
+              if (result.success) {
+                Alert.alert(
+                  "Success",
+                  `${application?.artisan?.name} has been selected for this project!`,
+                  [
+                    {
+                      text: "OK",
+                      onPress: () => {
+                        router.back();
+                      },
+                    },
+                  ]
+                );
+              } else {
+                Alert.alert("Error", result.error || "Failed to choose artisan");
+              }
+            } catch (error) {
+              console.error("Error choosing artisan:", error);
+              Alert.alert("Error", "An unexpected error occurred");
+            } finally {
+              setChoosing(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (applicationLoading) {
@@ -150,6 +211,30 @@ export default function ApplicationDetailsScreen() {
                   style={[styles.applicationDate, { color: theme.textColor }]}
                 />
               </View>
+            </View>
+            <View style={[
+              styles.statusBadge,
+              { 
+                backgroundColor: application.status === "accepted" 
+                  ? colors.success + "20" 
+                  : application.status === "refused" 
+                  ? colors.error + "20" 
+                  : colors.primary + "20" 
+              }
+            ]}>
+              <StyledText
+                text={application.status?.toUpperCase() || "PENDING"}
+                style={[
+                  styles.statusText,
+                  { 
+                    color: application.status === "accepted" 
+                      ? colors.success 
+                      : application.status === "refused" 
+                      ? colors.error 
+                      : colors.primary 
+                  }
+                ]}
+              />
             </View>
           </View>
 
@@ -309,14 +394,15 @@ export default function ApplicationDetailsScreen() {
               color="primary"
               style={styles.showProfileButton}
             />
-            <StyledButton
-              text="Choose"
-              onPress={() => {
-                alert("Choose artisan");
-              }}
-              color="success"
-              style={styles.chooseButton}
-            />
+            {isClient() && application.status === "pending" && (
+              <StyledButton
+                text={choosing ? "Choosing..." : "Choose"}
+                onPress={handleChooseArtisan}
+                color="success"
+                style={styles.chooseButton}
+                disabled={choosing}
+              />
+            )}
           </View>
         </StyledCard>
       </ScrollView>
@@ -811,5 +897,14 @@ const styles = StyleSheet.create({
   },
   backToApplicationsButton: {
     marginLeft: 10,
+  },
+  statusBadge: {
+    padding: 8,
+    borderRadius: 12,
+    marginLeft: 10,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "bold",
   },
 });
