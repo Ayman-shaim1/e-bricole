@@ -13,6 +13,12 @@ export const getStatusColor = (status) => {
       return colors.warning;
     case "in progress":
       return colors.primary;
+    case "pre-begin":
+      return "#FF8C00"; // Orange color for pre-begin status
+    case "accepted":
+      return colors.success;
+    case "refused":
+      return colors.error;
     default:
       return colors.primary;
   }
@@ -31,6 +37,12 @@ export const getStatusIcon = (status) => {
       return "clock-outline";
     case "in progress":
       return "progress-clock";
+    case "pre-begin":
+      return "play-circle-outline"; // Play icon for pre-begin status
+    case "accepted":
+      return "check-circle-outline";
+    case "refused":
+      return "close-circle-outline";
     default:
       return "information";
   }

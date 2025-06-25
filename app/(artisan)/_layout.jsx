@@ -57,7 +57,7 @@ export default function AppLayout() {
       <Tabs.Screen
         name="current-jobs"
         options={{
-          title: "Current Jobs",
+          title: "My Jobs",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="checkmark-circle-outline" size={size} color={color} />
           ),

@@ -27,7 +27,9 @@
       "edgeToEdgeEnabled": true,
       "package": "com.ebricole.app",
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
       ],
       "notification": {
         "icon": "./assets/images/white_logo.png",

@@ -856,6 +856,9 @@ export async function getArtisanCurrentJobs(artisanId) {
             [Query.equal("serviceApplication", application.$id)]
           );
 
+          console.log(`Task proposals for application ${application.$id}:`, taskProposals.documents.length);
+          console.log("Task proposals details:", JSON.stringify(taskProposals.documents, null, 2));
+
           return {
             ...application,
             serviceRequest,
@@ -932,6 +935,155 @@ export async function debugArtisanApplications(artisanId) {
       success: false,
       data: [],
       error: error.message,
+    };
+  }
+}
+
+/**
+ * Gets current job details for an artisan by service request ID
+ * @param {string} artisanId - The ID of the artisan
+ * @param {string} serviceRequestId - The ID of the service request
+ * @returns {Promise<{success: boolean, data: Object|null, error: string|null}>}
+ */
+export async function getCurrentJobDetails(artisanId, serviceRequestId) {
+  try {
+    console.log("Fetching current job details for artisan:", artisanId, "ServiceRequest:", serviceRequestId);
+    
+    // Get the accepted application for this artisan and service request
+    const applicationResponse = await databases.listDocuments(
+      settings.dataBaseId,
+      settings.serviceApplicationsId,
+      [
+        Query.equal("artisan", artisanId),
+        Query.equal("serviceRequest", serviceRequestId),
+        Query.equal("status", "accepted")
+      ]
+    );
+
+    if (applicationResponse.documents.length === 0) {
+      console.log("No accepted application found for this job");
+      return {
+        success: false,
+        data: null,
+        error: "No accepted application found for this job"
+      };
+    }
+
+    const application = applicationResponse.documents[0];
+    console.log("Found application:", application.$id);
+
+    // Get service request details
+    const serviceRequest = await databases.getDocument(
+      settings.dataBaseId,
+      settings.serviceRequestsId,
+      serviceRequestId
+    );
+
+    // Get service tasks for this request
+    let serviceTasks = [];
+    if (serviceRequest.serviceTasks && serviceRequest.serviceTasks.length > 0) {
+      const tasksPromises = serviceRequest.serviceTasks.map(async (taskRef) => {
+        try {
+          // Handle both string IDs and object references
+          const taskId = typeof taskRef === 'string' ? taskRef : taskRef.$id;
+          
+          if (!taskId || taskId.length > 36) {
+            console.error("Invalid task ID:", taskId);
+            return null;
+          }
+          
+          return await databases.getDocument(
+            settings.dataBaseId,
+            settings.serviceTasksId,
+            taskId
+          );
+        } catch (error) {
+          console.error("Error fetching task:", taskRef, error);
+          return null;
+        }
+      });
+      
+      const tasksResults = await Promise.all(tasksPromises);
+      serviceTasks = tasksResults.filter(task => task !== null);
+    }
+
+    // Get task proposals for this application
+    const taskProposalsResponse = await databases.listDocuments(
+      settings.dataBaseId,
+      settings.serviceTaskProposalsId,
+      [Query.equal("serviceApplication", application.$id)]
+    );
+
+    const taskProposals = taskProposalsResponse.documents;
+
+    // Get client user details
+    let clientUser = null;
+    if (serviceRequest.user) {
+      try {
+        // Handle both string IDs and object references
+        const userId = typeof serviceRequest.user === 'string' ? serviceRequest.user : serviceRequest.user.$id;
+        
+        if (userId && userId.length <= 36) {
+          clientUser = await databases.getDocument(
+            settings.dataBaseId,
+            settings.usersId,
+            userId
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching client user:", error);
+        // Continue without client user details
+      }
+    }
+
+    // Get service type details
+    let serviceType = null;
+    if (serviceRequest.serviceType) {
+      try {
+        // Handle both string IDs and object references
+        const serviceTypeId = typeof serviceRequest.serviceType === 'string' ? serviceRequest.serviceType : serviceRequest.serviceType.$id;
+        
+        if (serviceTypeId && serviceTypeId.length <= 36) {
+          serviceType = await databases.getDocument(
+            settings.dataBaseId,
+            settings.servicesTypesId,
+            serviceTypeId
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching service type:", error);
+        // Continue without service type details
+      }
+    }
+
+    // Combine all data
+    const jobDetails = {
+      ...application,
+      serviceRequest: {
+        ...serviceRequest,
+        user: clientUser,
+        serviceType: serviceType,
+        serviceTasks: serviceTasks
+      },
+      serviceTaskProposals: taskProposals
+    };
+
+    console.log("Job details assembled successfully");
+    console.log("Service tasks count:", serviceTasks.length);
+    console.log("Task proposals count:", taskProposals.length);
+
+    return {
+      success: true,
+      data: jobDetails,
+      error: null
+    };
+
+  } catch (error) {
+    console.error("Error fetching current job details:", error);
+    return {
+      success: false,
+      data: null,
+      error: error.message
     };
   }
 }
