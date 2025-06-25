@@ -14,6 +14,7 @@
     "@react-native-community/datetimepicker": "8.3.0",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native-picker/picker": "2.11.0",
+    "@zeego/menu": "^0.0.2-alpha.28",
     "appwrite": "^18.1.1",
     "expo": "53.0.11",
     "expo-blur": "14.1.5",

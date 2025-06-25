@@ -1,6 +1,6 @@
 import React from "react";
-import MessagesScreen from "../shared/messages";
+import ConversationsScreen from "../shared/conversations-screen";
 
 export default function ArtisanMessagesScreen() {
-  return <MessagesScreen />;
+  return <ConversationsScreen />;
 }
