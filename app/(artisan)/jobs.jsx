@@ -1,6 +1,8 @@
-import { StyleSheet, View, FlatList, RefreshControl } from "react-native";
+import { StyleSheet, View, FlatList, RefreshControl, Text } from "react-native";
 import React, { useEffect, useState, useCallback } from "react";
 import ThemedView from "../../components/ThemedView";
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from "../../constants/colors";
 import { useTheme } from "../../context/ThemeContext";
 import useGeolocation from "../../hooks/useGeolocation";
 import { useAuth } from "../../context/AuthContext";
@@ -10,10 +12,13 @@ import StyledHeading from "../../components/StyledHeading";
 import StyledText from "../../components/StyledText";
 import StyledAddressPicker from "../../components/StyledAddressPicker";
 import { useRouter, useFocusEffect } from "expo-router";
+import Divider from "../../components/Divider";
 
 export default function JobsScreen() {
-  const { getCurrentTheme } = useTheme();
-  const theme = getCurrentTheme();
+  const themeContext = useTheme();
+  const theme = themeContext && themeContext.getCurrentTheme 
+    ? themeContext.getCurrentTheme() 
+    : colors.light;
   const { location } = useGeolocation();
   const { user } = useAuth();
   const [jobs, setJobs] = useState([]);
@@ -79,10 +84,6 @@ export default function JobsScreen() {
     });
   };
 
-  if (!theme) {
-    return null;
-  }
-
   return (
     <ThemedView style={styles.container}>
       <View style={styles.header}>
@@ -98,6 +99,7 @@ export default function JobsScreen() {
           useLabel={false}
         />
       </View>
+      <Divider />
       <FlatList
         data={jobs}
         keyExtractor={(item) => item.$id}
@@ -120,18 +122,43 @@ export default function JobsScreen() {
           />
         }
         ListEmptyComponent={() => (
-          <StyledText
-            text={
-              !location && !selectedLocation
-                ? "Chargement de la localisation..."
+          <View style={styles.emptyContainer}>
+            <View style={[styles.emptyIcon, { backgroundColor: theme.cardColor || '#F5F5F5' }]}> 
+              <Ionicons 
+                name={
+                  !location && !selectedLocation
+                    ? "location-outline"
+                    : loading
+                    ? "time-outline"
+                    : error
+                    ? "warning-outline"
+                    : "briefcase-outline"
+                }
+                size={40} 
+                color={theme.textColorSecondary || '#9E9E9E'} 
+              />
+            </View>
+            <Text style={[styles.emptyText, { color: theme.textColor || '#757575' }]}>
+              {!location && !selectedLocation
+                ? "Locating you..."
                 : loading
-                ? "Chargement des jobs..."
+                ? "Loading jobs..."
                 : error
-                ? `Erreur: ${error}`
-                : "Aucun job disponible"
-            }
-            style={{ color: theme.textColor }}
-          />
+                ? "Connection issue"
+                : "No jobs available"
+              }
+            </Text>
+            <Text style={[styles.emptySubtext, { color: theme.textColorSecondary || '#9E9E9E' }]}>
+              {!location && !selectedLocation
+                ? "Please allow location access to find nearby jobs"
+                : loading
+                ? "Searching for jobs in your area"
+                : error
+                ? "Check your connection and try again"
+                : "New job opportunities will appear here when available"
+              }
+            </Text>
+          </View>
         )}
       />
     </ThemedView>
@@ -154,5 +181,34 @@ const styles = StyleSheet.create({
   addressPicker: {
     marginTop: 10,
     marginBottom: 5,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 60,
+  },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+
+  emptyText: {
+    fontSize: 18,
+    fontFamily: "Poppins-Medium",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    fontFamily: "Poppins-Regular",
+    textAlign: "center",
+    lineHeight: 20,
+    maxWidth: 280,
   },
 });

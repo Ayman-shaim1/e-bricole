@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   FlatList,
@@ -17,16 +17,12 @@ import {
   getUnseenNotificationCount,
   markAllNotificationsAsSeen,
 } from "../../services/notificationService";
-import {
-  subscribeToNotifications,
-  getConnectionStatus,
-} from "../../services/realtimeService";
+import { getConnectionStatus } from "../../services/realtimeService";
 import GoBackButton from "../../components/GoBackButton";
 import StyledCard from "../../components/StyledCard";
 import Divider from "../../components/Divider";
 import StyledLabel from "../../components/StyledLabel";
 import StyledButton from "../../components/StyledButton";
-import ApiStatusIndicator from "../../components/ApiStatusIndicator";
 import { colors } from "../../constants/colors";
 import { useRouter } from "expo-router";
 
@@ -42,19 +38,26 @@ const formatDate = (dateString) => {
 
 export default function NotificationsScreen() {
   const { user } = useAuth();
-  const { setUnseenCount } = useNotifications();
+  const {
+    unseenCount: globalUnseenCount,
+    setUnseenCount,
+    connectionStatus: contextConnectionStatus,
+  } = useNotifications();
   const router = useRouter();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [unseenCount, setLocalUnseenCount] = useState(0);
+  const [localUnseenCount, setLocalUnseenCount] = useState(0);
   const [markingAsSeen, setMarkingAsSeen] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState({
     isConnected: false,
   });
 
+  // Use ref for timer
+  const markAsSeenTimerRef = useRef(null);
+
   const handleMarkAllAsSeen = async () => {
-    if (markingAsSeen || unseenCount === 0) return;
+    if (markingAsSeen || localUnseenCount === 0) return;
 
     setMarkingAsSeen(true);
     const result = await markAllNotificationsAsSeen(user.$id);
@@ -112,10 +115,15 @@ export default function NotificationsScreen() {
     initializeNotifications();
   }, []);
 
-  // Mark notifications as seen when user stays on the page for more than 2 seconds
+  // Mark notifications as seen when user stays on the page for more than 3 seconds
   useEffect(() => {
-    if (notifications.length > 0 && unseenCount > 0) {
-      const timer = setTimeout(async () => {
+    if (notifications.length > 0 && localUnseenCount > 0) {
+      // Clear any existing timer
+      if (markAsSeenTimerRef.current) {
+        clearTimeout(markAsSeenTimerRef.current);
+      }
+
+      markAsSeenTimerRef.current = setTimeout(async () => {
         // Only mark as seen if there are still unseen notifications
         const currentUnseenCount = await getUnseenNotificationCount(user.$id);
         if (currentUnseenCount > 0) {
@@ -132,69 +140,42 @@ export default function NotificationsScreen() {
             setUnseenCount(0);
           }
         }
-      }, 3000); // 3 seconds delay to give user time to see new notifications
+      }, 3000); // 3 seconds delay
 
-      return () => clearTimeout(timer);
+      return () => {
+        if (markAsSeenTimerRef.current) {
+          clearTimeout(markAsSeenTimerRef.current);
+        }
+      };
     }
-  }, [notifications, unseenCount, user.$id]);
+  }, [notifications, localUnseenCount, user.$id]);
 
+  // Monitor for new notifications using centralized context
   useEffect(() => {
-    let unsubscribe = null;
-
-    const setupRealtimeSubscription = () => {
-      try {
-        const handleNewNotification = async (newNotification) => {
-          // Check if notification already exists in the list
-          const exists = notifications.some(
-            (n) => n.$id === newNotification.$id
-          );
-          if (!exists) {
-            // Add new notification to the top of the list with isSeen = false for UI
-            setNotifications((prev) => [
-              {
-                ...newNotification,
-                isSeen: false, // Force isSeen to false for UI styling
-              },
-              ...prev,
-            ]);
-
-            // Update unseen count
-            setLocalUnseenCount((prev) => prev + 1);
-            setUnseenCount((prev) => prev + 1);
-          }
-        };
-
-        unsubscribe = subscribeToNotifications(
-          user.$id,
-          handleNewNotification,
-          (prevCount) => {
-            setLocalUnseenCount(prevCount);
-            setUnseenCount(prevCount);
-          }
-        );
-      } catch (error) {
-        console.error("Error setting up realtime subscription:", error);
-      }
-    };
-
-    setupRealtimeSubscription();
+    // Set initial connection status from context
+    setConnectionStatus(contextConnectionStatus);
 
     // Update connection status periodically
     const statusInterval = setInterval(() => {
       setConnectionStatus(getConnectionStatus());
-    }, 5000);
+    }, 30000); // Check every 30 seconds
 
     return () => {
-      if (unsubscribe) {
-        try {
-          unsubscribe();
-        } catch (error) {
-          console.error("Error unsubscribing from notifications:", error);
-        }
+      // Clear timers
+      if (markAsSeenTimerRef.current) {
+        clearTimeout(markAsSeenTimerRef.current);
       }
       clearInterval(statusInterval);
     };
-  }, [user.$id, notifications]);
+  }, [contextConnectionStatus]);
+
+  // Listen for changes in unseen count from context to detect new notifications
+  useEffect(() => {
+    if (globalUnseenCount > 0) {
+      // Refresh notifications when unseen count changes (new notification received)
+      fetchNotifications();
+    }
+  }, [globalUnseenCount]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -260,21 +241,31 @@ export default function NotificationsScreen() {
           <GoBackButton />
           <StyledHeading text="Notifications" />
         </View>
-        {unseenCount > 0 && (
+        {localUnseenCount > 0 && (
           <View style={styles.badge}>
-            <StyledLabel text={unseenCount.toString()} color="white" />
+            <StyledLabel text={localUnseenCount.toString()} color="white" />
           </View>
         )}
       </View>
 
+      {/* Connection status indicator 
+      {!connectionStatus.isConnected && (
+        <View style={styles.connectionWarning}>
+          <StyledText 
+            text="Realtime connection issues. Some notifications may be delayed." 
+            style={styles.warningText}
+          />
+        </View>
+      )}*/}
+
       <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
         <TouchableOpacity
           onPress={handleMarkAllAsSeen}
-          disabled={markingAsSeen || unseenCount === 0}
+          disabled={markingAsSeen || localUnseenCount === 0}
         >
           <StyledLabel
             text={markingAsSeen ? "Marking as seen..." : "Mark all as seen"}
-            color={markingAsSeen || unseenCount === 0 ? "gray" : "primary"}
+            color={markingAsSeen || localUnseenCount === 0 ? "gray" : "primary"}
           />
         </TouchableOpacity>
       </View>

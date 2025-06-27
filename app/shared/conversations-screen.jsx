@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   View,
   FlatList,
@@ -6,7 +6,9 @@ import {
   ActivityIndicator,
   RefreshControl,
   Text,
+  Alert,
 } from "react-native";
+import { Ionicons } from '@expo/vector-icons';
 import ThemedView from "../../components/ThemedView";
 import ConversationItem from "../../components/ConversationItem";
 import { useAuth } from "../../context/AuthContext";
@@ -26,6 +28,9 @@ export default function ConversationsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [filteredMessages, setFilteredMessages] = useState([]);
+  
+  // Refs for conversation items
+  const conversationRefs = useRef(new Map()).current;
 
   // Elegant mock data
   const mockMessages = [
@@ -121,8 +126,54 @@ export default function ConversationsScreen() {
     });
   };
 
+  const handleDeleteConversation = (conversation) => {
+    Alert.alert(
+      "Delete Conversation",
+      `Are you sure you want to delete the conversation with ${conversation.name}? This action cannot be undone.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+          onPress: () => {
+            // Reset the conversation item position when user cancels
+            const itemRef = conversationRefs.get(conversation.id);
+            if (itemRef && itemRef.resetPosition) {
+              itemRef.resetPosition();
+            }
+          },
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            // Remove the conversation from both messages and filteredMessages
+            setMessages(prevMessages => 
+              prevMessages.filter(msg => msg.id !== conversation.id)
+            );
+            setFilteredMessages(prevFiltered => 
+              prevFiltered.filter(msg => msg.id !== conversation.id)
+            );
+            // Clean up the ref
+            conversationRefs.delete(conversation.id);
+          },
+        },
+      ]
+    );
+  };
+
   const renderMessageItem = ({ item }) => (
-    <ConversationItem conversation={item} onPress={handleMessagePress} />
+    <ConversationItem 
+      ref={(ref) => {
+        if (ref) {
+          conversationRefs.set(item.id, ref);
+        } else {
+          conversationRefs.delete(item.id);
+        }
+      }}
+      conversation={item} 
+      onPress={handleMessagePress} 
+      onDelete={handleDeleteConversation}
+    />
   );
 
   if (loading) {
@@ -154,13 +205,20 @@ export default function ConversationsScreen() {
         placeholderTextColor={theme.placeholderColor}
       />
       <Divider style={[styles.divider, { backgroundColor: theme.navBackgroundColor }]} />
-      {messages.length === 0 ? (
+      {filteredMessages.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <View style={[styles.emptyIcon, { backgroundColor: theme.cardColor }]}> 
-            <Text style={styles.emptyIconText}>💬</Text> 
+          <View style={[styles.emptyIcon, { backgroundColor: theme.cardColor || '#F5F5F5' }]}> 
+            <Ionicons name="chatbubbles-outline" size={40} color={theme.textColorSecondary || '#9E9E9E'} />
           </View>
-          <Text style={[styles.emptyText, { color: theme.textColor }]}>No conversations yet</Text>
-          <Text style={[styles.emptySubtext, { color: theme.textColorSecondary || theme.textColor + "80" }]}>Start connecting with clients and artisans</Text>
+          <Text style={[styles.emptyText, { color: theme.textColor || '#757575' }]}>
+            {search.trim() ? "No matching conversations" : "No messages yet"}
+          </Text>
+          <Text style={[styles.emptySubtext, { color: theme.textColorSecondary || '#9E9E9E' }]}>
+            {search.trim() 
+              ? "Try a different search term or browse all conversations" 
+              : "Your conversations will appear here when you start chatting"
+            }
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -239,9 +297,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
-  emptyIconText: {
-    fontSize: 32,
-  },
+
   emptyText: {
     fontSize: 20,
     fontFamily: "Poppins-Medium",

@@ -35,6 +35,7 @@ export default function MessagesScreen() {
   const flatListRef = useRef(null);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
 
   // Parse conversation data from params
   const conversation = {
@@ -280,8 +281,9 @@ export default function MessagesScreen() {
 
   const sendMessage = () => {
     if (message.trim()) {
-      // Create animated value for the new message
+      // Create animated values for the new message (separate from deletion values)
       const animatedValue = new Animated.Value(0);
+      const scaleValue = new Animated.Value(0.3);
       
       const newMessage = {
         id: Date.now().toString(),
@@ -291,18 +293,26 @@ export default function MessagesScreen() {
         isOutgoing: true,
         isSeen: false,
         animatedValue: animatedValue,
+        scaleValue: scaleValue,
         isNew: true,
       };
       
       setMessages((prev) => [...prev, newMessage]);
       setMessage("");
 
-      // Start the animation after a small delay to ensure the message is rendered
+      // Start the elegant appearance animation (using native driver for transforms)
       setTimeout(() => {
         Animated.parallel([
-          Animated.timing(animatedValue, {
+          Animated.spring(animatedValue, {
             toValue: 1,
-            duration: 400,
+            tension: 120,
+            friction: 8,
+            useNativeDriver: true,
+          }),
+          Animated.spring(scaleValue, {
+            toValue: 1,
+            tension: 120,
+            friction: 8,
             useNativeDriver: true,
           }),
         ]).start(() => {
@@ -325,6 +335,7 @@ export default function MessagesScreen() {
   // Function to add info messages
   const addInfoMessage = (text) => {
     const animatedValue = new Animated.Value(0);
+    const scaleValue = new Animated.Value(0.3);
     
     const infoMessage = {
       id: Date.now().toString(),
@@ -334,18 +345,26 @@ export default function MessagesScreen() {
       isOutgoing: false,
       isSeen: true,
       animatedValue: animatedValue,
+      scaleValue: scaleValue,
       isNew: true,
       type: "info",
     };
     
     setMessages((prev) => [...prev, infoMessage]);
 
-    // Start the animation after a small delay
+    // Start the elegant appearance animation (using native driver for transforms)
     setTimeout(() => {
       Animated.parallel([
-        Animated.timing(animatedValue, {
+        Animated.spring(animatedValue, {
           toValue: 1,
-          duration: 400,
+          tension: 120,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleValue, {
+          toValue: 1,
+          tension: 120,
+          friction: 8,
           useNativeDriver: true,
         }),
       ]).start(() => {
@@ -362,6 +381,68 @@ export default function MessagesScreen() {
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
+  };
+
+  // Function to clear all messages
+  const clearAllMessages = () => {
+    setShowHeaderMenu(false);
+    
+    Alert.alert(
+      "Clear all messages",
+      "Are you sure you want to delete all messages in this conversation? Info messages will be preserved.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Clear all",
+          style: "destructive",
+          onPress: () => {
+            // Get only regular messages (not info messages) for animation
+            const regularMessages = messages.filter(msg => msg.type !== "info");
+            const infoMessages = messages.filter(msg => msg.type === "info");
+            
+            if (regularMessages.length === 0) {
+              // No regular messages to delete
+              return;
+            }
+
+            // Animate only regular messages out before clearing
+            const animatedMessages = regularMessages.map(msg => ({
+              ...msg,
+              isDeleting: true,
+              animatedValue: new Animated.Value(1),
+              scaleValue: new Animated.Value(1),
+            }));
+            
+            // Update state with animated regular messages + unchanged info messages
+            setMessages([...animatedMessages, ...infoMessages]);
+
+            // Start batch deletion animation for regular messages only
+            const animations = animatedMessages.map(msg => 
+              Animated.parallel([
+                Animated.timing(msg.animatedValue, {
+                  toValue: 0,
+                  duration: 300,
+                  useNativeDriver: true,
+                }),
+                Animated.timing(msg.scaleValue, {
+                  toValue: 0.3,
+                  duration: 300,
+                  useNativeDriver: true,
+                }),
+              ])
+            );
+
+            Animated.stagger(50, animations).start(() => {
+              // Keep only info messages after animation
+              setMessages(infoMessages);
+            });
+          },
+        },
+      ]
+    );
   };
 
   // Handle long press to delete message
@@ -383,25 +464,47 @@ export default function MessagesScreen() {
           text: "Supprimer",
           style: "destructive",
           onPress: () => {
-            // Create animated value for this specific message
+            // Create animated values - only for native driver supported properties
             const animatedValue = new Animated.Value(1);
+            const scaleValue = new Animated.Value(1);
             
             // Mark message for deletion
             setMessages((prevMessages) =>
               prevMessages.map((msg) =>
                 msg.id === message.id
-                  ? { ...msg, isDeleting: true, animatedValue: animatedValue }
+                  ? { 
+                      ...msg, 
+                      isDeleting: true, 
+                      animatedValue: animatedValue,
+                      scaleValue: scaleValue
+                    }
                   : msg
               )
             );
 
-            // Start the animation
-            Animated.parallel([
-              Animated.timing(animatedValue, {
-                toValue: 0,
-                duration: 300,
+            // Start the elegant deletion animation (all with native driver)
+            Animated.sequence([
+              // First: slight scale up (attention grabbing)
+              Animated.timing(scaleValue, {
+                toValue: 1.1,
+                duration: 150,
                 useNativeDriver: true,
               }),
+              // Then: smooth deletion with spring animation
+              Animated.parallel([
+                Animated.spring(animatedValue, {
+                  toValue: 0,
+                  tension: 80,
+                  friction: 6,
+                  useNativeDriver: true,
+                }),
+                Animated.spring(scaleValue, {
+                  toValue: 0.3,
+                  tension: 80,
+                  friction: 6,
+                  useNativeDriver: true,
+                }),
+              ]),
             ]).start(() => {
               // Remove the message after animation completes
               setMessages((prevMessages) =>
@@ -417,6 +520,13 @@ export default function MessagesScreen() {
   const renderMessage = ({ item }) => {
     const isMyMessage = item.sender === "me";
     const isInfoMessage = item.type === "info";
+    
+    // Get theme-appropriate colors for info messages
+    const isDarkTheme = theme.backgroundColor === "#1A1A1A"; // Check if dark theme
+    const infoBgColor = isDarkTheme ? "#1C2B3D" : colors.accentLight3; // Dark blue-gray for dark mode
+    const infoBorderColor = isDarkTheme ? colors.accentLight1 : colors.accentLight2;
+    const infoTextColor = isDarkTheme ? colors.accentLight1 : colors.primary;
+    const infoTimeColor = isDarkTheme ? colors.accentLight2 : colors.accentLight1;
 
     const renderReadStatus = () => {
       if (isMyMessage) {
@@ -447,14 +557,17 @@ export default function MessagesScreen() {
         <Animated.View
           style={[
             styles.infoMessageContainer,
-            item.isDeleting && item.animatedValue && {
+            item.isDeleting && {
               opacity: item.animatedValue,
               transform: [
                 {
-                  translateY: item.animatedValue.interpolate({
+                  scale: item.scaleValue || 1,
+                },
+                {
+                  translateY: item.animatedValue ? item.animatedValue.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [20, 0],
-                  }),
+                    outputRange: [50, 0],
+                  }) : 0,
                 },
               ],
             },
@@ -464,11 +577,11 @@ export default function MessagesScreen() {
                 {
                   translateY: item.animatedValue.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [20, 0],
+                    outputRange: [15, 0],
                   }),
                 },
                 {
-                  scale: item.animatedValue.interpolate({
+                  scale: item.scaleValue || item.animatedValue.interpolate({
                     inputRange: [0, 1],
                     outputRange: [0.9, 1],
                   }),
@@ -478,16 +591,28 @@ export default function MessagesScreen() {
           ]}
         >
           <TouchableOpacity
-            style={styles.infoMessageBubble}
+            style={[
+              styles.infoMessageBubble,
+              {
+                backgroundColor: infoBgColor,
+                borderColor: infoBorderColor,
+              }
+            ]}
             onLongPress={() => handleLongPress(item)}
           >
-            <StyledText
+            <StyledLabel
               text={item.text}
-              style={styles.infoMessageText}
+              style={[
+                styles.infoMessageText,
+                { color: infoTextColor }
+              ]}
             />
             <StyledLabel
               text={formatTime(item.timestamp)}
-              style={styles.infoMessageTime}
+              style={[
+                styles.infoMessageTime,
+                { color: infoTimeColor }
+              ]}
             />
           </TouchableOpacity>
         </Animated.View>
@@ -501,14 +626,17 @@ export default function MessagesScreen() {
           isMyMessage
             ? styles.myMessageContainer
             : styles.theirMessageContainer,
-          item.isDeleting && item.animatedValue && {
+          item.isDeleting && {
             opacity: item.animatedValue,
             transform: [
               {
                 translateX: item.animatedValue.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [isMyMessage ? 50 : -50, 0],
+                  outputRange: [isMyMessage ? 100 : -100, 0],
                 }),
+              },
+              {
+                scale: item.scaleValue || 1,
               },
             ],
           },
@@ -522,9 +650,15 @@ export default function MessagesScreen() {
                 }),
               },
               {
-                scale: item.animatedValue.interpolate({
+                scale: item.scaleValue || item.animatedValue.interpolate({
                   inputRange: [0, 1],
                   outputRange: [0.8, 1],
+                }),
+              },
+              {
+                translateY: item.animatedValue.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [20, 0],
                 }),
               },
             ],
@@ -607,6 +741,16 @@ export default function MessagesScreen() {
             />
           </View>
         </View>
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => setShowHeaderMenu(true)}
+        >
+          <Ionicons
+            name="ellipsis-vertical"
+            size={24}
+            color={theme.textColor}
+          />
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView
@@ -649,6 +793,33 @@ export default function MessagesScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Simple Dropdown Menu */}
+      {showHeaderMenu && (
+        <>
+          <TouchableOpacity
+            style={styles.dropdownBackdrop}
+            onPress={() => setShowHeaderMenu(false)}
+          />
+          <View style={[styles.dropdownMenu, { backgroundColor: theme.cardColor }]}>
+            <TouchableOpacity
+              style={styles.dropdownItem}
+              onPress={clearAllMessages}
+            >
+              <Ionicons
+                name="trash-outline"
+                size={18}
+                color={colors.danger}
+                style={styles.dropdownIcon}
+              />
+              <StyledLabel
+                text="Clear all messages"
+                style={[styles.dropdownText, { color: colors.danger }]}
+              />
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
     </View>
   );
 }
@@ -774,23 +945,51 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 25,
-    backgroundColor: "#F3F4F6",
     maxWidth: "85%",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
   },
   infoMessageText: {
     fontSize: 13,
     fontFamily: "Poppins-Regular",
-    color: "#6B7280",
     textAlign: "center",
     lineHeight: 18,
   },
   infoMessageTime: {
     fontSize: 10,
     fontFamily: "Poppins-Regular",
-    color: "#9CA3AF",
     textAlign: "center",
     marginTop: 4,
+  },
+  menuButton: {
+    marginLeft: 16,
+  },
+  dropdownBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "transparent",
+  },
+  dropdownMenu: {
+    position: "absolute",
+    top: 85,
+    right: 16,
+    width: 200,
+    borderRadius: 8,
+    paddingVertical: 4,
+  },
+  dropdownItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  dropdownIcon: {
+    marginRight: 8,
+  },
+  dropdownText: {
+    fontSize: 14,
+    fontFamily: "Poppins-Regular",
   },
 });

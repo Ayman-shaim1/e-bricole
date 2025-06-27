@@ -37,6 +37,7 @@ export default function CurrentJobDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [jobStarted, setJobStarted] = useState(false);
   const [completedTasks, setCompletedTasks] = useState(new Set());
+  const [currentStatus, setCurrentStatus] = useState(null);
 
   useEffect(() => {
     fetchJobDetails();
@@ -52,6 +53,7 @@ export default function CurrentJobDetailsScreen() {
         console.log("Service Request:", result.data.serviceRequest);
         console.log("Service Type:", result.data.serviceRequest?.serviceType);
         setJob(result.data);
+        setCurrentStatus(result.data.serviceRequest?.status);
       } else {
         Alert.alert("Error", result.error || "Job not found");
         router.back();
@@ -68,7 +70,13 @@ export default function CurrentJobDetailsScreen() {
   const handleBeginJob = () => {
     Alert.alert("Begin Job", "Are you sure you want to start this job?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Begin", onPress: () => setJobStarted(true) },
+      { 
+        text: "Begin", 
+        onPress: () => {
+          setJobStarted(true);
+          setCurrentStatus("active");
+        }
+      },
     ]);
   };
 
@@ -214,19 +222,7 @@ export default function CurrentJobDetailsScreen() {
                 style={[styles.selectionDate, { color: theme.textColor }]}
               />
             </View>
-            {!jobStarted && (
-              <StatusBadge status={job.serviceRequest.status} size="medium" />
-            )}
-            {jobStarted && (
-              <View style={styles.activeIndicator}>
-                <MaterialCommunityIcons
-                  name="play-circle"
-                  size={16}
-                  color={colors.success}
-                />
-                <StyledText text="Active" style={styles.activeText} />
-              </View>
-            )}
+            <StatusBadge status={currentStatus} size="medium" />
           </View>
           <Divider />
           <StyledText text={job.serviceRequest.description} />
@@ -343,13 +339,16 @@ export default function CurrentJobDetailsScreen() {
                                 { color: theme.textColor },
                               ]}
                             />
-                            <StyledText
-                              text={`${task.originalPrice} €`}
-                              style={[
-                                styles.originalPriceText,
-                                { color: theme.textColor },
-                              ]}
-                            />
+                            <View style={styles.strikethroughContainer}>
+                              <StyledText
+                                text={`${task.originalPrice} €`}
+                                style={[
+                                  styles.originalPriceText,
+                                  { color: theme.textColor },
+                                ]}
+                              />
+                              <View style={styles.strikethroughLine} />
+                            </View>
                           </View>
                           <View style={styles.proposedPrice}>
                             <StyledText
@@ -518,16 +517,6 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     gap: 8,
   },
-  activeIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  activeText: {
-    color: colors.success,
-    fontWeight: "600",
-    fontSize: 12,
-  },
   buttonContainer: {},
   beginJobButton: {
     width: "100%",
@@ -662,7 +651,19 @@ const styles = StyleSheet.create({
   originalPriceText: {
     fontSize: 16,
     fontWeight: "600",
-    textDecorationLine: "line-through",
+  },
+  strikethroughContainer: {
+    position: "relative",
+    alignItems: "center",
+  },
+  strikethroughLine: {
+    position: "absolute",
+    top: "50%",
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: colors.gray,
+    zIndex: 1,
   },
   proposedPrice: {
     alignItems: "center",

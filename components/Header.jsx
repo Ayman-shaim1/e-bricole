@@ -15,15 +15,13 @@ import StyledAddressPicker from "./StyledAddressPicker";
 import useGeolocation from "../hooks/useGeolocation";
 import Avatar from "./Avatar";
 import { useRouter } from "expo-router";
-import { getUnseenNotificationCount } from "../services/notificationService";
-import { subscribeToNotifications } from "../services/realtimeService";
 import { useFocusEffect } from "@react-navigation/native";
 
 export default function Header() {
   const { user } = useAuth();
   const { location, error, isLoading } = useGeolocation();
   const [pickedLocation, setPickerLocation] = useState(null);
-  const { unseenCount, setUnseenCount } = useNotifications();
+  const { unseenCount, updateUnseenCount } = useNotifications();
   const router = useRouter();
 
   const handlePickAddress = (locationData) => {
@@ -49,31 +47,14 @@ export default function Header() {
     }
   }, [location]);
 
-  useEffect(() => {
-    if (user?.$id) {
-      // Initial count fetch
-      getUnseenNotificationCount(user.$id).then(setUnseenCount);
-
-      // Subscribe to realtime updates
-      const unsubscribe = subscribeToNotifications(
-        user.$id,
-        () => {}, // We don't need to handle the notification here
-        (prevCount) => setUnseenCount(prevCount) // Update count when new notification arrives
-      );
-
-      return () => {
-        unsubscribe();
-      };
-    }
-  }, [user]);
-
-  // Update count when screen comes into focus
+  // Update count when screen comes into focus - using centralized context
   useFocusEffect(
     React.useCallback(() => {
       if (user?.$id) {
-        getUnseenNotificationCount(user.$id).then(setUnseenCount);
+        // Use the centralized update function
+        updateUnseenCount();
       }
-    }, [user])
+    }, [user?.$id, updateUnseenCount])
   );
 
   return (

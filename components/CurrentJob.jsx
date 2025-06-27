@@ -121,7 +121,7 @@ export default function CurrentJob({ job }) {
             <MaterialCommunityIcons
               name="clock-outline"
               size={16}
-              color={colors.textSecondary}
+              color={colors.primary}
               style={styles.detailIcon}
             />
             <StyledText
@@ -134,7 +134,7 @@ export default function CurrentJob({ job }) {
             <MaterialCommunityIcons
               name="wrench-outline"
               size={16}
-              color={colors.textSecondary}
+              color={colors.primary}
               style={styles.detailIcon}
             />
             <StyledText
@@ -147,7 +147,7 @@ export default function CurrentJob({ job }) {
             <MaterialCommunityIcons
               name="chevron-right"
               size={24}
-              color={colors.gray}
+              color={colors.primary}
             />
           </View>
         </View>

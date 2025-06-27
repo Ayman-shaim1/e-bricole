@@ -2,6 +2,7 @@ import { databases } from "../config/appwrite";
 import { ID, Query } from "appwrite";
 import settings from "../config/settings";
 import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
 import { Platform } from "react-native";
 import { getUserById } from "./userService";
 
