@@ -44,7 +44,8 @@ export default function NotificationsScreen() {
   const [unseenCount, setUnseenCount] = useState(0);
   const [markingAsSeen, setMarkingAsSeen] = useState(false);
   const [visuallySeenIds, setVisuallySeenIds] = useState(new Set()); // Track which notifications are visually seen
-  const [isFirstVisit, setIsFirstVisit] = useState(true); // Track if this is the first visit to the page
+  const [initiallyLoadedIds, setInitiallyLoadedIds] = useState(new Set()); // Track notifications loaded on first visit
+  const [initiallyUnseenIds, setInitiallyUnseenIds] = useState(new Set()); // Track notifications that were unseen at initial load
   const [newNotificationIds, setNewNotificationIds] = useState(new Set()); // Track newly received notifications
 
   const handleMarkAllAsSeen = async () => {
@@ -56,8 +57,9 @@ export default function NotificationsScreen() {
     const allNotificationIds = notifications.map(n => n.$id);
     setVisuallySeenIds(new Set(allNotificationIds));
     
-    // Clear new notification tracking
+    // Clear tracking sets
     setNewNotificationIds(new Set());
+    setInitiallyUnseenIds(new Set());
     
     setMarkingAsSeen(false);
   };
@@ -67,6 +69,16 @@ export default function NotificationsScreen() {
     const res = await getNotifications(user.$id);
     if (res.success) {
       setNotifications(res.data);
+      
+      // If not initial load (i.e., refresh), preserve visual state
+      if (!isInitialLoad) {
+        // Any notification that is not a new notification should be visually seen
+        const shouldBeVisuallySeen = res.data
+          .filter(notification => !newNotificationIds.has(notification.$id))
+          .map(notification => notification.$id);
+        
+        setVisuallySeenIds(prev => new Set([...prev, ...shouldBeVisuallySeen]));
+      }
     }
     const count = await getUnseenNotificationCount(user.$id);
     setUnseenCount(count);
@@ -83,21 +95,45 @@ export default function NotificationsScreen() {
         if (res.success) {
           setNotifications(res.data);
           
-          // Check if this is first visit by looking at notifications data
+          // Track which notifications were loaded initially
+          const initialIds = res.data.map(n => n.$id);
+          setInitiallyLoadedIds(new Set(initialIds));
+          
+          // Check if there are unseen notifications in the database
           const hasUnseenNotifications = res.data.some(notification => !notification.isSeen);
           
           if (hasUnseenNotifications) {
-            // First visit - mark as seen in DB but keep visual style unseen
-            setIsFirstVisit(true);
-            const result = await markAllNotificationsAsSeen(user.$id);
-            if (result.success) {
-              // Update only the count for header badge, keep UI style unchanged
-              setUnseenCount(0);
-            }
+            // Track which notifications were unseen initially
+            const unseenNotificationIds = res.data
+              .filter(notification => !notification.isSeen)
+              .map(notification => notification.$id);
+            setInitiallyUnseenIds(new Set(unseenNotificationIds));
+            
+            // Mark as seen in DB after a delay, but keep them visually unseen initially
+            setTimeout(async () => {
+              const result = await markAllNotificationsAsSeen(user.$id);
+              if (result.success) {
+                setUnseenCount(0);
+              }
+            }, 1000);
+            
+            // Auto-mark initially unseen notifications as visually seen after 30 seconds
+            setTimeout(() => {
+              setVisuallySeenIds(prev => new Set([...prev, ...unseenNotificationIds]));
+              setInitiallyUnseenIds(new Set());
+              console.log('Initially unseen notifications auto-marked as visually seen after 30 seconds');
+            }, 30000);
+            
+            // Mark only the SEEN notifications as visually seen, leave unseen ones for visual display
+            const seenNotificationIds = res.data
+              .filter(notification => notification.isSeen)
+              .map(notification => notification.$id);
+            setVisuallySeenIds(new Set(seenNotificationIds));
           } else {
-            // Not first visit - notifications already seen in DB, should appear as seen
-            setIsFirstVisit(false);
+            // All already seen in DB
             setUnseenCount(0);
+            // Mark all as visually seen since they're all seen in DB
+            setVisuallySeenIds(new Set(initialIds));
           }
         }
         
@@ -122,8 +158,8 @@ export default function NotificationsScreen() {
         // Add the new notification ID to track it as new
         setNewNotificationIds(prev => new Set([...prev, newNotification.$id]));
         
-        // Refresh the notifications list immediately to show the new notification
-        fetchNotifications(false);
+        // Add the new notification to the existing list instead of full refresh
+        setNotifications(prev => [newNotification, ...prev]);
         
         // Mark as seen in database after 1 second, but keep it visually unseen
         setTimeout(async () => {
@@ -136,8 +172,19 @@ export default function NotificationsScreen() {
             console.error('Error marking new notification as seen:', error);
           }
         }, 1000);
+
+        // Auto-mark as visually seen after 30 seconds (visual only, not database)
+        setTimeout(() => {
+          setVisuallySeenIds(prev => new Set([...prev, newNotification.$id]));
+          setNewNotificationIds(prev => {
+            const updated = new Set(prev);
+            updated.delete(newNotification.$id);
+            return updated;
+          });
+          console.log('New notification auto-marked as visually seen after 30 seconds');
+        }, 30000);
       } else if (isForCurrentUser) {
-        // Other updates, just refresh normally
+        // Other updates, refresh normally but preserve visual state
         fetchNotifications(false);
       }
     });
@@ -212,23 +259,23 @@ export default function NotificationsScreen() {
 
   // Check if notification should appear as unseen visually
   const isVisuallyUnseen = (notification) => {
-    // Si l'utilisateur a cliqué "Mark all as seen" → seen
+    // If user clicked "Mark all as seen" → seen
     if (visuallySeenIds.has(notification.$id)) {
       return false;
     }
     
-    // Si c'est une nouvelle notification reçue → unseen
+    // If it's a newly received notification → unseen
     if (newNotificationIds.has(notification.$id)) {
       return true;
     }
     
-    // Si ce n'est pas la première visite → seen (car déjà marquées en DB lors d'une visite précédente)
-    if (!isFirstVisit) {
-      return false;
+    // If it was unseen at initial load → unseen (until user marks as seen)
+    if (initiallyUnseenIds.has(notification.$id)) {
+      return true;
     }
     
-    // Si première visite → garder style unseen
-    return true;
+    // All other notifications are seen by default
+    return false;
   };
 
   // Count visually unseen notifications for badge
