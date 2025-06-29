@@ -25,6 +25,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles as mystyles } from "../../constants/styles";
 import { getArtisanById } from "../../services/userService";
 import { getServiceApplicationById, chooseArtisan } from "../../services/requestService";
+import StatusBadge from "../../components/StatusBadge";
 
 export default function ApplicationDetailsScreen() {
   const { applicationId } = useLocalSearchParams();
@@ -212,30 +213,11 @@ export default function ApplicationDetailsScreen() {
                 />
               </View>
             </View>
-            <View style={[
-              styles.statusBadge,
-              { 
-                backgroundColor: application.status === "accepted" 
-                  ? colors.success + "20" 
-                  : application.status === "refused" 
-                  ? colors.error + "20" 
-                  : colors.primary + "20" 
-              }
-            ]}>
-              <StyledText
-                text={application.status?.toUpperCase() || "PENDING"}
-                style={[
-                  styles.statusText,
-                  { 
-                    color: application.status === "accepted" 
-                      ? colors.success 
-                      : application.status === "refused" 
-                      ? colors.error 
-                      : colors.primary 
-                  }
-                ]}
-              />
-            </View>
+            <StatusBadge 
+              status={application?.status || "pending"} 
+              size="small"
+              style={styles.statusBadge}
+            />
           </View>
 
           {/* Duration section */}
@@ -899,6 +881,8 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 8,
     borderRadius: 12,
     marginLeft: 10,

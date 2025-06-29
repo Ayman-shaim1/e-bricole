@@ -46,7 +46,7 @@ import { useRouter } from "expo-router";
 
 export default function RequestDetailsScreen() {
   const { id, onJobApplied } = useLocalSearchParams();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [visibleNegoModal, setVisibleNegoModal] = useState(false);
   const [request, setRequest] = useState(null);
@@ -82,7 +82,7 @@ export default function RequestDetailsScreen() {
   };
 
   const fetchApplicationCount = async () => {
-    if (!id || !user?.isClient) return;
+    if (!id || !user?.isClient || authLoading) return;
     
     try {
       const applications = await getServiceApplications(id);
@@ -94,12 +94,13 @@ export default function RequestDetailsScreen() {
   };
 
   const onRefresh = useCallback(() => {
+    if (authLoading) return;
     setRefreshing(true);
     fetchRequestDetails();
     if (user?.isClient) {
       fetchApplicationCount();
     }
-  }, [user?.isClient]);
+  }, [user?.isClient, authLoading]);
 
   const handleImageLoad = (imageIndex) => {
     setImageLoadingStates((prev) => ({
@@ -204,32 +205,33 @@ export default function RequestDetailsScreen() {
   }, [id]);
 
   useEffect(() => {
-    if (!id || !user) return;
+    if (!id || !user || authLoading) return;
     setCheckingApplied(true);
     hasUserAppliedToRequest(id, user.$id)
       .then(setAlreadyApplied)
       .finally(() => setCheckingApplied(false));
-  }, [id, user]);
+  }, [id, user, authLoading]);
 
   useEffect(() => {
-    if (user?.isClient && id) {
+    if (user?.isClient && id && !authLoading) {
       fetchApplicationCount();
     }
-  }, [user?.isClient, id]);
+  }, [user?.isClient, id, authLoading]);
 
   // Refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      if (id) {
+      if (id && !authLoading) {
         fetchRequestDetails();
         if (user?.isClient) {
           fetchApplicationCount();
         }
       }
-    }, [id, user?.isClient])
+    }, [id, user?.isClient, authLoading])
   );
 
-  if (loading) {
+  // Wait for auth to complete and user data to be available
+  if (loading || authLoading || !user || user.isClient === undefined) {
     return (
       <ThemedView style={styles.container}>
         <ActivityIndicator size="large" />

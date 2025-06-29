@@ -12,6 +12,7 @@ import {
   Text,
 } from "react-native";
 import React, { useState, useEffect } from "react";
+import * as Notifications from "expo-notifications";
 import ThemedView from "../../components/ThemedView";
 import StyledText from "../../components/StyledText";
 import StyledHeading from "../../components/StyledHeading";
@@ -83,6 +84,18 @@ export default function Register() {
 
   const handleRegister = async (values, { setSubmitting, resetForm }) => {
     try {
+      // Get expo push token before registration
+      let expoPushToken = null;
+      try {
+        console.log("Getting expo push token during registration...");
+        const tokenData = await Notifications.getExpoPushTokenAsync();
+        expoPushToken = tokenData.data;
+        console.log("Expo push token obtained:", expoPushToken);
+      } catch (tokenError) {
+        console.warn("Failed to get expo push token during registration:", tokenError.message);
+        // Continue with registration even if we can't get the push token
+      }
+
       const result = await registerUser({
         name: values.name,
         email: values.email,
@@ -97,6 +110,7 @@ export default function Register() {
         profession: values.profession,
         experienceYears: values.experienceYears,
         diploma: values.diploma,
+        expoPushToken: expoPushToken,
       });
 
       if (result.success) {

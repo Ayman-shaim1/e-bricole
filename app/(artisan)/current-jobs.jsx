@@ -33,6 +33,15 @@ export default function CurrentJobsScreen() {
 
   const fetchCurrentJobs = async () => {
     try {
+      // Check if user exists before making API calls
+      if (!user || !user.$id) {
+        console.log("No user found, skipping current jobs fetch");
+        setCurrentJobs([]);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
@@ -79,8 +88,11 @@ export default function CurrentJobsScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <StyledText
-            text="Loading your current jobs..."
-            style={[styles.loadingText, { color: theme.textColor }]}
+            text="Loading current jobs..."
+            style={[
+              styles.loadingText,
+              { color: theme.textColorSecondary || "#9E9E9E" },
+            ]}
           />
         </View>
       </ThemedView>
@@ -101,12 +113,31 @@ export default function CurrentJobsScreen() {
 
       {error ? (
         <View style={styles.errorContainer}>
+          <View
+            style={[
+              styles.emptyIcon,
+              { backgroundColor: theme.cardColor || "#F5F5F5" },
+            ]}
+          >
+            <Ionicons
+              name="warning-outline"
+              size={40}
+              color={theme.textColorSecondary || "#9E9E9E"}
+            />
+          </View>
           <StyledText
-            text={error}
-            style={[styles.errorText, { color: theme.textColor }]}
+            text="Connection issue"
+            style={[styles.emptyTitle, { color: theme.textColor || "#757575" }]}
+          />
+          <StyledText
+            text="Unable to load your current jobs. Please check your connection."
+            style={[
+              styles.emptyText,
+              { color: theme.textColorSecondary || "#9E9E9E" },
+            ]}
           />
           <StyledButton
-            text="Retry"
+            text="Try Again"
             onPress={fetchCurrentJobs}
             color="primary"
             style={styles.retryButton}
@@ -114,19 +145,32 @@ export default function CurrentJobsScreen() {
         </View>
       ) : currentJobs.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <View style={{alignItems: "center"}}>
-            <Ionicons name="briefcase-outline" size={64} color={colors.gray} />
+          <View
+            style={[
+              styles.emptyIcon,
+              { backgroundColor: theme.cardColor || "#F5F5F5" },
+            ]}
+          >
+            <Ionicons
+              name="briefcase-outline"
+              size={40}
+              color={theme.textColorSecondary || "#9E9E9E"}
+            />
           </View>
           <StyledText
-            text="No Current Jobs"
-            style={[styles.emptyTitle, { color: theme.textColor }]}
+            text="No active jobs"
+            style={[styles.emptyTitle, { color: theme.textColor || "#757575" }]}
           />
           <StyledText
-            text="You don't have any active jobs at the moment. Keep applying to new requests!"
-            style={[styles.emptyText, { color: theme.textColor }]}
+            text="Your active jobs will appear here when clients accept your applications"
+            style={[
+              styles.emptyText,
+              { color: theme.textColorSecondary || "#9E9E9E" },
+            ]}
           />
           <StyledButton
             text="Browse Jobs"
+            style={{ width: "100%" }}
             onPress={() => router.push("/(artisan)/jobs")}
             color="primary"
           />
@@ -169,18 +213,16 @@ const styles = StyleSheet.create({
     gap: 15,
   },
   loadingText: {
-    fontSize: 16,
+    fontSize: 14,
+    fontFamily: "Poppins-Regular",
+    textAlign: "center",
   },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
-    gap: 15,
-  },
-  errorText: {
-    fontSize: 16,
-    textAlign: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 60,
   },
   retryButton: {
     marginTop: 10,
@@ -188,17 +230,31 @@ const styles = StyleSheet.create({
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
-    padding: 20,
-    gap: 15,
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 60,
+  },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: "600",
+    fontSize: 18,
+    fontFamily: "Poppins-Medium",
+    textAlign: "center",
+    marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
+    fontFamily: "Poppins-Regular",
     textAlign: "center",
     lineHeight: 20,
+    maxWidth: 280,
+    marginBottom: 20,
   },
   browseButton: {
     marginTop: 10,

@@ -27,6 +27,9 @@ export function AuthProvider({ children }) {
             // Make sure serviceType is included if it exists
             serviceType: session.user.serviceType || null,
           };
+          
+
+          
           setUser(userWithData);
           setUserRole(session.isClient);
           setIsAuthenticated(true);

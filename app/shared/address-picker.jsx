@@ -25,7 +25,10 @@ import { colors } from "../../constants/colors";
 import { getMapStyle } from "../../constants/mapStyles";
 import { runNetworkTests } from "../../utils/networkTest";
 import NetworkStatusIndicator from "../../components/NetworkStatusIndicator";
-import { logNetworkReport, NETWORK_TROUBLESHOOTING_STEPS } from "../../utils/networkTroubleshooting";
+import {
+  logNetworkReport,
+  NETWORK_TROUBLESHOOTING_STEPS,
+} from "../../utils/networkTroubleshooting";
 
 const callbackRegistry = new Map();
 
@@ -43,10 +46,10 @@ export default function AddressPickerScreen() {
   const mapRef = useRef(null);
   const { getCurrentTheme, theme: themeName } = useTheme();
   const theme = getCurrentTheme();
-  const isDark = themeName === 'dark';
-  
+  const isDark = themeName === "dark";
+
   // Debug logging
-  console.log('AddressPicker - Theme:', themeName, 'isDark:', isDark);
+  console.log("AddressPicker - Theme:", themeName, "isDark:", isDark);
 
   const { latitude, longitude, callbackId } = params;
   const initialCoordinates = {
@@ -119,9 +122,9 @@ export default function AddressPickerScreen() {
     setSearchQuery(text);
     if (text.trim().length >= 3) {
       setShowSuggestions(true);
-      searchAddresses(text).catch(err => {
-        if (err.name !== 'AbortError') {
-          console.log('Search error handled:', err.message);
+      searchAddresses(text).catch((err) => {
+        if (err.name !== "AbortError") {
+          console.log("Search error handled:", err.message);
         }
       });
     } else {
@@ -220,38 +223,46 @@ export default function AddressPickerScreen() {
     try {
       // Run comprehensive network diagnostics
       const report = await logNetworkReport();
-      
+
       // Show troubleshooting steps if there are issues
       const hasIssues = report.recommendations.length > 0;
-      
+
       Alert.alert(
         "Diagnostic de réseau",
-        hasIssues 
-          ? `Problèmes détectés:\n${report.recommendations.join('\n')}\n\nVérifiez la console pour plus de détails.`
+        hasIssues
+          ? `Problèmes détectés:\n${report.recommendations.join(
+              "\n"
+            )}\n\nVérifiez la console pour plus de détails.`
           : "Aucun problème de réseau détecté. Vérifiez la console pour les détails complets.",
         [
           { text: "OK" },
-          ...(hasIssues ? [{
-            text: "Étapes de dépannage",
-            onPress: () => showTroubleshootingSteps()
-          }] : [])
+          ...(hasIssues
+            ? [
+                {
+                  text: "Étapes de dépannage",
+                  onPress: () => showTroubleshootingSteps(),
+                },
+              ]
+            : []),
         ]
       );
     } catch (error) {
-      Alert.alert("Erreur", "Erreur lors du diagnostic de réseau: " + error.message);
+      Alert.alert(
+        "Erreur",
+        "Erreur lors du diagnostic de réseau: " + error.message
+      );
     }
   };
 
   const showTroubleshootingSteps = () => {
-    const stepsText = NETWORK_TROUBLESHOOTING_STEPS.map(section => 
-      `${section.title}:\n${section.steps.map(step => `• ${step}`).join('\n')}`
-    ).join('\n\n');
-    
-    Alert.alert(
-      "Étapes de dépannage",
-      stepsText,
-      [{ text: "OK" }]
-    );
+    const stepsText = NETWORK_TROUBLESHOOTING_STEPS.map(
+      (section) =>
+        `${section.title}:\n${section.steps
+          .map((step) => `• ${step}`)
+          .join("\n")}`
+    ).join("\n\n");
+
+    Alert.alert("Étapes de dépannage", stepsText, [{ text: "OK" }]);
   };
 
   useEffect(() => {
@@ -264,10 +275,10 @@ export default function AddressPickerScreen() {
         result && setAddressData(result);
       } catch (err) {
         // Error is already handled in the hook, just log for debugging
-        if (err.name !== 'AbortError') {
-          console.log('Reverse geocoding error handled:', err.message);
+        if (err.name !== "AbortError") {
+          console.log("Reverse geocoding error handled:", err.message);
           // Show user-friendly error message for network issues
-          if (err.message.includes('Network request failed')) {
+          if (err.message.includes("Network request failed")) {
             Alert.alert(
               "Problème de connexion",
               "Impossible de récupérer l'adresse. Vérifiez votre connexion internet et réessayez.",
@@ -330,7 +341,7 @@ export default function AddressPickerScreen() {
 
       {/* Carte */}
       <MapView
-        key={`address-map-${isDark ? 'dark' : 'light'}`}
+        key={`address-map-${isDark ? "dark" : "light"}`}
         ref={mapRef}
         style={getStyles(theme).map}
         initialRegion={{
@@ -412,12 +423,12 @@ export default function AddressPickerScreen() {
         >
           <Ionicons name="remove" size={24} color={theme.iconColorFocused} />
         </TouchableOpacity>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={getStyles(theme).controlButton}
           onPress={handleDebugTest}
         >
           <Ionicons name="bug" size={24} color={theme.iconColorFocused} />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
 
       <NetworkStatusIndicator />

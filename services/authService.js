@@ -2,6 +2,7 @@ import { account, databases } from "../config/appwrite";
 import { ID } from "appwrite";
 import settings from "../config/settings";
 import { uploadFile } from "./uploadService";
+import { updateUserPushToken } from "./userService";
 
 // The settings import is already the correct environment settings object
 // because settings.js exports the result of getCurrentSettings()
@@ -9,7 +10,7 @@ const DATABASE_ID = settings.dataBaseId;
 const USERS_COLLECTION_ID = settings.usersId;
 
 
-export async function loginUser({ email, password }) {
+export async function loginUser({ email, password, expoPushToken = null }) {
   try {
     console.log("Attempting to create email session...");
     
@@ -29,6 +30,23 @@ export async function loginUser({ email, password }) {
     console.log("Fetching user data...");
     const user = await account.get();
     console.log("User data fetched successfully:", user.$id);
+
+    // Update expo push token if provided
+    if (expoPushToken) {
+      try {
+        console.log("Updating expo push token during login...");
+        const tokenUpdateResult = await updateUserPushToken(user.$id, expoPushToken);
+        if (tokenUpdateResult.success) {
+          console.log("Expo push token updated successfully during login");
+        } else {
+          console.warn("Failed to update push token during login:", tokenUpdateResult.error);
+          // Continue with login even if push token update fails
+        }
+      } catch (tokenError) {
+        console.warn("Error updating push token during login:", tokenError.message);
+        // Continue with login even if push token update fails
+      }
+    }
 
     // Get user document from database to check role
     try {
@@ -76,6 +94,7 @@ export async function registerUser({
   serviceType,
   profession,
   experienceYears,
+  expoPushToken = null,
 }) {
   let userId = null;
   let uploadedFileId = null;
@@ -124,6 +143,12 @@ export async function registerUser({
       email,
       isClient,
     };
+
+    // Add expo push token if provided
+    if (expoPushToken) {
+      userData.expoPushToken = expoPushToken;
+      console.log("Added expo push token to user data during registration");
+    }
 
     // Add artisan-specific fields if the user is an artisan
     if (!isClient) {
@@ -231,6 +256,26 @@ export async function checkSession() {
 
 export async function logoutUser() {
   try {
+    // Get current user before logging out to clear their push token
+    let userId = null;
+    try {
+      const user = await account.get();
+      userId = user.$id;
+      
+      // Clear the expo push token for the user
+      const tokenUpdateResult = await updateUserPushToken(userId, null);
+      if (!tokenUpdateResult.success) {
+        console.warn("Failed to clear push token during logout:", tokenUpdateResult.error);
+        // Continue with logout even if push token update fails
+      } else {
+        console.log("Push token cleared successfully during logout");
+      }
+    } catch (userError) {
+      console.warn("Could not get user info to clear push token:", userError.message);
+      // Continue with logout even if we can't get user info
+    }
+
+    // Proceed with session deletion
     await account.deleteSession("current");
     return { success: true };
   } catch (error) {

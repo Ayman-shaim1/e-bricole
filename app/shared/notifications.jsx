@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   FlatList,
@@ -11,13 +11,12 @@ import ThemedView from "../../components/ThemedView";
 import StyledHeading from "../../components/StyledHeading";
 import StyledText from "../../components/StyledText";
 import { useAuth } from "../../context/AuthContext";
-import { useNotifications } from "../../context/NotificationContext";
 import {
   getNotifications,
   getUnseenNotificationCount,
   markAllNotificationsAsSeen,
 } from "../../services/notificationService";
-import { getConnectionStatus } from "../../services/realtimeService";
+import { subscribeToNotifications } from "../../services/realtimeService";
 import GoBackButton from "../../components/GoBackButton";
 import StyledCard from "../../components/StyledCard";
 import Divider from "../../components/Divider";
@@ -38,182 +37,134 @@ const formatDate = (dateString) => {
 
 export default function NotificationsScreen() {
   const { user } = useAuth();
-  const {
-    unseenCount: globalUnseenCount,
-    setUnseenCount,
-    connectionStatus: contextConnectionStatus,
-  } = useNotifications();
   const router = useRouter();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [localUnseenCount, setLocalUnseenCount] = useState(0);
+  const [unseenCount, setUnseenCount] = useState(0);
   const [markingAsSeen, setMarkingAsSeen] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState({
-    isConnected: false,
-  });
-
-  // Use ref for timer
-  const markAsSeenTimerRef = useRef(null);
+  const [visuallySeenIds, setVisuallySeenIds] = useState(new Set()); // Track which notifications are visually seen
+  const [isFirstVisit, setIsFirstVisit] = useState(true); // Track if this is the first visit to the page
+  const [newNotificationIds, setNewNotificationIds] = useState(new Set()); // Track newly received notifications
 
   const handleMarkAllAsSeen = async () => {
-    if (markingAsSeen || localUnseenCount === 0) return;
+    if (markingAsSeen) return;
 
     setMarkingAsSeen(true);
-    const result = await markAllNotificationsAsSeen(user.$id);
-
-    if (result.success) {
-      // Update both database and UI
-      setNotifications((prev) =>
-        prev.map((notification) => ({
-          ...notification,
-          isSeen: true,
-        }))
-      );
-      // Reset unseen count to update both notifications screen and header
-      setLocalUnseenCount(0);
-      setUnseenCount(0);
-    }
+    
+    // Update visual state - mark all notifications as visually seen
+    const allNotificationIds = notifications.map(n => n.$id);
+    setVisuallySeenIds(new Set(allNotificationIds));
+    
+    // Clear new notification tracking
+    setNewNotificationIds(new Set());
+    
     setMarkingAsSeen(false);
   };
 
-  const fetchNotifications = async () => {
-    setLoading(true);
+  const fetchNotifications = async (isInitialLoad = false) => {
+    if (isInitialLoad) setLoading(true);
     const res = await getNotifications(user.$id);
     if (res.success) {
-      // Keep the original isSeen state from the database for UI
       setNotifications(res.data);
     }
     const count = await getUnseenNotificationCount(user.$id);
-    setLocalUnseenCount(count);
     setUnseenCount(count);
-    setLoading(false);
+    if (isInitialLoad) setLoading(false);
     setRefreshing(false);
   };
 
+  // Initialize notifications on mount and mark as seen in database
   useEffect(() => {
-    const initializeNotifications = async () => {
-      try {
-        // First fetch notifications to get the current state
+    if (user?.$id) {
+      const initializeAndMarkSeen = async () => {
+        // First fetch notifications
         const res = await getNotifications(user.$id);
         if (res.success) {
           setNotifications(res.data);
-        }
-
-        // Get the current unseen count
-        const count = await getUnseenNotificationCount(user.$id);
-        setLocalUnseenCount(count);
-        setUnseenCount(count);
-
-        setLoading(false);
-      } catch (error) {
-        console.error("Error initializing notifications:", error);
-        setLoading(false);
-      }
-    };
-
-    initializeNotifications();
-  }, []);
-
-  // Mark notifications as seen when user stays on the page for more than 3 seconds
-  useEffect(() => {
-    if (notifications.length > 0 && localUnseenCount > 0) {
-      // Clear any existing timer
-      if (markAsSeenTimerRef.current) {
-        clearTimeout(markAsSeenTimerRef.current);
-      }
-
-      markAsSeenTimerRef.current = setTimeout(async () => {
-        // Only mark as seen if there are still unseen notifications
-        const currentUnseenCount = await getUnseenNotificationCount(user.$id);
-        if (currentUnseenCount > 0) {
-          const result = await markAllNotificationsAsSeen(user.$id);
-          if (result.success) {
-            // Update UI to show notifications as seen
-            setNotifications((prev) =>
-              prev.map((notification) => ({
-                ...notification,
-                isSeen: true,
-              }))
-            );
-            setLocalUnseenCount(0);
+          
+          // Check if this is first visit by looking at notifications data
+          const hasUnseenNotifications = res.data.some(notification => !notification.isSeen);
+          
+          if (hasUnseenNotifications) {
+            // First visit - mark as seen in DB but keep visual style unseen
+            setIsFirstVisit(true);
+            const result = await markAllNotificationsAsSeen(user.$id);
+            if (result.success) {
+              // Update only the count for header badge, keep UI style unchanged
+              setUnseenCount(0);
+            }
+          } else {
+            // Not first visit - notifications already seen in DB, should appear as seen
+            setIsFirstVisit(false);
             setUnseenCount(0);
           }
         }
-      }, 3000); // 3 seconds delay
-
-      return () => {
-        if (markAsSeenTimerRef.current) {
-          clearTimeout(markAsSeenTimerRef.current);
-        }
+        
+        setLoading(false);
+        setRefreshing(false);
       };
+      
+      initializeAndMarkSeen();
     }
-  }, [notifications, localUnseenCount, user.$id]);
+  }, [user?.$id]);
 
-  // Monitor for new notifications using centralized context
+  // Subscribe to new notifications in real-time
   useEffect(() => {
-    // Set initial connection status from context
-    setConnectionStatus(contextConnectionStatus);
+    if (!user?.$id) return;
 
-    // Update connection status periodically
-    const statusInterval = setInterval(() => {
-      setConnectionStatus(getConnectionStatus());
-    }, 30000); // Check every 30 seconds
+    const unsubscribe = subscribeToNotifications(user.$id, (response) => {
+      const isForCurrentUser = response?.payload?.receiverUser?.$id === user.$id;
+      if (isForCurrentUser && response?.events?.includes('databases.*.collections.*.documents.*.create')) {
+        // New notification received
+        const newNotification = response.payload;
+        
+        // Add the new notification ID to track it as new
+        setNewNotificationIds(prev => new Set([...prev, newNotification.$id]));
+        
+        // Refresh the notifications list immediately to show the new notification
+        fetchNotifications(false);
+        
+        // Mark as seen in database after 1 second, but keep it visually unseen
+        setTimeout(async () => {
+          try {
+            await markAllNotificationsAsSeen(user.$id);
+            // Update the unseen count but don't change visual appearance
+            setUnseenCount(0);
+            console.log('New notification marked as seen in database after 1 second');
+          } catch (error) {
+            console.error('Error marking new notification as seen:', error);
+          }
+        }, 1000);
+      } else if (isForCurrentUser) {
+        // Other updates, just refresh normally
+        fetchNotifications(false);
+      }
+    });
 
     return () => {
-      // Clear timers
-      if (markAsSeenTimerRef.current) {
-        clearTimeout(markAsSeenTimerRef.current);
+      if (unsubscribe && typeof unsubscribe === "function") {
+        unsubscribe();
       }
-      clearInterval(statusInterval);
     };
-  }, [contextConnectionStatus]);
-
-  // Listen for changes in unseen count from context to detect new notifications
-  useEffect(() => {
-    if (globalUnseenCount > 0) {
-      // Refresh notifications when unseen count changes (new notification received)
-      fetchNotifications();
-    }
-  }, [globalUnseenCount]);
+  }, [user?.$id]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchNotifications();
+    fetchNotifications(false);
   };
 
   const handleShowNotification = (notification) => {
-    console.log(
-      "Notification type:",
-      notification.type,
-      typeof notification.type
-    );
-    console.log("Notification jsonData:", notification.jsonData);
-
     if (notification.type === "application" && notification.jsonData) {
       try {
         const data = JSON.parse(notification.jsonData);
-        console.log("Parsed jsonData:", data);
-        console.log("serviceApplicationId:", data.serviceApplicationId);
-        console.log(
-          "serviceApplicationId type:",
-          typeof data.serviceApplicationId
-        );
-        console.log(
-          "serviceApplicationId length:",
-          data.serviceApplicationId?.length
-        );
-
+      
         if (data.serviceApplicationId) {
           // Validate the ID format
           if (
             data.serviceApplicationId.length > 36 ||
             !/^[a-zA-Z0-9_]+$/.test(data.serviceApplicationId)
           ) {
-            console.error(
-              "Invalid serviceApplicationId format:",
-              data.serviceApplicationId
-            );
             alert(
               "This notification contains an invalid application ID. Please contact support."
             );
@@ -228,11 +179,60 @@ export default function NotificationsScreen() {
           alert("Application ID not found in notification data.");
         }
       } catch (error) {
-        console.error("Error parsing notification jsonData:", error);
+        alert("Error processing notification data. Please try again.");
+      }
+    } else if (notification.type === "application_accepted" && notification.jsonData) {
+      try {
+        const data = JSON.parse(notification.jsonData);
+      
+        if (data.serviceRequestId) {
+          // Validate the ID format
+          if (
+            data.serviceRequestId.length > 36 ||
+            !/^[a-zA-Z0-9_]+$/.test(data.serviceRequestId)
+          ) {
+            alert(
+              "This notification contains an invalid job ID. Please contact support."
+            );
+            return;
+          }
+
+          router.push({
+            pathname: "/shared/current-job-details",
+            params: { id: data.serviceRequestId },
+          });
+        } else {
+          alert("Job ID not found in notification data.");
+        }
+      } catch (error) {
         alert("Error processing notification data. Please try again.");
       }
     }
   };
+
+  // Check if notification should appear as unseen visually
+  const isVisuallyUnseen = (notification) => {
+    // Si l'utilisateur a cliqué "Mark all as seen" → seen
+    if (visuallySeenIds.has(notification.$id)) {
+      return false;
+    }
+    
+    // Si c'est une nouvelle notification reçue → unseen
+    if (newNotificationIds.has(notification.$id)) {
+      return true;
+    }
+    
+    // Si ce n'est pas la première visite → seen (car déjà marquées en DB lors d'une visite précédente)
+    if (!isFirstVisit) {
+      return false;
+    }
+    
+    // Si première visite → garder style unseen
+    return true;
+  };
+
+  // Count visually unseen notifications for badge
+  const visuallyUnseenCount = notifications.filter(isVisuallyUnseen).length;
 
   return (
     <ThemedView style={styles.container}>
@@ -241,34 +241,25 @@ export default function NotificationsScreen() {
           <GoBackButton />
           <StyledHeading text="Notifications" />
         </View>
-        {localUnseenCount > 0 && (
+        {visuallyUnseenCount > 0 && (
           <View style={styles.badge}>
-            <StyledLabel text={localUnseenCount.toString()} color="white" />
+            <StyledLabel text={visuallyUnseenCount.toString()} color="white" />
           </View>
         )}
       </View>
 
-      {/* Connection status indicator 
-      {!connectionStatus.isConnected && (
-        <View style={styles.connectionWarning}>
-          <StyledText 
-            text="Realtime connection issues. Some notifications may be delayed." 
-            style={styles.warningText}
-          />
-        </View>
-      )}*/}
-
       <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
         <TouchableOpacity
           onPress={handleMarkAllAsSeen}
-          disabled={markingAsSeen || localUnseenCount === 0}
+          disabled={markingAsSeen || visuallyUnseenCount === 0}
         >
           <StyledLabel
             text={markingAsSeen ? "Marking as seen..." : "Mark all as seen"}
-            color={markingAsSeen || localUnseenCount === 0 ? "gray" : "primary"}
+            color={markingAsSeen || visuallyUnseenCount === 0 ? "gray" : "primary"}
           />
         </TouchableOpacity>
       </View>
+      
       <Divider />
       {loading ? (
         <ActivityIndicator size="large" />
@@ -278,17 +269,28 @@ export default function NotificationsScreen() {
           keyExtractor={(item) => `notification-${item.$id}-${item.$createdAt}`}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => {
+            const showAsUnseen = isVisuallyUnseen(item);
             return (
-              <StyledCard style={!item.isSeen ? styles.unseenCard : null}>
+              <StyledCard style={showAsUnseen ? styles.unseenCard : null}>
                 <View style={styles.titleContainer}>
                   <StyledHeading text={item.title} style={styles.title} />
-                  {!item.isSeen && <View style={styles.unseenDot} />}
+                  {showAsUnseen && <View style={styles.unseenDot} />}
                 </View>
                 <StyledText text={item.messageContent} style={styles.content} />
                 {item.type === "application" && (
                   <View style={styles.buttonContainer}>
                     <StyledButton
                       text="Show application"
+                      onPress={() => handleShowNotification(item)}
+                      color="primary"
+                      style={styles.showButton}
+                    />
+                  </View>
+                )}
+                {item.type === "application_accepted" && (
+                  <View style={styles.buttonContainer}>
+                    <StyledButton
+                      text="Show job"
                       onPress={() => handleShowNotification(item)}
                       color="primary"
                       style={styles.showButton}

@@ -89,13 +89,23 @@ export default function ArtisanDisplayedJobAddress({
             { latitude, longitude }
           );
           if (result && result.coordinates) {
+            console.log("Route reçue avec", result.coordinates.length, "points");
+            console.log("Premier point:", result.coordinates[0]);
+            console.log("Dernier point:", result.coordinates[result.coordinates.length - 1]);
+            
             // Convert coordinates from [longitude, latitude] to {latitude, longitude} format
             const formattedCoords = result.coordinates.map((coord) => ({
               latitude: coord[1],
               longitude: coord[0],
             }));
+            
+            console.log("Coordonnées formatées:", formattedCoords.length, "points");
+            console.log("Premier point formaté:", formattedCoords[0]);
+            
             setRouteCoords(formattedCoords);
             setDistance(result.formattedDistance);
+          } else {
+            console.log("Aucune route trouvée dans la réponse");
           }
         } catch (error) {
           console.error("Error fetching route:", error);
@@ -134,12 +144,32 @@ export default function ArtisanDisplayedJobAddress({
     }
   }, [modalVisible, location, latitude, longitude, routeCoords]);
 
-  const jobRegion = {
-    latitude: latitude,
-    longitude: longitude,
-    latitudeDelta: 0.01,
-    longitudeDelta: 0.01,
-  };
+  // Calculer la région pour afficher toute la route
+  const jobRegion = React.useMemo(() => {
+    if (location && routeCoords.length > 0) {
+      // Inclure la position actuelle, la destination et tous les points de la route
+      const allCoords = [
+        { latitude, longitude },
+        { latitude: location.latitude, longitude: location.longitude },
+        ...routeCoords,
+      ];
+      return getRegionForCoordinates(allCoords);
+    } else if (location) {
+      // Inclure seulement la position actuelle et la destination
+      return getRegionForCoordinates([
+        { latitude, longitude },
+        { latitude: location.latitude, longitude: location.longitude },
+      ]);
+    } else {
+      // Seulement la destination
+      return {
+        latitude: latitude,
+        longitude: longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+    }
+  }, [latitude, longitude, location, routeCoords]);
 
   const handleZoom = (factor) => {
     let newZoom = zoom * factor;
@@ -183,6 +213,26 @@ export default function ArtisanDisplayedJobAddress({
             title="Job Location"
             pinColor={colors.primary}
           />
+          {location && (
+            <Marker
+              coordinate={{
+                latitude: location.latitude,
+                longitude: location.longitude,
+              }}
+              title="Your Position"
+              pinColor={colors.danger}
+            />
+          )}
+          {routeCoords.length > 0 && (
+            <Polyline
+              coordinates={routeCoords}
+              strokeColor={colors.primary}
+              strokeWidth={3}
+              lineDashPattern={[]}
+              lineJoin="round"
+              lineCap="round"
+            />
+          )}
         </MapView>
       </TouchableOpacity>
       <View style={[styles.addressRow, { 
@@ -280,7 +330,10 @@ export default function ArtisanDisplayedJobAddress({
                 <Polyline
                   coordinates={routeCoords}
                   strokeColor={colors.primary}
-                  strokeWidth={3}
+                  strokeWidth={4}
+                  lineDashPattern={[]}
+                  lineJoin="round"
+                  lineCap="round"
                 />
               )}
             </MapView>

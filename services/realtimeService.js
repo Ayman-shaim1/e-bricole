@@ -1,5 +1,7 @@
 import { client, databases } from "../config/appwrite";
 import settings from "../config/settings";
+import NetInfo from '@react-native-community/netinfo';
+import { AppState } from 'react-native';
 
 // Track active subscriptions to prevent duplicates
 const activeSubscriptions = new Map();
@@ -9,15 +11,132 @@ let isConnected = false;
 let reconnectAttempts = 0;
 let reconnectTimer = null;
 let connectionDebounceTimer = null;
-const MAX_RECONNECT_ATTEMPTS = 3;
-const RECONNECT_DELAY = 3000; // 3 seconds
-const CONNECTION_DEBOUNCE_DELAY = 1000; // 1 second
+let networkCheckTimer = null;
+let lastNetworkState = null;
+let appState = 'active';
 
-// Enhanced error handler for realtime connections
-const handleRealtimeError = (error, subscriptionKey) => {
-  console.warn('Realtime connection error for subscription:', subscriptionKey, error?.message || error);
+// Configuration constants
+const MAX_RECONNECT_ATTEMPTS = 5;
+const BASE_RECONNECT_DELAY = 2000; // 2 seconds
+const MAX_RECONNECT_DELAY = 30000; // 30 seconds
+const CONNECTION_DEBOUNCE_DELAY = 1000; // 1 second
+const NETWORK_CHECK_INTERVAL = 5000; // 5 seconds
+
+// Monitor app state changes
+AppState.addEventListener('change', (nextAppState) => {
+  const previousAppState = appState;
+  appState = nextAppState;
   
-  // Clear any existing reconnect timer
+  if (previousAppState === 'background' && nextAppState === 'active') {
+    console.log('App resumed from background - checking connectivity');
+    checkNetworkAndReconnect();
+  } else if (nextAppState === 'background') {
+    console.log('App went to background - pausing reconnection attempts');
+    pauseReconnectionAttempts();
+  }
+});
+
+// Check network connectivity before attempting reconnection
+const checkNetworkConnectivity = async () => {
+  try {
+    const netInfo = await NetInfo.fetch();
+    lastNetworkState = netInfo;
+    
+    // More detailed network check
+    if (!netInfo.isConnected || netInfo.isInternetReachable === false) {
+      console.log('No network connectivity detected:', {
+        isConnected: netInfo.isConnected,
+        isInternetReachable: netInfo.isInternetReachable,
+        type: netInfo.type
+      });
+      return false;
+    }
+    
+    // For cellular connections, be more cautious
+    if (netInfo.type === 'cellular' && netInfo.details?.cellularGeneration === '2g') {
+      console.log('Slow cellular connection detected - delaying reconnection');
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.warn('Network connectivity check failed:', error.message);
+    return false;
+  }
+};
+
+// Pause reconnection attempts (e.g., when app goes to background)
+const pauseReconnectionAttempts = () => {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  if (networkCheckTimer) {
+    clearTimeout(networkCheckTimer);
+    networkCheckTimer = null;
+  }
+};
+
+// Resume reconnection attempts with network check
+const checkNetworkAndReconnect = async () => {
+  if (appState !== 'active') {
+    console.log('App not active - skipping reconnection');
+    return;
+  }
+  
+  const hasNetwork = await checkNetworkConnectivity();
+  if (!hasNetwork) {
+    console.log('No network available - scheduling next check');
+    scheduleNetworkCheck();
+    return;
+  }
+  
+  // Network is available, attempt to restore realtime connection
+  if (!isConnected && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+    console.log('Network available - attempting to restore realtime connection');
+    // The actual reconnection will be handled by the subscription code
+  }
+};
+
+// Schedule periodic network checks when disconnected
+const scheduleNetworkCheck = () => {
+  if (networkCheckTimer) {
+    clearTimeout(networkCheckTimer);
+  }
+  
+  networkCheckTimer = setTimeout(async () => {
+    if (appState === 'active' && !isConnected) {
+      await checkNetworkAndReconnect();
+    }
+  }, NETWORK_CHECK_INTERVAL);
+};
+
+// Enhanced error handler for realtime connections with better backoff
+const handleRealtimeError = async (error, subscriptionKey) => {
+  // Don't log spam when app is in background
+  if (appState !== 'active') {
+    return;
+  }
+  
+  const errorMessage = error?.message || error?.toString() || 'Unknown error';
+  
+  // Check for specific error types that indicate network issues
+  const isNetworkError = errorMessage.includes('disconnected') ||
+                         errorMessage.includes('Connection reset') ||
+                         errorMessage.includes('Connection') ||
+                         errorMessage.includes('timeout') ||
+                         errorMessage.includes('INVALID_STATE_ERR') ||
+                         errorMessage.includes('Stream end encountered') ||
+                         errorMessage.includes('OSStatus error');
+
+  // Only log network errors once per minute to reduce spam
+  const now = Date.now();
+  if (!handleRealtimeError.lastLogTime || now - handleRealtimeError.lastLogTime > 60000) {
+    console.warn(`Realtime connection error for ${subscriptionKey}:`, errorMessage);
+    handleRealtimeError.lastLogTime = now;
+  }
+  
+  // Clear any existing timers
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
@@ -32,31 +151,62 @@ const handleRealtimeError = (error, subscriptionKey) => {
     isConnected = false;
   }, CONNECTION_DEBOUNCE_DELAY);
 
-  // Only attempt reconnection for specific error types
-  const shouldReconnect = error?.message?.includes('disconnected') || 
-                         error?.message?.includes('Connection') ||
-                         error?.message?.includes('timeout');
-
-  if (shouldReconnect && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-    reconnectAttempts++;
-    const delay = RECONNECT_DELAY * reconnectAttempts; // Linear backoff
-    console.log(`Scheduling reconnection attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`);
+  // Only attempt reconnection for network-related errors and when app is active
+  if (isNetworkError && appState === 'active' && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+    // Check network connectivity before attempting reconnection
+    const hasNetwork = await checkNetworkConnectivity();
     
-    reconnectTimer = setTimeout(() => {
-      console.log('Reconnection attempt initiated');
-      // The subscription will be handled by the calling code
+    if (!hasNetwork) {
+      console.log('Network unavailable - scheduling network check instead of reconnection');
+      scheduleNetworkCheck();
+      return;
+    }
+    
+    reconnectAttempts++;
+    
+    // Exponential backoff with jitter
+    const baseDelay = Math.min(BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttempts - 1), MAX_RECONNECT_DELAY);
+    const jitter = Math.random() * 1000; // Add up to 1 second of jitter
+    const delay = baseDelay + jitter;
+    
+    console.log(`Scheduling reconnection attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${Math.round(delay)}ms`);
+    
+    reconnectTimer = setTimeout(async () => {
+      if (appState === 'active') {
+        console.log('Reconnection attempt initiated');
+        // The subscription will be handled by the calling code
+      }
     }, delay);
   } else {
     if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      console.error('Max reconnection attempts reached. Connection will be retried later.');
+      console.warn('Max reconnection attempts reached. Will retry when network is available.');
+      scheduleNetworkCheck(); // Continue checking network periodically
     }
-    reconnectAttempts = 0; // Reset for future attempts
+    
+    // Reset reconnect attempts after a longer delay
+    setTimeout(() => {
+      reconnectAttempts = 0;
+    }, 60000); // Reset after 1 minute
   }
 };
 
-// Monitor connection status
-const monitorConnection = () => {
-  // Simple connection check by attempting a lightweight operation
+// Monitor connection status with network awareness
+const monitorConnection = async () => {
+  // Skip monitoring when app is in background
+  if (appState !== 'active') {
+    return;
+  }
+  
+  // Check network first
+  const hasNetwork = await checkNetworkConnectivity();
+  if (!hasNetwork) {
+    if (isConnected) {
+      console.log('Network lost - marking as disconnected');
+      isConnected = false;
+    }
+    return;
+  }
+  
   try {
     // This won't create an actual subscription, just tests the connection
     const testChannel = `databases.${settings.dataBaseId}.collections.${settings.notificationId}.documents`;
@@ -77,11 +227,14 @@ const monitorConnection = () => {
           clearTimeout(connectionDebounceTimer);
           connectionDebounceTimer = null;
         }
+        if (networkCheckTimer) {
+          clearTimeout(networkCheckTimer);
+          networkCheckTimer = null;
+        }
       }
     }, (error) => {
       // Don't log every test connection error to reduce noise
-      if (isConnected) {
-        console.warn('Connection test failed:', error?.message || error);
+      if (isConnected && appState === 'active') {
         handleRealtimeError(error, 'connection-test');
       }
     });
@@ -98,99 +251,59 @@ const monitorConnection = () => {
     }, 100);
     
   } catch (error) {
-    console.error('Error monitoring connection:', error);
+    if (appState === 'active') {
+      console.error('Error monitoring connection:', error);
+    }
   }
 };
 
-// Monitor connection every 30 seconds
-setInterval(monitorConnection, 30000);
-
-export const subscribeToNotifications = (
-  userId,
-  onNotificationReceived,
-  onCountUpdate
-) => {
-  // Prevent duplicate subscriptions
-  const subscriptionKey = `notifications-${userId}`;
-  if (activeSubscriptions.has(subscriptionKey)) {
-    console.log('Subscription already exists for user:', userId);
-    return activeSubscriptions.get(subscriptionKey);
+// Monitor connection every 30 seconds, but only when app is active
+setInterval(() => {
+  if (appState === 'active') {
+    monitorConnection();
   }
+}, 30000);
 
+// Listen for network state changes
+NetInfo.addEventListener(state => {
+  const wasConnected = lastNetworkState?.isConnected;
+  const isNowConnected = state.isConnected;
+  
+  lastNetworkState = state;
+  
+  // If network was restored and app is active, check if we need to reconnect
+  if (!wasConnected && isNowConnected && appState === 'active' && !isConnected) {
+    console.log('Network restored - attempting to restore realtime connection');
+    setTimeout(() => {
+      checkNetworkAndReconnect();
+    }, 1000); // Small delay to let network stabilize
+  } else if (!isNowConnected && isConnected) {
+    console.log('Network lost - marking realtime as disconnected');
+    isConnected = false;
+    pauseReconnectionAttempts();
+  }
+});
+
+export const subscribeToNotifications = (userId, onNewNotification) => {
   const channel = `databases.${settings.dataBaseId}.collections.${settings.notificationId}.documents`;
-  let subscriptionActive = true;
 
   try {
     const unsubscribe = client.subscribe(
       channel, 
-      async (response) => {
-        if (!subscriptionActive) return;
-
-        try {
-          // Validate response structure
-          if (!response || !response.payload || !response.events) {
-            console.warn('Invalid realtime response received:', response);
-            return;
-          }
-
-          // Only process if it's a new notification for the current user
-          if (response.payload.receiverUser === userId) {
-            // Only handle new notifications (created event)
-            if (response.events.includes("databases.*.collections.*.documents.*.create")) {
-              console.log('New notification received via realtime:', response.payload.$id);
-              
-              // Don't automatically mark as seen in database - let the UI handle this
-              // Pass the notification to the handler
-              if (onNotificationReceived && typeof onNotificationReceived === 'function') {
-                onNotificationReceived(response.payload);
-              }
-
-              // Update the unseen count
-              if (onCountUpdate && typeof onCountUpdate === 'function') {
-                onCountUpdate((prevCount) => prevCount + 1);
-              }
-
-              // Update connection status on successful message
-              if (!isConnected) {
-                console.log('Realtime connection active (via notification)');
-                isConnected = true;
-                reconnectAttempts = 0;
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error processing realtime notification:', error);
+      (response) => {
+        // Pass the full response to the callback for custom handling
+        if (onNewNotification) {
+          onNewNotification(response);
         }
-      }, 
+      },
       (error) => {
-        if (subscriptionActive) {
-          handleRealtimeError(error, subscriptionKey);
-        }
+        handleRealtimeError(error, 'notifications');
       }
     );
 
-    // Store the unsubscribe function with additional error handling
-    const cleanup = () => {
-      subscriptionActive = false;
-      try {
-        if (unsubscribe && typeof unsubscribe === 'function') {
-          unsubscribe();
-          activeSubscriptions.delete(subscriptionKey);
-          console.log('Unsubscribed from notifications for user:', userId);
-        }
-      } catch (error) {
-        console.error('Error unsubscribing from notifications:', error);
-        // Force remove from active subscriptions even if unsubscribe fails
-        activeSubscriptions.delete(subscriptionKey);
-      }
-    };
-
-    activeSubscriptions.set(subscriptionKey, cleanup);
-    console.log('Subscribed to notifications for user:', userId);
-    
-    return cleanup;
+    isConnected = true;
+    return unsubscribe;
   } catch (error) {
-    console.error('Error setting up notification subscription:', error);
     return () => {}; // Return empty cleanup function
   }
 };
@@ -199,7 +312,7 @@ export const subscribeToNotifications = (
 export const cleanupAllSubscriptions = () => {
   console.log(`Cleaning up ${activeSubscriptions.size} active subscriptions`);
   
-  // Clear timers
+  // Clear all timers
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
@@ -207,6 +320,10 @@ export const cleanupAllSubscriptions = () => {
   if (connectionDebounceTimer) {
     clearTimeout(connectionDebounceTimer);
     connectionDebounceTimer = null;
+  }
+  if (networkCheckTimer) {
+    clearTimeout(networkCheckTimer);
+    networkCheckTimer = null;
   }
   
   activeSubscriptions.forEach((cleanup, key) => {
@@ -229,21 +346,28 @@ export const getConnectionStatus = () => ({
   isConnected,
   reconnectAttempts,
   activeSubscriptionsCount: activeSubscriptions.size,
-  maxReconnectAttempts: MAX_RECONNECT_ATTEMPTS
+  maxReconnectAttempts: MAX_RECONNECT_ATTEMPTS,
+  appState,
+  lastNetworkState: lastNetworkState ? {
+    isConnected: lastNetworkState.isConnected,
+    isInternetReachable: lastNetworkState.isInternetReachable,
+    type: lastNetworkState.type
+  } : null
 });
 
 // Force reconnect function for manual reconnection
-export const forceReconnect = () => {
+export const forceReconnect = async () => {
   console.log('Force reconnecting realtime connection...');
   
   // Clear existing timers
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
-  }
-  if (connectionDebounceTimer) {
-    clearTimeout(connectionDebounceTimer);
-    connectionDebounceTimer = null;
+  pauseReconnectionAttempts();
+  
+  // Check network first
+  const hasNetwork = await checkNetworkConnectivity();
+  if (!hasNetwork) {
+    console.log('Cannot force reconnect - no network available');
+    scheduleNetworkCheck();
+    return;
   }
   
   reconnectAttempts = 0;

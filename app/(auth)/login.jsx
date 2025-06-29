@@ -1,5 +1,6 @@
 import { Image, StyleSheet, TouchableOpacity, View, Alert } from "react-native";
 import React from "react";
+import * as Notifications from "expo-notifications";
 import ThemedView from "../../components/ThemedView";
 import StyledText from "../../components/StyledText";
 import StyledHeading from "../../components/StyledHeading";
@@ -31,16 +32,39 @@ export default function LoginScreen() {
 
   const loginHandler = async (values, { setSubmitting }) => {
     try {
+      // Get expo push token before login
+      let expoPushToken = null;
+      try {
+        console.log("Getting expo push token during login...");
+        const tokenData = await Notifications.getExpoPushTokenAsync();
+        expoPushToken = tokenData.data;
+        console.log("Expo push token obtained:", expoPushToken);
+      } catch (tokenError) {
+        console.warn("Failed to get expo push token during login:", tokenError.message);
+        // Continue with login even if we can't get the push token
+      }
+
       const result = await loginUser({
         email: values.email,
         password: values.password,
+        expoPushToken: expoPushToken,
       });
 
       if (result.success) {
         // Update authentication state before navigation
         // Merge user account data with database document data (including profileImage)
         const { success, user, isClient, ...userDocData } = result;
-        setUser({ ...user, ...userDocData });
+        
+        // Ensure isClient is properly set in the user object
+        const completeUserData = { 
+          ...user, 
+          ...userDocData, 
+          isClient: isClient 
+        };
+        
+
+        
+        setUser(completeUserData);
         setIsAuthenticated(true);
         setUserRole(isClient);
 

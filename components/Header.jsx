@@ -10,19 +10,60 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import { colors } from "../constants/colors";
 import StyledHeading from "./StyledHeading";
 import { useAuth } from "../context/AuthContext";
-import { useNotifications } from "../context/NotificationContext";
+import { getUnseenNotificationCount } from "../services/notificationService";
+import { subscribeToNotifications } from "../services/realtimeService";
 import StyledAddressPicker from "./StyledAddressPicker";
 import useGeolocation from "../hooks/useGeolocation";
 import Avatar from "./Avatar";
 import { useRouter } from "expo-router";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect } from "expo-router";
+import { useCallback } from "react";
 
 export default function Header() {
   const { user } = useAuth();
   const { location, error, isLoading } = useGeolocation();
   const [pickedLocation, setPickerLocation] = useState(null);
-  const { unseenCount, updateUnseenCount } = useNotifications();
+  const [unseenCount, setUnseenCount] = useState(0);
   const router = useRouter();
+
+  // Reload notification count when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.$id) {
+        getUnseenNotificationCount(user.$id).then(setUnseenCount);
+      }
+    }, [user?.$id])
+  );
+
+  // Load initial notification count
+  useEffect(() => {
+    if (!user?.$id) {
+      setUnseenCount(0);
+      return;
+    }
+
+    // Load initial count
+    getUnseenNotificationCount(user.$id).then(setUnseenCount);
+  }, [user?.$id]);
+
+  // Subscribe to new notifications in real-time
+  useEffect(() => {
+    if (!user?.$id) return;
+
+    const unsubscribe = subscribeToNotifications(user.$id, (response) => {
+      const isForCurrentUser = response?.payload?.receiverUser?.$id === user.$id;
+      if (isForCurrentUser && response?.events?.includes('databases.*.collections.*.documents.*.create')) {
+        // Only increment for new notifications, not updates
+        setUnseenCount((prev) => prev + 1);
+      }
+    });
+
+    return () => {
+      if (unsubscribe && typeof unsubscribe === "function") {
+        unsubscribe();
+      }
+    };
+  }, [user?.$id]);
 
   const handlePickAddress = (locationData) => {
     if (locationData.coordinates) {
@@ -46,16 +87,6 @@ export default function Header() {
       });
     }
   }, [location]);
-
-  // Update count when screen comes into focus - using centralized context
-  useFocusEffect(
-    React.useCallback(() => {
-      if (user?.$id) {
-        // Use the centralized update function
-        updateUnseenCount();
-      }
-    }, [user?.$id, updateUnseenCount])
-  );
 
   return (
     <View style={styles.headerContent}>
@@ -82,7 +113,10 @@ export default function Header() {
           </View>
         </View>
       </View>
-      <TouchableOpacity style={styles.notificationButton} onPress={() => router.push('/shared/notifications')}>
+      <TouchableOpacity
+        style={styles.notificationButton}
+        onPress={() => router.push("/shared/notifications")}
+      >
         <View style={styles.notificationIconContainer}>
           <Ionicons name="notifications" size={24} color={colors.primary} />
           {unseenCount > 0 && (
