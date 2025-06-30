@@ -18,6 +18,11 @@ import { useTheme } from "../../context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import GoBackButton from "../../components/GoBackButton";
 import Avatar from "../../components/Avatar";
+import { useAuth } from "../../context/AuthContext";
+import { getMessagesBetweenUsers, sendMessage as sendMessageToDb, markConversationAsRead, markAllReceivedMessagesAsRead } from "../../services/messagesService";
+import { getUserById } from "../../services/userService";
+import { client } from "../../config/appwrite";
+import settings from "../../config/settings";
   
 const formatTime = (dateString) => {
   const date = new Date(dateString);
@@ -28,247 +33,183 @@ const formatTime = (dateString) => {
 export default function MessagesScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
+  const { user } = useAuth();
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [otherUserData, setOtherUserData] = useState(null);
   const flatListRef = useRef(null);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const realtimeUnsubscribe = useRef(null);
+  const hasMarkedAsRead = useRef(false);
 
   // Parse conversation data from params
   const conversation = {
     name: params.name || "Unknown",
     profession: params.profession || "",
     online: params.online === "true",
+    otherUserId: params.otherUserId,
   };
 
-  // Fake conversation data based on the selected conversation
-  const fakeConversations = {
-    "Alexander Chen": [
-      {
-        id: "1",
-        text: "Hi! I'm interested in your renovation services.",
-        sender: "them",
-        timestamp: new Date(Date.now() - 86400000).toISOString(),
-        isOutgoing: false,
-        isSeen: true,
-      },
-      {
-        id: "2",
-        text: "Hello! Thank you for reaching out. I'd be happy to help with your renovation project.",
-        sender: "me",
-        timestamp: new Date(Date.now() - 82800000).toISOString(),
-        isOutgoing: true,
-        isSeen: true,
-      },
-      {
-        id: "info1",
-        text: "Application submitted and under review",
-        sender: "info",
-        timestamp: new Date(Date.now() - 79200000).toISOString(),
-        isOutgoing: false,
-        isSeen: true,
-        type: "info",
-      },
-      {
-        id: "3",
-        text: "Great! I have a 3-bedroom apartment that needs a complete renovation.",
-        sender: "them",
-        timestamp: new Date(Date.now() - 75600000).toISOString(),
-        isOutgoing: false,
-        isSeen: true,
-      },
-      {
-        id: "4",
-        text: "That sounds like an exciting project! When would you like me to come and take a look?",
-        sender: "me",
-        timestamp: new Date(Date.now() - 7200000).toISOString(),
-        isOutgoing: true,
-        isSeen: true,
-      },
-      {
-        id: "info2",
-        text: "Payment received for the project",
-        sender: "info",
-        timestamp: new Date(Date.now() - 3600000).toISOString(),
-        isOutgoing: false,
-        isSeen: true,
-        type: "info",
-      },
-      {
-        id: "5",
-        text: "The renovation work exceeded my expectations. Thank you for your attention to detail.",
-        sender: "them",
-        timestamp: new Date(Date.now() - 1800000).toISOString(),
-        isOutgoing: false,
-        isSeen: true,
-      },
-    ],
-    "Isabella Rodriguez": [
-      {
-        id: "1",
-        text: "Hi there! I need help with kitchen remodeling.",
-        sender: "them",
-        timestamp: new Date(Date.now() - 172800000).toISOString(),
-        isOutgoing: false,
-        isSeen: true,
-      },
-      {
-        id: "2",
-        text: "Hello Isabella! I'd love to help with your kitchen project. What's your vision?",
-        sender: "me",
-        timestamp: new Date(Date.now() - 169200000).toISOString(),
-        isOutgoing: true,
-        isSeen: false,
-      },
-      {
-        id: "info1",
-        text: "Job status: In progress",
-        sender: "info",
-        timestamp: new Date(Date.now() - 165600000).toISOString(),
-        isOutgoing: false,
-        isSeen: true,
-        type: "info",
-      },
-      {
-        id: "3",
-        text: "I want a modern, open-concept kitchen with an island.",
-        sender: "them",
-        timestamp: new Date(Date.now() - 162000000).toISOString(),
-        isOutgoing: false,
-        isSeen: true,
-      },
-      {
-        id: "4",
-        text: "Perfect! When can I come and see the space?",
-        sender: "me",
-        timestamp: new Date(Date.now() - 158400000).toISOString(),
-        isOutgoing: true,
-        isSeen: true,
-      },
-      {
-        id: "info2",
-        text: "Meeting scheduled for tomorrow at 2 PM",
-        sender: "info",
-        timestamp: new Date(Date.now() - 1800000).toISOString(),
-        isOutgoing: false,
-        isSeen: true,
-        type: "info",
-      },
-    ],
-    "Marcus Thompson": [
-      {
-        id: "1",
-        text: "Hello! I need electrical work done in my office building.",
-        sender: "them",
-        timestamp: new Date(Date.now() - 259200000).toISOString(),
-        isOutgoing: false,
-        isSeen: true,
-      },
-      {
-        id: "2",
-        text: "Hi Marcus! I can definitely help with electrical work. What's the scope?",
-        sender: "me",
-        timestamp: new Date(Date.now() - 255600000).toISOString(),
-        isOutgoing: true,
-        isSeen: true,
-      },
-      {
-        id: "info1",
-        text: "New message from the client",
-        sender: "info",
-        timestamp: new Date(Date.now() - 252000000).toISOString(),
-        isOutgoing: false,
-        isSeen: true,
-        type: "info",
-      },
-      {
-        id: "3",
-        text: "We need new lighting fixtures and some rewiring.",
-        sender: "them",
-        timestamp: new Date(Date.now() - 248400000).toISOString(),
-        isOutgoing: false,
-        isSeen: true,
-      },
-      {
-        id: "4",
-        text: "I'll come by tomorrow to assess the work needed.",
-        sender: "me",
-        timestamp: new Date(Date.now() - 244800000).toISOString(),
-        isOutgoing: true,
-        isSeen: false,
-      },
-      {
-        id: "info2",
-        text: "Great! The job has started successfully!",
-        sender: "info",
-        timestamp: new Date(Date.now() - 7200000).toISOString(),
-        isOutgoing: false,
-        isSeen: true,
-        type: "info",
-      },
-    ],
-    "Sophia Williams": [
-      {
-        id: "1",
-        text: "Hi! I'm an architect and I have a client who needs renovation work.",
-        sender: "them",
-        timestamp: new Date(Date.now() - 345600000).toISOString(),
-        isOutgoing: false,
-        isSeen: true,
-      },
-      {
-        id: "2",
-        text: "Hello Sophia! I'd be happy to work with you and your client.",
-        sender: "me",
-        timestamp: new Date(Date.now() - 342000000).toISOString(),
-        isOutgoing: true,
-        isSeen: true,
-      },
-      {
-        id: "info1",
-        text: "Quote prepared and sent",
-        sender: "info",
-        timestamp: new Date(Date.now() - 338400000).toISOString(),
-        isOutgoing: false,
-        isSeen: true,
-        type: "info",
-      },
-      {
-        id: "3",
-        text: "Great! It's a living room renovation project.",
-        sender: "them",
-        timestamp: new Date(Date.now() - 334800000).toISOString(),
-        isOutgoing: false,
-        isSeen: true,
-      },
-      {
-        id: "4",
-        text: "I can provide a detailed quote once I see the space.",
-        sender: "me",
-        timestamp: new Date(Date.now() - 331200000).toISOString(),
-        isOutgoing: true,
-        isSeen: true,
-      },
-      {
-        id: "info2",
-        text: "Project completed successfully",
-        sender: "info",
-        timestamp: new Date(Date.now() - 172800000).toISOString(),
-        isOutgoing: false,
-        isSeen: true,
-        type: "info",
-      },
-    ],
+  // Load other user data
+  const loadOtherUserData = async () => {
+    if (!conversation.otherUserId) return;
+
+    try {
+      const result = await getUserById(conversation.otherUserId);
+      if (result.success && result.user) {
+        setOtherUserData(result.user);
+      }
+    } catch (error) {
+      console.error("Error loading other user data:", error);
+    }
+  };
+
+  // Mark all received messages as read when entering the screen for the first time
+  const markAllAsReadOnEntry = async () => {
+    if (!user?.$id || hasMarkedAsRead.current) return;
+
+    try {
+      const result = await markAllReceivedMessagesAsRead(user.$id);
+      if (result.success) {
+        hasMarkedAsRead.current = true;
+      }
+    } catch (error) {
+      console.error("Error marking all messages as read:", error);
+    }
+  };
+
+  // Load messages from database
+  const loadMessages = async () => {
+    if (!user?.$id || !conversation.otherUserId) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const result = await getMessagesBetweenUsers(user.$id, conversation.otherUserId);
+      
+      if (result.success) {
+        // Transform database messages to component format
+        const transformedMessages = result.data.map(msg => {
+          const senderUserId = typeof msg.senderUser === 'string' 
+            ? msg.senderUser 
+            : msg.senderUser?.$id;
+          
+          // Get sender user data (name and profile image)
+          const senderUserData = typeof msg.senderUser === 'object' 
+            ? msg.senderUser 
+            : null;
+          
+          return {
+            id: msg.$id,
+            text: msg.messageContent,
+            sender: senderUserId === user.$id ? "me" : "them",
+            timestamp: msg.$createdAt,
+            isOutgoing: senderUserId === user.$id,
+            isSeen: msg.isSeen || false,
+            type: msg.type,
+            senderUserData: senderUserData, // Add sender user data for each message
+          };
+        });
+        
+        setMessages(transformedMessages);
+        
+        // Mark conversation as read
+        if (transformedMessages.length > 0) {
+          await markConversationAsRead(user.$id, conversation.otherUserId);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading messages:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    // Set the conversation messages based on the selected contact
-    const conversationMessages = fakeConversations[conversation.name] || [];
-    setMessages(conversationMessages);
-  }, [conversation.name]);
+    loadMessages();
+    loadOtherUserData();
+    markAllAsReadOnEntry(); // Mark all received messages as read on first entry
+    
+    // Setup real-time subscription directly with Appwrite
+    if (user?.$id && conversation.otherUserId) {
+      const channel = `databases.${settings.dataBaseId}.collections.${settings.messageId}.documents`;
+      
+      const unsubscribe = client.subscribe(
+        channel,
+        (response) => {
+          // Handle real-time message updates
+          if (response.payload && user?.$id) {
+            const message = response.payload;
+            const senderUserId = typeof message.senderUser === 'string' 
+              ? message.senderUser 
+              : message.senderUser?.$id;
+            const receiverUserId = typeof message.receiverUser === 'string' 
+              ? message.receiverUser 
+              : message.receiverUser?.$id;
+
+            // Check if this message is relevant to current conversation
+            if ((senderUserId === user.$id && receiverUserId === conversation.otherUserId) ||
+                (senderUserId === conversation.otherUserId && receiverUserId === user.$id)) {
+              
+              // Transform and add the new message to state
+              const newMessage = {
+                id: message.$id,
+                text: message.messageContent,
+                sender: senderUserId === user.$id ? "me" : "them",
+                timestamp: message.$createdAt,
+                isOutgoing: senderUserId === user.$id,
+                isSeen: message.isSeen || false,
+                type: message.type,
+              };
+
+              // Update messages state - avoid duplicates
+              setMessages(prev => {
+                // Check if message already exists
+                const messageExists = prev.some(msg => msg.id === newMessage.id);
+                if (messageExists) {
+                  // Update existing message
+                  return prev.map(msg => 
+                    msg.id === newMessage.id ? newMessage : msg
+                  );
+                } else {
+                  // Add new message
+                  return [...prev, newMessage];
+                }
+              });
+
+              // Mark as read if it's an incoming message
+              if (senderUserId === conversation.otherUserId) {
+                markConversationAsRead(user.$id, conversation.otherUserId);
+              }
+
+              // Auto-scroll to bottom
+              setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+            }
+          }
+        },
+        (error) => {
+          console.error("Real-time subscription error:", error);
+        }
+      );
+
+      realtimeUnsubscribe.current = unsubscribe;
+    }
+
+    return () => {
+      if (realtimeUnsubscribe.current) {
+        realtimeUnsubscribe.current();
+      }
+    };
+  }, [user?.$id, conversation.otherUserId]);
 
   // Scroll to bottom when messages are loaded
   useEffect(() => {
@@ -279,56 +220,31 @@ export default function MessagesScreen() {
     }
   }, [messages.length]);
 
-  const sendMessage = () => {
-    if (message.trim()) {
-      // Create animated values for the new message (separate from deletion values)
-      const animatedValue = new Animated.Value(0);
-      const scaleValue = new Animated.Value(0.3);
-      
-      const newMessage = {
-        id: Date.now().toString(),
-        text: message.trim(),
-        sender: "me",
-        timestamp: new Date().toISOString(),
-        isOutgoing: true,
-        isSeen: false,
-        animatedValue: animatedValue,
-        scaleValue: scaleValue,
-        isNew: true,
-      };
-      
-      setMessages((prev) => [...prev, newMessage]);
+  const sendMessage = async () => {
+    if (message.trim() && user?.$id && conversation.otherUserId) {
+      const messageText = message.trim();
       setMessage("");
 
-      // Start the elegant appearance animation (using native driver for transforms)
-      setTimeout(() => {
-        Animated.parallel([
-          Animated.spring(animatedValue, {
-            toValue: 1,
-            tension: 120,
-            friction: 8,
-            useNativeDriver: true,
-          }),
-          Animated.spring(scaleValue, {
-            toValue: 1,
-            tension: 120,
-            friction: 8,
-            useNativeDriver: true,
-          }),
-        ]).start(() => {
-          // Remove the isNew flag after animation
-          setMessages((prevMessages) =>
-            prevMessages.map((msg) =>
-              msg.id === newMessage.id ? { ...msg, isNew: false } : msg
-            )
-          );
+      try {
+        // Send message to database
+        const result = await sendMessageToDb({
+          senderUser: user.$id,
+          receiverUser: conversation.otherUserId,
+          type: "chat",
+          messageContent: messageText,
         });
-      }, 50);
 
-      // Auto-scroll to bottom
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+        if (result.success) {
+          // Don't add message optimistically - let real-time handle it
+          // Just scroll to bottom when we know message was sent
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+        }
+      } catch (error) {
+        console.error("Error sending message:", error);
+        Alert.alert("Error", "Failed to send message. Please try again.");
+      }
     }
   };
 
@@ -533,17 +449,25 @@ export default function MessagesScreen() {
         if (item.isSeen) {
           return (
             <View style={styles.readStatusContainer}>
-              <Ionicons
-                name="checkmark-done"
-                size={12}
-                color={colors.success}
-              />
+              <View style={styles.seenIconContainer}>
+                <Ionicons
+                  name="checkmark-done"
+                  size={16}
+                  color={colors.success}
+                />
+              </View>
             </View>
           );
         } else {
           return (
             <View style={styles.readStatusContainer}>
-              <Ionicons name="checkmark" size={12} color={colors.white} />
+              <View style={styles.sentIconContainer}>
+                <Ionicons 
+                  name="checkmark" 
+                  size={16} 
+                  color={isMyMessage ? colors.white + "90" : theme.textColorSecondary} 
+                />
+              </View>
             </View>
           );
         }
@@ -668,7 +592,8 @@ export default function MessagesScreen() {
         {!isMyMessage && (
           <Avatar
             size="sm"
-            text={conversation.name}
+            text={item.senderUserData?.name || otherUserData?.name || conversation.name}
+            source={item.senderUserData?.profileImage || otherUserData?.profileImage}
             style={styles.messageAvatar}
           />
         )}
@@ -724,16 +649,17 @@ export default function MessagesScreen() {
         <View style={styles.headerInfo}>
           <Avatar
             size="sm"
-            text={conversation.name}
+            text={otherUserData?.name || conversation.name}
+            source={otherUserData?.profileImage}
             style={styles.messageAvatar}
           />
           <View>
             <StyledText
-              text={conversation.name}
+              text={otherUserData?.name || conversation.name}
               style={[styles.headerTitle, { color: theme.textColor }]}
             />
             <StyledLabel
-              text={conversation.profession}
+              text={otherUserData?.serviceType?.title || otherUserData?.profession || conversation.profession}
               style={[
                 styles.headerSubtitle,
                 { color: theme.textColorSecondary || theme.textColor + "80" },
@@ -757,20 +683,40 @@ export default function MessagesScreen() {
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() =>
-            flatListRef.current?.scrollToEnd({ animated: true })
-          }
-          style={{
-            backgroundColor: theme.backgroundColor,
-            paddingVertical: 15,
-          }}
-        />
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <Animated.View style={styles.loadingDots}>
+              <StyledText text="Loading messages..." style={{ color: theme.textColorSecondary }} />
+            </Animated.View>
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderMessage}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={() =>
+              flatListRef.current?.scrollToEnd({ animated: true })
+            }
+            style={{
+              backgroundColor: theme.backgroundColor,
+              paddingVertical: 15,
+            }}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyContainer}>
+                <StyledText 
+                  text="No messages yet" 
+                  style={[styles.emptyText, { color: theme.textColorSecondary }]} 
+                />
+                <StyledText 
+                  text="Start the conversation by sending a message" 
+                  style={[styles.emptySubtext, { color: theme.textColorSecondary }]} 
+                />
+              </View>
+            )}
+          />
+        )}
 
         <View
           style={[styles.inputContainer, { backgroundColor: theme.cardColor }]}
@@ -904,7 +850,26 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   readStatusContainer: {
-    marginRight: 4,
+    marginRight: 6,
+    marginLeft: 4,
+  },
+  seenIconContainer: {
+    backgroundColor: colors.success + '20',
+    borderRadius: 10,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    minWidth: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sentIconContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 10,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    minWidth: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   inputContainer: {
     width: "100%",
@@ -991,5 +956,33 @@ const styles = StyleSheet.create({
   dropdownText: {
     fontSize: 14,
     fontFamily: "Poppins-Regular",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 50,
+  },
+  loadingDots: {
+    alignItems: "center",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 100,
+    paddingHorizontal: 20,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontFamily: "Poppins-Medium",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    fontFamily: "Poppins-Regular",
+    textAlign: "center",
+    lineHeight: 20,
   },
 });

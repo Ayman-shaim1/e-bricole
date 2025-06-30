@@ -52,6 +52,15 @@ export default function CurrentJobDetailsScreen() {
         console.log("Job data received:", result.data);
         console.log("Service Request:", result.data.serviceRequest);
         console.log("Service Type:", result.data.serviceRequest?.serviceType);
+        
+        // Debug address data
+        console.log("Address data debug:");
+        console.log("- latitude:", result.data.serviceRequest?.latitude);
+        console.log("- longitude:", result.data.serviceRequest?.longitude);
+        console.log("- textAddress:", result.data.serviceRequest?.textAddress);
+        console.log("- address:", result.data.serviceRequest?.address);
+        console.log("- location:", result.data.serviceRequest?.location);
+        
         setJob(result.data);
         setCurrentStatus(result.data.serviceRequest?.status);
       } else {
@@ -228,13 +237,50 @@ export default function CurrentJobDetailsScreen() {
           <StyledText text={job.serviceRequest.description} />
 
           {/* Location */}
-          {job.serviceRequest.latitude && job.serviceRequest.longitude && (
-            <ArtisanDisplayedJobAddress
-              latitude={job.serviceRequest.latitude}
-              longitude={job.serviceRequest.longitude}
-              textAddress={job.serviceRequest.textAddress}
-            />
-          )}
+          {(() => {
+            // Use the same structure as in JobRequest component
+            const latitude = job.serviceRequest.latitude || job.serviceRequest.address?.latitude;
+            const longitude = job.serviceRequest.longitude || job.serviceRequest.address?.longitude;
+            const textAddress = job.serviceRequest.address?.textAddress || job.serviceRequest.textAddress;
+            
+            console.log("Location data in current-job-details:");
+            console.log("- job.serviceRequest.address:", job.serviceRequest.address);
+            console.log("- textAddress found:", textAddress);
+            console.log("- latitude:", latitude);
+            console.log("- longitude:", longitude);
+            
+            // Show address if we have coordinates
+            if (latitude && longitude) {
+              return (
+                <ArtisanDisplayedJobAddress
+                  latitude={parseFloat(latitude)}
+                  longitude={parseFloat(longitude)}
+                  textAddress={textAddress}
+                />
+              );
+            }
+            
+            // Show text address only if we have it but no coordinates
+            if (textAddress) {
+              return (
+                <View style={styles.addressOnlyContainer}>
+                  <View style={styles.addressRow}>
+                    <MaterialCommunityIcons
+                      name="map-marker"
+                      size={20}
+                      color={colors.primary}
+                    />
+                    <StyledText
+                      text={textAddress}
+                      style={[styles.addressText, { color: theme.textColor }]}
+                    />
+                  </View>
+                </View>
+              );
+            }
+            
+            return null;
+          })()}
 
           {/* Job Info */}
           <View style={styles.datesContainer}>
@@ -763,5 +809,24 @@ const styles = StyleSheet.create({
   },
   firstTaskItem: {
     marginTop: 20,
+  },
+  addressOnlyContainer: {
+    marginVertical: 12,
+  },
+  addressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: colors.primary + "10",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary + "20",
+    gap: 12,
+  },
+  addressText: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 20,
   },
 });

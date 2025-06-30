@@ -13,6 +13,7 @@ const settings = {
     serviceApplicationsId: "6847421200314be69ca7",
     serviceTaskProposalsId: "684743ac0017cbf90147",
     notificationId: "68488815002e7fa7a5e2",
+    messageId: "6862c87d0024aa085abe",
   },
   staging: {
     openRouteApiKey: "5b3ce3597851110001cf62487457825666a7441fbf7b9ac578303d3b",
@@ -26,6 +27,7 @@ const settings = {
     serviceApplicationsId: "6847421200314be69ca7",
     serviceTaskProposalsId: "684743ac0017cbf90147",
     notificationId: "68488815002e7fa7a5e2",
+    messageId: "6862c87d0024aa085abe",
   },
   prod: {
     openRouteApiKey: "5b3ce3597851110001cf62487457825666a7441fbf7b9ac578303d3b",
@@ -39,6 +41,7 @@ const settings = {
     serviceApplicationsId: "6847421200314be69ca7",
     serviceTaskProposalsId: "684743ac0017cbf90147",
     notificationId: "68488815002e7fa7a5e2",
+    messageId: "6862c87d0024aa085abe",
   },
 };
 

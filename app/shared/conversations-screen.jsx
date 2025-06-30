@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   FlatList,
@@ -6,10 +6,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   Text,
-  Alert,
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
-import ThemedView from "../../components/ThemedView";
 import ConversationItem from "../../components/ConversationItem";
 import { useAuth } from "../../context/AuthContext";
 import { colors } from "../../constants/colors";
@@ -17,162 +15,112 @@ import { useTheme } from "../../context/ThemeContext";
 import { useRouter } from "expo-router";
 import StyledTextInput from "../../components/StyledTextInput";
 import Divider from "../../components/Divider";
+import { getUserConversations } from "../../services/messagesService";
+import { subscribeToMessages } from "../../services/realtimeService";
 
 export default function ConversationsScreen() {
   const { user } = useAuth();
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
   const router = useRouter();
-  const [messages, setMessages] = useState([]);
+  const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  const [filteredMessages, setFilteredMessages] = useState([]);
+  const [filteredConversations, setFilteredConversations] = useState([]);
+  const [error, setError] = useState(null);
   
-  // Refs for conversation items
-  const conversationRefs = useRef(new Map()).current;
+  const realtimeUnsubscribe = useRef(null);
 
-  // Elegant mock data
-  const mockMessages = [
-    {
-      id: "1",
-      name: "Alexander Chen",
-      message:
-        "The renovation work exceeded my expectations. Thank you for your attention to detail.",
-      time: "10:30",
-      unread: 2,
-      online: true,
-      profession: "Interior Designer",
-      isOutgoing: true,
-      isSeen: false,
-    },
-    {
-      id: "2",
-      name: "Isabella Rodriguez",
-      message:
-        "When would you be available for the kitchen remodeling project?",
-      time: "09:15",
-      unread: 0,
-      online: false,
-      profession: "Homeowner",
-      isOutgoing: true,
-      isSeen: true,
-    },
-    {
-      id: "3",
-      name: "Marcus Thompson",
-      message:
-        "Your craftsmanship is exceptional. The bathroom looks stunning!",
-      time: "Yesterday",
-      unread: 0,
-      online: true,
-      profession: "Property Manager",
-      isOutgoing: true,
-      isSeen: true,
-    },
-    {
-      id: "4",
-      name: "Sophia Williams",
-      message:
-        "Could you provide a detailed quote for the living room project?",
-      time: "2 days ago",
-      unread: 1,
-      online: false,
-      profession: "Architect",
-      isOutgoing: false,
-      isSeen: true,
-    },
-  ];
-
-  const fetchMessages = async () => {
-    setLoading(true);
-    setTimeout(() => {
-      setMessages(mockMessages);
+  // Initial load of conversations
+  const fetchConversations = async () => {
+    if (!user?.$id) {
       setLoading(false);
       setRefreshing(false);
-    }, 1000);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const result = await getUserConversations(user.$id);
+      
+      if (result.success) {
+        setConversations(result.data);
+      } else {
+        setError(result.error);
+        setConversations([]);
+      }
+    } catch (err) {
+      setError("Failed to load conversations. Please try again.");
+      setConversations([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
-  useEffect(() => {
-    fetchMessages();
-  }, []);
+  // Handle realtime updates
+  const handleRealtimeUpdate = async (response) => {
+    if (!response.payload || !user?.$id) return;
 
+    // Simply refresh conversations when any message update occurs
+    const result = await getUserConversations(user.$id);
+    if (result.success) {
+      setConversations(result.data);
+    }
+  };
+
+  // Setup
+  useEffect(() => {
+    fetchConversations();
+    
+    if (user?.$id) {
+      realtimeUnsubscribe.current = subscribeToMessages(user.$id, handleRealtimeUpdate);
+    }
+
+    return () => {
+      if (realtimeUnsubscribe.current) {
+        realtimeUnsubscribe.current();
+      }
+    };
+  }, [user?.$id]);
+
+  // Filter conversations
   useEffect(() => {
     if (!search.trim()) {
-      setFilteredMessages(messages);
+      setFilteredConversations(conversations);
     } else {
-      setFilteredMessages(
-        messages.filter((msg) =>
-          (msg.name || "").toLowerCase().includes(search.trim().toLowerCase())
+      setFilteredConversations(
+        conversations.filter((conversation) =>
+          (conversation.name || "").toLowerCase().includes(search.trim().toLowerCase())
         )
       );
     }
-  }, [search, messages]);
+  }, [search, conversations]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchMessages();
+    fetchConversations();
   };
 
   const handleMessagePress = (conversation) => {
-    // Navigate to conversation screen with the selected conversation
     router.push({
       pathname: "/shared/messages-screen",
       params: {
         name: conversation.name,
         profession: conversation.profession,
         online: conversation.online.toString(),
+        otherUserId: conversation.id,
       },
     });
   };
 
-  const handleDeleteConversation = (conversation) => {
-    Alert.alert(
-      "Delete Conversation",
-      `Are you sure you want to delete the conversation with ${conversation.name}? This action cannot be undone.`,
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-          onPress: () => {
-            // Reset the conversation item position when user cancels
-            const itemRef = conversationRefs.get(conversation.id);
-            if (itemRef && itemRef.resetPosition) {
-              itemRef.resetPosition();
-            }
-          },
-        },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            // Remove the conversation from both messages and filteredMessages
-            setMessages(prevMessages => 
-              prevMessages.filter(msg => msg.id !== conversation.id)
-            );
-            setFilteredMessages(prevFiltered => 
-              prevFiltered.filter(msg => msg.id !== conversation.id)
-            );
-            // Clean up the ref
-            conversationRefs.delete(conversation.id);
-          },
-        },
-      ]
-    );
-  };
-
-  const renderMessageItem = ({ item }) => (
+  const renderConversationItem = ({ item }) => (
     <ConversationItem 
-      ref={(ref) => {
-        if (ref) {
-          conversationRefs.set(item.id, ref);
-        } else {
-          conversationRefs.delete(item.id);
-        }
-      }}
       conversation={item} 
       onPress={handleMessagePress} 
-      onDelete={handleDeleteConversation}
     />
   );
 
@@ -191,21 +139,45 @@ export default function ConversationsScreen() {
     );
   }
 
+  if (error) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.backgroundColor }]}>
+        <View style={styles.headerContainer}>
+          <Text style={[styles.title, { color: theme.textColor }]}>Messages</Text>
+          <Text style={[styles.subtitle, { color: theme.textColorSecondary || theme.textColor + "80" }]}>Error loading conversations</Text>
+        </View>
+        <View style={styles.emptyContainer}>
+          <View style={[styles.emptyIcon, { backgroundColor: theme.cardColor || '#F5F5F5' }]}> 
+            <Ionicons name="alert-circle-outline" size={40} color={colors.error || '#FF6B6B'} />
+          </View>
+          <Text style={[styles.emptyText, { color: theme.textColor || '#757575' }]}>
+            Failed to load conversations
+          </Text>
+          <Text style={[styles.emptySubtext, { color: theme.textColorSecondary || '#9E9E9E' }]}>
+            {error}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundColor }]}>
       <View style={styles.headerContainer}>
         <Text style={[styles.title, { color: theme.textColor }]}>Messages</Text>
-        <Text style={[styles.subtitle, { color: theme.textColorSecondary || theme.textColor + "80" }]}> {messages.length} conversation{messages.length !== 1 ? "s" : ""} </Text>
+        <Text style={[styles.subtitle, { color: theme.textColorSecondary || theme.textColor + "80" }]}>
+          {conversations.length} conversation{conversations.length !== 1 ? "s" : ""}
+        </Text>
       </View>
       <StyledTextInput
         value={search}
         onChangeText={setSearch}
-        placeholder="Search client..."
+        placeholder="Search conversations..."
         style={[styles.searchInput, { backgroundColor: theme.textInputBg }]}
         placeholderTextColor={theme.placeholderColor}
       />
       <Divider style={[styles.divider, { backgroundColor: theme.navBackgroundColor }]} />
-      {filteredMessages.length === 0 ? (
+      {filteredConversations.length === 0 ? (
         <View style={styles.emptyContainer}>
           <View style={[styles.emptyIcon, { backgroundColor: theme.cardColor || '#F5F5F5' }]}> 
             <Ionicons name="chatbubbles-outline" size={40} color={theme.textColorSecondary || '#9E9E9E'} />
@@ -222,8 +194,8 @@ export default function ConversationsScreen() {
         </View>
       ) : (
         <FlatList
-          data={filteredMessages}
-          renderItem={renderMessageItem}
+          data={filteredConversations}
+          renderItem={renderConversationItem}
           keyExtractor={(item) => item.id}
           style={styles.list}
           contentContainerStyle={styles.listContent}
@@ -297,7 +269,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
-
   emptyText: {
     fontSize: 20,
     fontFamily: "Poppins-Medium",

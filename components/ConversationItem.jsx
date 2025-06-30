@@ -174,7 +174,11 @@ const ConversationItem = forwardRef(({ conversation, onPress, onDelete }, ref) =
             <TouchableOpacity onPress={() => onPress(conversation)}>
               {/* Row 1: Avatar | Name | Time */}
               <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Avatar size="md" text={conversation.name} />
+                <Avatar 
+                  size="md" 
+                  text={conversation.name} 
+                  source={conversation.avatar} 
+                />
                 <Text
                   style={{
                     fontFamily: "Poppins-Bold",
@@ -199,48 +203,109 @@ const ConversationItem = forwardRef(({ conversation, onPress, onDelete }, ref) =
                   {conversation.time}
                 </Text>
               </View>
-              {/* Row 2: Last message | Unread badge */}
+              {/* Row 2: Last message | Read status | Unread badge */}
               <View
                 style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}
               >
-                <Text
-                  style={{
-                    fontFamily:
-                      conversation.unread > 0 ? "Poppins-Medium" : "Poppins-Regular",
-                    fontSize: 15,
-                    color:
-                      conversation.unread > 0
-                        ? theme.textColor
-                        : (theme.textColorSecondary || theme.textColor + "80"),
-                    flex: 1,
-                  }}
-                  numberOfLines={1}
-                >
-                  {conversation.message}
-                </Text>
-                {conversation.unread > 0 && (
+                {/* Check if message is of type "info" */}
+                {conversation.type === 'info' ? (
                   <View
                     style={{
-                      minWidth: 20,
-                      height: 20,
-                      borderRadius: 10,
-                      backgroundColor: colors.primary,
-                      justifyContent: "center",
-                      alignItems: "center",
-                      paddingHorizontal: 6,
-                      marginLeft: 8,
+                      flex: 1,
+                      backgroundColor: theme.backgroundColor === '#1A1A1A' ? '#2A2A2A' : '#F8F9FA',
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      borderRadius: 8,
+                      borderLeftWidth: 3,
+                      borderLeftColor: colors.primary + '60',
+                      marginVertical: 2,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 2,
+                      elevation: 1,
                     }}
                   >
                     <Text
                       style={{
-                        color: colors.white,
-                        fontSize: 11,
-                        fontFamily: "Poppins-Bold",
+                        fontFamily: "Poppins-Medium",
+                        fontSize: 13,
+                        color: theme.textColorSecondary || '#6C757D',
+                        lineHeight: 18,
+                        letterSpacing: 0.2,
                       }}
+                      numberOfLines={1}
                     >
-                      {conversation.unread > 99 ? "99+" : conversation.unread}
+                      {conversation.message}
                     </Text>
                   </View>
+                ) : (
+                  <>
+                    <Text
+                      style={{
+                        fontFamily:
+                          conversation.unread > 0 ? "Poppins-Medium" : "Poppins-Regular",
+                        fontSize: 15,
+                        color:
+                          conversation.unread > 0
+                            ? theme.textColor
+                            : (theme.textColorSecondary || theme.textColor + "80"),
+                        flex: 1,
+                      }}
+                      numberOfLines={1}
+                    >
+                      {conversation.message}
+                    </Text>
+                    
+                    {/* Read status icon for outgoing messages */}
+                    {conversation.showReadStatus && (
+                      <View style={{ marginLeft: 6, marginRight: 6 }}>
+                        <View style={{
+                          backgroundColor: conversation.readStatus === 'seen' 
+                            ? colors.success + '20' 
+                            : 'rgba(128, 128, 128, 0.15)',
+                          borderRadius: 8,
+                          paddingHorizontal: 3,
+                          paddingVertical: 2,
+                          minWidth: 18,
+                          minHeight: 18,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                          <Ionicons 
+                            name={conversation.readStatus === 'seen' ? "checkmark-done" : "checkmark"} 
+                            size={14} 
+                            color={conversation.readStatus === 'seen' ? colors.success : (theme.textColorSecondary || theme.textColor + "60")} 
+                          />
+                        </View>
+                      </View>
+                    )}
+                    
+                    {conversation.unread > 0 && (
+                      <View
+                        style={{
+                          minWidth: 20,
+                          height: 20,
+                          borderRadius: 10,
+                          backgroundColor: colors.primary,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          paddingHorizontal: 6,
+                          marginLeft: 8,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: colors.white,
+                            fontSize: 11,
+                            fontFamily: "Poppins-Bold",
+                          }}
+                        >
+                          {conversation.unread > 99 ? "99+" : conversation.unread}
+                        </Text>
+                      </View>
+                    )}
+                  </>
                 )}
               </View>
             </TouchableOpacity>

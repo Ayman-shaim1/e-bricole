@@ -3,6 +3,7 @@ import { ID, Query } from "appwrite";
 import settings from "../config/settings";
 import { uploadFile } from "./uploadService";
 import { createNotification } from "./notificationService";
+import { sendMessage } from "./messagesService";
 
 /**
  * Creates a new address document in the addresses collection
@@ -786,6 +787,31 @@ export async function chooseArtisan(
       }
     }
 
+    // 11. Send info message to the selected artisan
+    console.log("Sending info message to selected artisan");
+    try {
+      const messageResult = await sendMessage({
+        senderUser: clientId,
+        receiverUser: artisanId,
+        type: "info",
+        messageContent: "the job is pre-begin",
+        isSeen: true,
+        jsonData: JSON.stringify({
+          serviceRequestId: serviceRequestId,
+          serviceApplicationId: serviceApplicationId,
+        }),
+      });
+
+      if (messageResult.success) {
+        console.log("Info message sent successfully to artisan");
+      } else {
+        console.warn("Failed to send info message:", messageResult.error);
+      }
+    } catch (messageError) {
+      console.error("Error sending info message:", messageError);
+      // Don't fail the whole operation if message sending fails
+    }
+
     console.log("chooseArtisan completed successfully");
     return { success: true };
   } catch (error) {
@@ -805,7 +831,7 @@ export async function chooseArtisan(
 export async function getArtisanCurrentJobs(artisanId) {
   try {
     console.log("Fetching current jobs for artisan:", artisanId);
-    
+
     // Get all accepted applications for this artisan
     const response = await databases.listDocuments(
       settings.dataBaseId,
@@ -813,35 +839,48 @@ export async function getArtisanCurrentJobs(artisanId) {
       [
         Query.equal("artisan", artisanId),
         Query.equal("status", "accepted"),
-        Query.orderDesc("$updatedAt")
+        Query.orderDesc("$updatedAt"),
       ]
     );
 
     console.log("Found applications:", response.documents.length);
-    console.log("Applications:", response.documents.map(app => ({
-      id: app.$id,
-      status: app.status,
-      serviceRequest: app.serviceRequest,
-      updatedAt: app.$updatedAt
-    })));
+    console.log(
+      "Applications:",
+      response.documents.map((app) => ({
+        id: app.$id,
+        status: app.status,
+        serviceRequest: app.serviceRequest,
+        updatedAt: app.$updatedAt,
+      }))
+    );
 
     // For each application, get the service request and task proposals
     const jobsWithDetails = await Promise.all(
       response.documents.map(async (application) => {
         try {
           // Extract service request ID - handle both object and direct ID cases
-          const serviceRequestId = typeof application.serviceRequest === 'object' 
-            ? application.serviceRequest.$id 
-            : application.serviceRequest;
-          
-          console.log("Processing application:", application.$id, "ServiceRequest ID:", serviceRequestId);
-          
+          const serviceRequestId =
+            typeof application.serviceRequest === "object"
+              ? application.serviceRequest.$id
+              : application.serviceRequest;
+
+          console.log(
+            "Processing application:",
+            application.$id,
+            "ServiceRequest ID:",
+            serviceRequestId
+          );
+
           // Validate service request ID
-          if (!serviceRequestId || typeof serviceRequestId !== 'string' || serviceRequestId.length > 36) {
+          if (
+            !serviceRequestId ||
+            typeof serviceRequestId !== "string" ||
+            serviceRequestId.length > 36
+          ) {
             console.error("Invalid service request ID:", serviceRequestId);
             return null;
           }
-          
+
           // Get service request details
           const serviceRequest = await databases.getDocument(
             settings.dataBaseId,
@@ -856,8 +895,14 @@ export async function getArtisanCurrentJobs(artisanId) {
             [Query.equal("serviceApplication", application.$id)]
           );
 
-          console.log(`Task proposals for application ${application.$id}:`, taskProposals.documents.length);
-          console.log("Task proposals details:", JSON.stringify(taskProposals.documents, null, 2));
+          console.log(
+            `Task proposals for application ${application.$id}:`,
+            taskProposals.documents.length
+          );
+          console.log(
+            "Task proposals details:",
+            JSON.stringify(taskProposals.documents, null, 2)
+          );
 
           return {
             ...application,
@@ -865,15 +910,19 @@ export async function getArtisanCurrentJobs(artisanId) {
             serviceTaskProposals: taskProposals.documents,
           };
         } catch (error) {
-          console.error("Error fetching details for application:", application.$id, error);
+          console.error(
+            "Error fetching details for application:",
+            application.$id,
+            error
+          );
           return null;
         }
       })
     );
 
     // Filter out any null results from failed fetches
-    const validJobs = jobsWithDetails.filter(job => job !== null);
-    
+    const validJobs = jobsWithDetails.filter((job) => job !== null);
+
     console.log("Valid jobs with details:", validJobs.length);
 
     return {
@@ -899,30 +948,33 @@ export async function getArtisanCurrentJobs(artisanId) {
 export async function debugArtisanApplications(artisanId) {
   try {
     console.log("Debug: Fetching ALL applications for artisan:", artisanId);
-    
+
     // Get all applications for this artisan (any status)
     const response = await databases.listDocuments(
       settings.dataBaseId,
       settings.serviceApplicationsId,
-      [
-        Query.equal("artisan", artisanId),
-        Query.orderDesc("$updatedAt")
-      ]
+      [Query.equal("artisan", artisanId), Query.orderDesc("$updatedAt")]
     );
 
     console.log("Debug: Total applications found:", response.documents.length);
-    console.log("Debug: Applications by status:", response.documents.reduce((acc, app) => {
-      acc[app.status] = (acc[app.status] || 0) + 1;
-      return acc;
-    }, {}));
-    
-    console.log("Debug: All applications:", response.documents.map(app => ({
-      id: app.$id,
-      status: app.status,
-      serviceRequest: app.serviceRequest,
-      createdAt: app.$createdAt,
-      updatedAt: app.$updatedAt
-    })));
+    console.log(
+      "Debug: Applications by status:",
+      response.documents.reduce((acc, app) => {
+        acc[app.status] = (acc[app.status] || 0) + 1;
+        return acc;
+      }, {})
+    );
+
+    console.log(
+      "Debug: All applications:",
+      response.documents.map((app) => ({
+        id: app.$id,
+        status: app.status,
+        serviceRequest: app.serviceRequest,
+        createdAt: app.$createdAt,
+        updatedAt: app.$updatedAt,
+      }))
+    );
 
     return {
       success: true,
@@ -947,8 +999,13 @@ export async function debugArtisanApplications(artisanId) {
  */
 export async function getCurrentJobDetails(artisanId, serviceRequestId) {
   try {
-    console.log("Fetching current job details for artisan:", artisanId, "ServiceRequest:", serviceRequestId);
-    
+    console.log(
+      "Fetching current job details for artisan:",
+      artisanId,
+      "ServiceRequest:",
+      serviceRequestId
+    );
+
     // Get the accepted application for this artisan and service request
     const applicationResponse = await databases.listDocuments(
       settings.dataBaseId,
@@ -956,7 +1013,7 @@ export async function getCurrentJobDetails(artisanId, serviceRequestId) {
       [
         Query.equal("artisan", artisanId),
         Query.equal("serviceRequest", serviceRequestId),
-        Query.equal("status", "accepted")
+        Query.equal("status", "accepted"),
       ]
     );
 
@@ -965,7 +1022,7 @@ export async function getCurrentJobDetails(artisanId, serviceRequestId) {
       return {
         success: false,
         data: null,
-        error: "No accepted application found for this job"
+        error: "No accepted application found for this job",
       };
     }
 
@@ -985,13 +1042,13 @@ export async function getCurrentJobDetails(artisanId, serviceRequestId) {
       const tasksPromises = serviceRequest.serviceTasks.map(async (taskRef) => {
         try {
           // Handle both string IDs and object references
-          const taskId = typeof taskRef === 'string' ? taskRef : taskRef.$id;
-          
+          const taskId = typeof taskRef === "string" ? taskRef : taskRef.$id;
+
           if (!taskId || taskId.length > 36) {
             console.error("Invalid task ID:", taskId);
             return null;
           }
-          
+
           return await databases.getDocument(
             settings.dataBaseId,
             settings.serviceTasksId,
@@ -1002,9 +1059,9 @@ export async function getCurrentJobDetails(artisanId, serviceRequestId) {
           return null;
         }
       });
-      
+
       const tasksResults = await Promise.all(tasksPromises);
-      serviceTasks = tasksResults.filter(task => task !== null);
+      serviceTasks = tasksResults.filter((task) => task !== null);
     }
 
     // Get task proposals for this application
@@ -1021,8 +1078,11 @@ export async function getCurrentJobDetails(artisanId, serviceRequestId) {
     if (serviceRequest.user) {
       try {
         // Handle both string IDs and object references
-        const userId = typeof serviceRequest.user === 'string' ? serviceRequest.user : serviceRequest.user.$id;
-        
+        const userId =
+          typeof serviceRequest.user === "string"
+            ? serviceRequest.user
+            : serviceRequest.user.$id;
+
         if (userId && userId.length <= 36) {
           clientUser = await databases.getDocument(
             settings.dataBaseId,
@@ -1041,8 +1101,11 @@ export async function getCurrentJobDetails(artisanId, serviceRequestId) {
     if (serviceRequest.serviceType) {
       try {
         // Handle both string IDs and object references
-        const serviceTypeId = typeof serviceRequest.serviceType === 'string' ? serviceRequest.serviceType : serviceRequest.serviceType.$id;
-        
+        const serviceTypeId =
+          typeof serviceRequest.serviceType === "string"
+            ? serviceRequest.serviceType
+            : serviceRequest.serviceType.$id;
+
         if (serviceTypeId && serviceTypeId.length <= 36) {
           serviceType = await databases.getDocument(
             settings.dataBaseId,
@@ -1063,9 +1126,9 @@ export async function getCurrentJobDetails(artisanId, serviceRequestId) {
         ...serviceRequest,
         user: clientUser,
         serviceType: serviceType,
-        serviceTasks: serviceTasks
+        serviceTasks: serviceTasks,
       },
-      serviceTaskProposals: taskProposals
+      serviceTaskProposals: taskProposals,
     };
 
     console.log("Job details assembled successfully");
@@ -1075,15 +1138,14 @@ export async function getCurrentJobDetails(artisanId, serviceRequestId) {
     return {
       success: true,
       data: jobDetails,
-      error: null
+      error: null,
     };
-
   } catch (error) {
     console.error("Error fetching current job details:", error);
     return {
       success: false,
       data: null,
-      error: error.message
+      error: error.message,
     };
   }
 }

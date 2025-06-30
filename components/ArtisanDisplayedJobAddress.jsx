@@ -58,7 +58,12 @@ export default function ArtisanDisplayedJobAddress({
   const isDark = themeName === 'dark';
   
   // Debug logging
-  console.log('ArtisanDisplayedJobAddress - Theme:', themeName, 'isDark:', isDark);
+  console.log('ArtisanDisplayedJobAddress - Props received:');
+  console.log('- latitude:', latitude);
+  console.log('- longitude:', longitude);
+  console.log('- textAddress:', textAddress);
+  console.log('- textAddress type:', typeof textAddress);
+  console.log('- textAddress length:', textAddress?.length);
   
   const [routeCoords, setRouteCoords] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -67,6 +72,7 @@ export default function ArtisanDisplayedJobAddress({
   const mapRef = useRef(null);
   const { getDirections, loading: directionsLoading } = useDirections();
   const [distance, setDistance] = useState(null);
+  const [duration, setDuration] = useState(null);
   const [modalRegion, setModalRegion] = useState({
     latitude,
     longitude,
@@ -104,6 +110,7 @@ export default function ArtisanDisplayedJobAddress({
             
             setRouteCoords(formattedCoords);
             setDistance(result.formattedDistance);
+            setDuration(result.formattedDuration);
           } else {
             console.log("Aucune route trouvée dans la réponse");
           }
@@ -240,11 +247,14 @@ export default function ArtisanDisplayedJobAddress({
         backgroundColor: theme.cardColor 
       }]}>
         <Ionicons name="location" size={18} color={colors.primary} />
-        <StyledLabel text={textAddress} />
+        <StyledLabel 
+          text={textAddress} 
+          style={[styles.addressText, { color: theme.textColor }]}
+        />
         {distance && (
           <View style={styles.distanceContainer}>
             <Ionicons name="navigate" size={16} color={colors.primary} />
-            <StyledLabel text={distance} style={styles.distanceText} />
+            <StyledLabel text={`${distance}${duration ? ` • ${duration}` : ''}`} style={styles.distanceText} />
           </View>
         )}
       </View>
@@ -366,7 +376,10 @@ export default function ArtisanDisplayedJobAddress({
               {distance && (
                 <View style={styles.overlayDistanceRow}>
                   <Ionicons name="navigate" size={16} color={colors.primary} />
-                  <StyledLabel text={distance} style={styles.overlayDistance} />
+                  <StyledLabel 
+                    text={`${distance}${duration ? ` • ${duration}` : ''}`} 
+                    style={[styles.overlayDistance, { color: colors.primary }]} 
+                  />
                 </View>
               )}
               <View style={styles.overlayCoordsRow}>
@@ -409,6 +422,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: mystyles.borderRadius,
     borderColor: colors.primary,
+    minHeight: 50,
   },
   modalOverlay: {
     flex: 1,
@@ -515,5 +529,11 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 12,
+  },
+  addressText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 18,
   },
 });
