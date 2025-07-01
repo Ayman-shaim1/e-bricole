@@ -23,7 +23,7 @@ import { useAuth } from "../../context/AuthContext";
 import { formatDate } from "../../utils/dateUtils";
 import { displayedSplitText } from "../../utils/displayedSplitText";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { getCurrentJobDetails } from "../../services/requestService";
+import { getCurrentJobDetails, startJob, completeTask } from "../../services/requestService";
 import Divider from "../../components/Divider";
 
 export default function CurrentJobDetailsScreen() {
@@ -63,6 +63,22 @@ export default function CurrentJobDetailsScreen() {
         
         setJob(result.data);
         setCurrentStatus(result.data.serviceRequest?.status);
+        
+        // Check which tasks are already completed and update local state
+        if (result.data.serviceRequest?.serviceTasks) {
+          const completedTaskIds = new Set();
+          result.data.serviceRequest.serviceTasks.forEach(task => {
+            if (task.status === "completed") {
+              completedTaskIds.add(task.$id);
+            }
+          });
+          setCompletedTasks(completedTaskIds);
+        }
+        
+        // Set jobStarted based on status
+        if (result.data.serviceRequest?.status === "active" || result.data.serviceRequest?.status === "completed") {
+          setJobStarted(true);
+        }
       } else {
         Alert.alert("Error", result.error || "Job not found");
         router.back();
@@ -81,9 +97,23 @@ export default function CurrentJobDetailsScreen() {
       { text: "Cancel", style: "cancel" },
       { 
         text: "Begin", 
-        onPress: () => {
-          setJobStarted(true);
-          setCurrentStatus("active");
+        onPress: async () => {
+          try {
+            // Start the job using the service
+            const result = await startJob(user.$id, id, job.startDate);
+            
+            if (result.success) {
+              // Update local state to reflect the changes
+              setJobStarted(true);
+              setCurrentStatus("active");
+              Alert.alert("Success", "Job started successfully!");
+            } else {
+              // Show error message if job cannot be started
+              Alert.alert("Error", result.error);
+            }
+          } catch (error) {
+            Alert.alert("Error", "Failed to start the job. Please try again.");
+          }
         }
       },
     ]);
@@ -97,8 +127,29 @@ export default function CurrentJobDetailsScreen() {
         { text: "Cancel", style: "cancel" },
         {
           text: "Complete",
-          onPress: () => {
-            setCompletedTasks((prev) => new Set([...prev, taskId]));
+          onPress: async () => {
+            try {
+              // Complete the task using the service
+              const result = await completeTask(user.$id, id, taskId);
+              
+              if (result.success) {
+                // Update local state to reflect the task completion
+                setCompletedTasks((prev) => new Set([...prev, taskId]));
+                
+                // If all tasks are completed, update the job status
+                if (result.allTasksCompleted) {
+                  setCurrentStatus("completed");
+                  Alert.alert("Success", "All tasks completed! The job is now finished.");
+                } else {
+                  Alert.alert("Success", "Task completed successfully!");
+                }
+              } else {
+                // Show error message if task cannot be completed
+                Alert.alert("Error", result.error);
+              }
+            } catch (error) {
+              Alert.alert("Error", "Failed to complete the task. Please try again.");
+            }
           },
         },
       ]
@@ -123,10 +174,14 @@ export default function CurrentJobDetailsScreen() {
       Array.isArray(job.serviceRequest.serviceTasks)
     ) {
       return job.serviceRequest.serviceTasks.map((task, index) => {
-        // Find corresponding proposal for this task
-        const proposal = job?.serviceTaskProposals?.find(
-          (p) => p.serviceTask === task.$id
-        );
+        // Find corresponding proposal for this task with more robust matching
+        const proposal = job?.serviceTaskProposals?.find((p) => {
+          const proposalTaskId = typeof p.serviceTask === 'string' 
+            ? p.serviceTask 
+            : p.serviceTask?.$id;
+          
+          return proposalTaskId === task.$id;
+        });
 
         return {
           id: task.$id,
@@ -206,7 +261,7 @@ export default function CurrentJobDetailsScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Begin Job Button */}
-        {!jobStarted && (
+        {!jobStarted && currentStatus === "pre-begin" && (
           <View style={styles.buttonContainer}>
             <StyledButton
               text="Begin Job"
@@ -295,6 +350,19 @@ export default function CurrentJobDetailsScreen() {
                 style={styles.dateText}
               />
             </View>
+            {job.startDate && (
+              <View style={styles.dateItem}>
+                <MaterialCommunityIcons
+                  name="calendar-clock"
+                  size={20}
+                  color={colors.primary}
+                />
+                <StyledText
+                  text={`Starts ${formatDate(job.startDate)}`}
+                  style={styles.dateText}
+                />
+              </View>
+            )}
           </View>
 
           <View style={styles.infoRow}>
@@ -342,9 +410,9 @@ export default function CurrentJobDetailsScreen() {
             <>
               <StyledText
                 text={
-                  jobStarted
+                  currentStatus === "active"
                     ? "Complete each task as you finish it:"
-                    : "Tasks will be available once you begin the job."
+                    : "Tasks will be available once the job is active."
                 }
                 style={[styles.tasksDescription, { color: theme.textColor }]}
               />
@@ -447,10 +515,10 @@ export default function CurrentJobDetailsScreen() {
                     ) : (
                       <TouchableOpacity
                         onPress={() => handleEndTask(task.id)}
-                        disabled={!jobStarted}
+                        disabled={currentStatus !== "active"}
                         style={[
                           styles.endTaskButton,
-                          !jobStarted && styles.disabledEndTaskButton,
+                          currentStatus !== "active" && styles.disabledEndTaskButton,
                         ]}
                       >
                         <StyledText
@@ -458,7 +526,7 @@ export default function CurrentJobDetailsScreen() {
                           style={[
                             styles.endTaskText,
                             { color: theme.textColor },
-                            !jobStarted && styles.disabledEndTaskText,
+                            currentStatus !== "active" && styles.disabledEndTaskText,
                           ]}
                         />
                       </TouchableOpacity>

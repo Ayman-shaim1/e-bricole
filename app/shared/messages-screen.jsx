@@ -23,11 +23,42 @@ import { getMessagesBetweenUsers, sendMessage as sendMessageToDb, markConversati
 import { getUserById } from "../../services/userService";
 import { client } from "../../config/appwrite";
 import settings from "../../config/settings";
+import MessageTimeDisplay from "../../components/MessageTimeDisplay";
   
-const formatTime = (dateString) => {
-  const date = new Date(dateString);
-  const pad = (n) => n.toString().padStart(2, "0");
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+
+
+// Function to determine user type based on available data
+const getUserTypeDisplay = (userData, conversationData) => {
+  // Temporary debug log to see user data
+  console.log("Debug - User data for type display:", {
+    isClient: userData?.isClient,
+    serviceType: userData?.serviceType,
+    profession: userData?.profession,
+    conversationProfession: conversationData?.profession
+  });
+  
+  // First check if user is explicitly marked as a client
+  if (userData?.isClient === true) {
+    return "Client";
+  }
+  
+  // If user is not a client and has serviceType, they are an artisan
+  if (userData?.serviceType?.title && userData?.isClient !== true) {
+    return userData.serviceType.title;
+  }
+  
+  // If user is not a client and has profession, they are an artisan
+  if (userData?.profession && userData?.isClient !== true) {
+    return userData.profession;
+  }
+  
+  // If conversation has profession data and user is not a client
+  if (conversationData?.profession && userData?.isClient !== true) {
+    return conversationData.profession;
+  }
+  
+  // Default to "Client" for all other cases
+  return "Client";
 };
 
 export default function MessagesScreen() {
@@ -531,8 +562,8 @@ export default function MessagesScreen() {
                 { color: infoTextColor }
               ]}
             />
-            <StyledLabel
-              text={formatTime(item.timestamp)}
+            <MessageTimeDisplay
+              timestamp={item.timestamp}
               style={[
                 styles.infoMessageTime,
                 { color: infoTimeColor }
@@ -614,8 +645,8 @@ export default function MessagesScreen() {
           />
           <View style={styles.messageFooter}>
             {renderReadStatus()}
-            <StyledLabel
-              text={formatTime(item.timestamp)}
+            <MessageTimeDisplay
+              timestamp={item.timestamp}
               color={isMyMessage ? "white" : undefined}
               style={[
                 styles.messageTime,
@@ -659,7 +690,7 @@ export default function MessagesScreen() {
               style={[styles.headerTitle, { color: theme.textColor }]}
             />
             <StyledLabel
-              text={otherUserData?.serviceType?.title || otherUserData?.profession || conversation.profession}
+              text={getUserTypeDisplay(otherUserData, conversation)}
               style={[
                 styles.headerSubtitle,
                 { color: theme.textColorSecondary || theme.textColor + "80" },

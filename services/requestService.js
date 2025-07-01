@@ -992,6 +992,258 @@ export async function debugArtisanApplications(artisanId) {
 }
 
 /**
+ * Starts a job by updating status and sending notifications
+ * @param {string} artisanId - The ID of the artisan starting the job
+ * @param {string} serviceRequestId - The ID of the service request
+ * @param {string} startDate - The start date from the application
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function startJob(artisanId, serviceRequestId, startDate) {
+  try {
+    // Validate that start date is today or in the past
+    const today = new Date();
+    const jobStartDate = new Date(startDate);
+    
+    // Set time to beginning of day for fair comparison
+    today.setHours(0, 0, 0, 0);
+    jobStartDate.setHours(0, 0, 0, 0);
+    
+    if (jobStartDate > today) {
+      return {
+        success: false,
+        error: "You can only start the job on or after the scheduled start date."
+      };
+    }
+
+    // Get the service request details
+    const serviceRequest = await databases.getDocument(
+      settings.dataBaseId,
+      settings.serviceRequestsId,
+      serviceRequestId
+    );
+
+    // Verify service request is in pre-begin status
+    if (serviceRequest.status !== "pre-begin") {
+      return {
+        success: false,
+        error: "This job cannot be started at this time."
+      };
+    }
+
+    // Get client user ID
+    const clientUserId = typeof serviceRequest.user === 'string' 
+      ? serviceRequest.user 
+      : serviceRequest.user.$id;
+
+    // Update service request status to active
+    await databases.updateDocument(
+      settings.dataBaseId,
+      settings.serviceRequestsId,
+      serviceRequestId,
+      { status: "active" }
+    );
+
+    // Update all service tasks to active status
+    if (serviceRequest.serviceTasks && serviceRequest.serviceTasks.length > 0) {
+      const taskUpdatePromises = serviceRequest.serviceTasks.map(task => {
+        const taskId = typeof task === 'string' ? task : task.$id;
+        return databases.updateDocument(
+          settings.dataBaseId,
+          settings.serviceTasksId,
+          taskId,
+          { status: "active" }
+        );
+      });
+      await Promise.all(taskUpdatePromises);
+    }
+
+    // Send notification to client
+    await createNotification({
+      senderUser: artisanId,
+      receiverUser: clientUserId,
+      title: "Job Started",
+      messageContent: `Your job "${serviceRequest.title}" has been started by the artisan.`,
+      type: "job_started",
+      jsonData: JSON.stringify({
+        serviceRequestId: serviceRequestId,
+        status: "active"
+      })
+    });
+
+    // Send info message to client
+    await sendMessage({
+      senderUser: artisanId,
+      receiverUser: clientUserId,
+      type: "info",
+      messageContent: `the job of '${serviceRequest.title}' is active`,
+      isSeen: false,
+      jsonData: JSON.stringify({
+        serviceRequestId: serviceRequestId,
+        status: "active"
+      })
+    });
+
+    return { success: true };
+    
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || "Failed to start the job"
+    };
+  }
+}
+
+/**
+ * Completes a task and checks if all tasks are completed to finish the job
+ * @param {string} artisanId - The ID of the artisan completing the task
+ * @param {string} serviceRequestId - The ID of the service request
+ * @param {string} taskId - The ID of the task to complete
+ * @returns {Promise<{success: boolean, allTasksCompleted?: boolean, error?: string}>}
+ */
+export async function completeTask(artisanId, serviceRequestId, taskId) {
+  try {
+    // Get the service request details
+    const serviceRequest = await databases.getDocument(
+      settings.dataBaseId,
+      settings.serviceRequestsId,
+      serviceRequestId
+    );
+
+    // Verify service request is in active status
+    if (serviceRequest.status !== "active") {
+      return {
+        success: false,
+        error: "Tasks can only be completed when the job is active."
+      };
+    }
+
+    // Get the task details
+    const task = await databases.getDocument(
+      settings.dataBaseId,
+      settings.serviceTasksId,
+      taskId
+    );
+
+    // Update task status to completed
+    await databases.updateDocument(
+      settings.dataBaseId,
+      settings.serviceTasksId,
+      taskId,
+      { status: "completed" }
+    );
+
+    // Get client user ID
+    const clientUserId = typeof serviceRequest.user === 'string' 
+      ? serviceRequest.user 
+      : serviceRequest.user.$id;
+
+    // Check if all tasks are now completed
+    let allTasksCompleted = true;
+    if (serviceRequest.serviceTasks && serviceRequest.serviceTasks.length > 0) {
+      for (const taskRef of serviceRequest.serviceTasks) {
+        const taskRefId = typeof taskRef === 'string' ? taskRef : taskRef.$id;
+        
+        if (taskRefId === taskId) {
+          // This task is now completed (we just updated it)
+          continue;
+        }
+        
+        // Check other tasks
+        const otherTask = await databases.getDocument(
+          settings.dataBaseId,
+          settings.serviceTasksId,
+          taskRefId
+        );
+        
+        if (otherTask.status !== "completed") {
+          allTasksCompleted = false;
+          break;
+        }
+      }
+    }
+
+    if (allTasksCompleted) {
+      // All tasks are completed - finish the entire job
+      await databases.updateDocument(
+        settings.dataBaseId,
+        settings.serviceRequestsId,
+        serviceRequestId,
+        { status: "completed" }
+      );
+
+      // Send notification about job completion (not individual task)
+      await createNotification({
+        senderUser: artisanId,
+        receiverUser: clientUserId,
+        title: "Job Completed",
+        messageContent: `Your job "${serviceRequest.title}" has been completed successfully!`,
+        type: "job_completed",
+        jsonData: JSON.stringify({
+          serviceRequestId: serviceRequestId,
+          status: "completed"
+        })
+      });
+
+      // Send info message about job completion
+      await sendMessage({
+        senderUser: artisanId,
+        receiverUser: clientUserId,
+        type: "info",
+        messageContent: `the task '${task.title}' is completed and all service is finished`,
+        isSeen: false,
+        jsonData: JSON.stringify({
+          serviceRequestId: serviceRequestId,
+          taskId: taskId,
+          status: "completed",
+          allCompleted: true
+        })
+      });
+
+    } else {
+      // Only this task is completed - send task completion notification
+      await createNotification({
+        senderUser: artisanId,
+        receiverUser: clientUserId,
+        title: "Task Completed",
+        messageContent: `Task "${task.title}" has been completed.`,
+        type: "task_completed",
+        jsonData: JSON.stringify({
+          serviceRequestId: serviceRequestId,
+          taskId: taskId,
+          status: "completed"
+        })
+      });
+
+      // Send info message about task completion
+      await sendMessage({
+        senderUser: artisanId,
+        receiverUser: clientUserId,
+        type: "info",
+        messageContent: `the task '${task.title}' is completed`,
+        isSeen: false,
+        jsonData: JSON.stringify({
+          serviceRequestId: serviceRequestId,
+          taskId: taskId,
+          status: "completed",
+          allCompleted: false
+        })
+      });
+    }
+
+    return { 
+      success: true, 
+      allTasksCompleted: allTasksCompleted 
+    };
+    
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || "Failed to complete the task"
+    };
+  }
+}
+
+/**
  * Gets current job details for an artisan by service request ID
  * @param {string} artisanId - The ID of the artisan
  * @param {string} serviceRequestId - The ID of the service request

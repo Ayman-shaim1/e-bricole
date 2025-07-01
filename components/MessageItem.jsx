@@ -1,15 +1,20 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import StyledCard from "./StyledCard";
+import StyledLabel from "./StyledLabel";
 import Avatar from "./Avatar";
 import { colors } from "../constants/colors";
 import { useTheme } from "../context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
+import useMessageTime from "../hooks/useMessageTime";
 
 export default function MessageItem({ message, onPress }) {
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
   const isInfoMessage = message.type === "info";
+  
+  // Use the hook to format message time based on creation date
+  const formattedTime = useMessageTime(message.lastMessageTime || message.$createdAt);
 
   const renderReadStatus = () => {
     if (message.isOutgoing) {
@@ -32,6 +37,13 @@ export default function MessageItem({ message, onPress }) {
 
   // Render info message differently
   if (isInfoMessage) {
+    // Get theme-appropriate colors for info messages (same as messages-screen.jsx)
+    const isDarkTheme = theme.backgroundColor === "#1A1A1A"; // Check if dark theme
+    const infoBgColor = isDarkTheme ? "#1C2B3D" : colors.accentLight3; // Dark blue-gray for dark mode
+    const infoBorderColor = isDarkTheme ? colors.accentLight1 : colors.accentLight2;
+    const infoTextColor = isDarkTheme ? colors.accentLight1 : colors.primary;
+    const infoTimeColor = isDarkTheme ? colors.accentLight2 : colors.accentLight1;
+
     return (
       <StyledCard style={[styles.card, styles.infoCard]}>
         <TouchableOpacity
@@ -40,13 +52,34 @@ export default function MessageItem({ message, onPress }) {
           onPress={() => onPress(message)}
         >
           <View style={styles.infoContainer}>
-            <View style={styles.infoBubble}>
-              <Text style={styles.infoText} numberOfLines={2}>
-                {message.message}
-              </Text>
-              <Text style={styles.infoTime} numberOfLines={1}>
-                {message.time}
-              </Text>
+            <View style={[
+              styles.infoBubble,
+              {
+                backgroundColor: infoBgColor,
+                borderColor: infoBorderColor,
+              }
+            ]}>
+              <StyledLabel
+                text={message.message}
+                style={[
+                  styles.infoText,
+                  { 
+                    color: infoTextColor,
+                    fontSize: 13, // Ensure consistent font size
+                    lineHeight: 18 // Ensure consistent line height
+                  }
+                ]}
+              />
+              <StyledLabel
+                text={formattedTime}
+                style={[
+                  styles.infoTime,
+                  { 
+                    color: infoTimeColor,
+                    fontSize: 10 // Ensure consistent font size
+                  }
+                ]}
+              />
             </View>
           </View>
         </TouchableOpacity>
@@ -71,7 +104,7 @@ export default function MessageItem({ message, onPress }) {
               <View style={styles.timeContainer}>
                 {renderReadStatus()}
                 <Text style={[styles.time, { color: theme.textColorSecondary }]} numberOfLines={1}>
-                  {message.time}
+                  {formattedTime}
                 </Text>
               </View>
             </View>
@@ -201,22 +234,18 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 25,
-    backgroundColor: "#F3F4F6",
     maxWidth: "85%",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
   },
   infoText: {
     fontSize: 13,
     fontFamily: "Poppins-Regular",
-    color: "#6B7280",
     textAlign: "center",
     lineHeight: 18,
   },
   infoTime: {
     fontSize: 10,
     fontFamily: "Poppins-Regular",
-    color: "#9CA3AF",
     textAlign: "center",
     marginTop: 4,
   },

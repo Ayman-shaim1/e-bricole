@@ -101,8 +101,12 @@ export async function getMessagesBetweenUsers(user1Id, user2Id) {
           ]),
         ]),
         Query.orderAsc("$createdAt"),
+        Query.limit(1000), // Add limit to get more messages (default is 25)
       ]
     );
+
+    // Temporary debug log
+    console.log(`Messages retrieved between ${user1Id} and ${user2Id}: ${response.documents.length} messages`);
 
     return {
       success: true,
@@ -308,7 +312,6 @@ export async function getUserConversations(userId) {
             name: `User ${typeof otherUserId === 'string' ? otherUserId.substring(0, 8) : 'Unknown'}...`,
             message: lastMessage.messageContent,
             type: lastMessage.type, // Add message type
-            time: formatMessageTime(lastMessage.$createdAt),
             unread: conversationData.unreadCount,
             online: false,
             profession: "User",
@@ -353,7 +356,6 @@ export async function getUserConversations(userId) {
             name: otherUser.name || "Unknown User",
             message: lastMessage.messageContent,
             type: lastMessage.type, // Add message type
-            time: formatMessageTime(lastMessage.$createdAt),
             unread: conversationData.unreadCount,
             online: false, // We don't have online status yet
             profession: otherUser.serviceType?.title || otherUser.profession || "User",
@@ -380,7 +382,6 @@ export async function getUserConversations(userId) {
             name: "Unknown User",
             message: lastMessage.messageContent,
             type: lastMessage.type, // Add message type
-            time: formatMessageTime(lastMessage.$createdAt),
             unread: conversationData.unreadCount,
             online: false,
             profession: "User",
@@ -409,7 +410,6 @@ export async function getUserConversations(userId) {
             name: "Unknown User",
             message: lastMessage.messageContent,
             type: lastMessage.type, // Add message type
-            time: formatMessageTime(lastMessage.$createdAt),
             unread: conversationData.unreadCount,
             online: false,
             profession: "User",
@@ -467,35 +467,4 @@ function isValidUserId(userId) {
   return validPattern.test(userId);
 }
 
-/**
- * Formats message time for display (like WhatsApp)
- * @param {string} timestamp - ISO timestamp
- * @returns {string} Formatted time
- */
-function formatMessageTime(timestamp) {
-  const messageDate = new Date(timestamp);
-  const now = new Date();
-  const diffInMilliseconds = now - messageDate;
-  const diffInDays = Math.floor(diffInMilliseconds / (1000 * 60 * 60 * 24));
 
-  if (diffInDays === 0) {
-    // Today - show time
-    return messageDate.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  } else if (diffInDays === 1) {
-    // Yesterday
-    return "Yesterday";
-  } else if (diffInDays < 7) {
-    // This week - show day name
-    return messageDate.toLocaleDateString("en-US", { weekday: "long" });
-  } else {
-    // Older - show date
-    return messageDate.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    });
-  }
-}

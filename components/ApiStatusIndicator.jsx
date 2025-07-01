@@ -4,6 +4,7 @@ import StyledText from './StyledText';
 import { colors } from '../constants/colors';
 import { useApiHealth } from '../hooks/useApiHealth';
 import { useNotifications } from '../context/NotificationContext';
+import { forceReconnect } from '../services/realtimeService';
 
 const ApiStatusIndicator = ({ showOnlyWhenIssues = true, onPress = null }) => {
   const { getHealthStatus } = useApiHealth();
@@ -20,7 +21,19 @@ const ApiStatusIndicator = ({ showOnlyWhenIssues = true, onPress = null }) => {
         status: 'realtime_issues',
         message: 'Notifications en temps réel interrompues',
         severity: 'warning',
-        details: `Tentatives de reconnexion: ${connectionStatus.reconnectAttempts || 0}/${connectionStatus.maxReconnectAttempts || 5}`
+        details: `Tentatives de reconnexion: ${connectionStatus.reconnectAttempts || 0}/${connectionStatus.maxReconnectAttempts || 3}`,
+        canRetry: true
+      };
+    }
+    
+    // Check if we're in full disconnect mode
+    if (connectionStatus.isFullyDisconnected) {
+      return {
+        status: 'fully_disconnected',
+        message: 'Reconnexion en cours...',
+        severity: 'warning',
+        details: 'Redémarrage après réveil du système',
+        canRetry: false
       };
     }
     
@@ -30,7 +43,8 @@ const ApiStatusIndicator = ({ showOnlyWhenIssues = true, onPress = null }) => {
         status: 'background',
         message: 'App en arrière-plan',
         severity: 'info',
-        details: 'Les notifications en temps réel sont pausées'
+        details: 'Les notifications en temps réel sont pausées',
+        canRetry: false
       };
     }
     
@@ -41,7 +55,19 @@ const ApiStatusIndicator = ({ showOnlyWhenIssues = true, onPress = null }) => {
         status: 'poor_connection',
         message: 'Connexion réseau limitée',
         severity: 'warning',
-        details: 'Certaines fonctionnalités peuvent être ralenties'
+        details: 'Certaines fonctionnalités peuvent être ralenties',
+        canRetry: true
+      };
+    }
+    
+    // Check if we're actively reconnecting
+    if (connectionStatus.isReconnectInProgress) {
+      return {
+        status: 'reconnecting',
+        message: 'Reconnexion en cours...',
+        severity: 'info',
+        details: `Tentative ${connectionStatus.reconnectAttempts || 0}/${connectionStatus.maxReconnectAttempts || 3}`,
+        canRetry: false
       };
     }
     
@@ -51,102 +77,113 @@ const ApiStatusIndicator = ({ showOnlyWhenIssues = true, onPress = null }) => {
   const enhancedStatus = getEnhancedStatus();
   
   // Don't show anything if everything is healthy and showOnlyWhenIssues is true
-  if (showOnlyWhenIssues && (!enhancedStatus || enhancedStatus.status === 'healthy')) {
+  if (!enhancedStatus || (enhancedStatus.status === 'healthy' && showOnlyWhenIssues)) {
     return null;
   }
 
   const getStatusColor = () => {
-    if (!enhancedStatus) return colors.primary;
-    
     switch (enhancedStatus.severity) {
       case 'error':
-        return colors.danger || '#ff4444';
+        return colors.red;
       case 'warning':
-        return colors.warning || '#ffaa00';
+        return colors.orange;
       case 'info':
-        return colors.info || '#3498db';
-      case 'success':
-        return colors.success || '#00aa00';
+        return colors.blue;
       default:
-        return colors.primary;
+        return colors.green;
     }
   };
 
-  const getStatusIcon = () => {
-    if (!enhancedStatus) return '❓';
-    
-    switch (enhancedStatus.status) {
-      case 'offline':
-        return '📡';
-      case 'realtime_disconnected':
-      case 'realtime_issues':
-        return '🔌';
-      case 'poor_connection':
-        return '📶';
-      case 'background':
-        return '⏸️';
-      case 'healthy':
-        return '✅';
-      default:
-        return '❓';
-    }
-  };
-
-  const handlePress = () => {
+  const handlePress = async () => {
     if (onPress) {
       onPress(enhancedStatus);
-    } else {
-      console.log('Connection Status Details:', {
-        enhancedStatus,
-        connectionStatus,
-        timestamp: new Date().toISOString()
-      });
+      return;
+    }
+    
+    // Default action: try to reconnect if possible
+    if (enhancedStatus.canRetry) {
+      try {
+        console.log('Manual reconnect triggered from status indicator');
+        await forceReconnect();
+      } catch (error) {
+        console.error('Error during manual reconnect:', error);
+      }
     }
   };
 
-  const content = (
-    <View style={[styles.container, { backgroundColor: getStatusColor() + '20' }]}>
-      <StyledText 
-        text={`${getStatusIcon()} ${enhancedStatus?.message || 'État inconnu'}`}
-        style={[styles.text, { color: getStatusColor() }]}
-      />
-      {enhancedStatus?.details && (
-        <StyledText 
-          text={enhancedStatus.details}
-          style={[styles.details, { color: getStatusColor() }]}
-        />
-      )}
-    </View>
+  const isClickable = enhancedStatus.canRetry || onPress;
+
+  return (
+    <TouchableOpacity 
+      style={[
+        styles.container, 
+        { 
+          backgroundColor: getStatusColor(),
+          opacity: isClickable ? 1 : 0.8
+        }
+      ]}
+      onPress={isClickable ? handlePress : undefined}
+      disabled={!isClickable}
+      activeOpacity={isClickable ? 0.7 : 1}
+    >
+      <View style={styles.content}>
+        <StyledText style={styles.message} numberOfLines={1}>
+          {enhancedStatus.message}
+        </StyledText>
+        {enhancedStatus.details && (
+          <StyledText style={styles.details} numberOfLines={1}>
+            {enhancedStatus.details}
+          </StyledText>
+        )}
+        {enhancedStatus.canRetry && (
+          <StyledText style={styles.retryText}>
+            Toucher pour reconnecter
+          </StyledText>
+        )}
+      </View>
+    </TouchableOpacity>
   );
-
-  if (onPress || enhancedStatus?.severity === 'error') {
-    return (
-      <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
-        {content}
-      </TouchableOpacity>
-    );
-  }
-
-  return content;
 };
 
 const styles = StyleSheet.create({
   container: {
-    padding: 8,
-    marginHorizontal: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginHorizontal: 16,
+    marginVertical: 4,
     borderRadius: 8,
-    marginBottom: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.22,
+    shadowRadius: 2.22,
   },
-  text: {
-    fontSize: 12,
+  content: {
+    alignItems: 'center',
+  },
+  message: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
     textAlign: 'center',
-    fontWeight: '500',
   },
   details: {
-    fontSize: 10,
-    textAlign: 'center',
+    color: 'white',
+    fontSize: 12,
     marginTop: 2,
+    textAlign: 'center',
+    opacity: 0.9,
+  },
+  retryText: {
+    color: 'white',
+    fontSize: 11,
+    marginTop: 2,
+    textAlign: 'center',
     opacity: 0.8,
+    fontStyle: 'italic',
   },
 });
 

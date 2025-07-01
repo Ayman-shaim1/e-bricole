@@ -5,6 +5,7 @@ import Avatar from "./Avatar";
 import { useTheme } from "../context/ThemeContext";
 import { colors } from "../constants/colors";
 import { Ionicons } from "@expo/vector-icons";
+import MessageTimeDisplay from "./MessageTimeDisplay";
 
 const ConversationItem = forwardRef(({ conversation, onPress, onDelete }, ref) => {
   const { getCurrentTheme } = useTheme();
@@ -191,17 +192,15 @@ const ConversationItem = forwardRef(({ conversation, onPress, onDelete }, ref) =
                 >
                   {conversation.name}
                 </Text>
-                <Text
+                <MessageTimeDisplay
+                  timestamp={conversation.lastMessageTime}
                   style={{
                     fontFamily: "Poppins-Regular",
                     fontSize: 12,
                     color: theme.textColorSecondary || theme.textColor + "80",
                     marginLeft: 8,
                   }}
-                  numberOfLines={1}
-                >
-                  {conversation.time}
-                </Text>
+                />
               </View>
               {/* Row 2: Last message | Read status | Unread badge */}
               <View
