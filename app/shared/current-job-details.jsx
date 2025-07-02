@@ -24,6 +24,8 @@ import { formatDate } from "../../utils/dateUtils";
 import { displayedSplitText } from "../../utils/displayedSplitText";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { getCurrentJobDetails, startJob, completeTask } from "../../services/requestService";
+import { hasClientReviewedArtisan } from "../../services/reviewsService";
+import StarRating from "../../components/StarRating";
 import Divider from "../../components/Divider";
 
 export default function CurrentJobDetailsScreen() {
@@ -38,10 +40,36 @@ export default function CurrentJobDetailsScreen() {
   const [jobStarted, setJobStarted] = useState(false);
   const [completedTasks, setCompletedTasks] = useState(new Set());
   const [currentStatus, setCurrentStatus] = useState(null);
+  const [clientReview, setClientReview] = useState(null);
+  const [hasClientReview, setHasClientReview] = useState(false);
 
   useEffect(() => {
     fetchJobDetails();
   }, [id]);
+
+  const fetchClientReview = async (serviceRequestId, clientId) => {
+    if (!serviceRequestId || !clientId || !user?.$id) return;
+    
+    try {
+      const result = await hasClientReviewedArtisan(
+        clientId,
+        user.$id,
+        serviceRequestId
+      );
+      
+      if (result.hasReviewed && result.review) {
+        setClientReview(result.review);
+        setHasClientReview(true);
+      } else {
+        setClientReview(null);
+        setHasClientReview(false);
+      }
+    } catch (error) {
+      console.error("Error fetching client review:", error);
+      setClientReview(null);
+      setHasClientReview(false);
+    }
+  };
 
   const fetchJobDetails = async () => {
     try {
@@ -78,6 +106,15 @@ export default function CurrentJobDetailsScreen() {
         // Set jobStarted based on status
         if (result.data.serviceRequest?.status === "active" || result.data.serviceRequest?.status === "completed") {
           setJobStarted(true);
+        }
+
+        // Fetch client review if job is completed
+        if (result.data.serviceRequest?.status === "completed" && result.data.serviceRequest?.user) {
+          const clientId = typeof result.data.serviceRequest.user === 'string' 
+            ? result.data.serviceRequest.user 
+            : result.data.serviceRequest.user.$id;
+          
+          await fetchClientReview(result.data.serviceRequest.$id, clientId);
         }
       } else {
         Alert.alert("Error", result.error || "Job not found");
@@ -288,6 +325,40 @@ export default function CurrentJobDetailsScreen() {
             </View>
             <StatusBadge status={currentStatus} size="medium" />
           </View>
+          
+          {/* Client Review Section */}
+          {hasClientReview && clientReview && (
+            <>
+              <Divider />
+              <View style={styles.reviewSection}>
+                <View style={styles.reviewHeader}>
+                  <MaterialCommunityIcons
+                    name="star"
+                    size={20}
+                    color={colors.warning}
+                  />
+                  <StyledText
+                    text="Client Review"
+                    style={[styles.reviewTitle, { color: theme.textColor }]}
+                  />
+                </View>
+                <View style={styles.reviewContent}>
+                  <StarRating
+                    rating={clientReview.rating}
+                    readonly={true}
+                    size={24}
+                    label=""
+                    hideRating={true}
+                  />
+                  <StyledText
+                    text={clientReview.comment}
+                    style={[styles.reviewComment, { color: theme.textColor }]}
+                  />
+                </View>
+              </View>
+            </>
+          )}
+          
           <Divider />
           <StyledText text={job.serviceRequest.description} />
 
@@ -896,5 +967,28 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     lineHeight: 20,
+  },
+  reviewSection: {
+    marginVertical: 12,
+  },
+  reviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  reviewTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  reviewContent: {
+    paddingHorizontal: 8,
+  },
+  reviewComment: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
+    fontStyle: "italic",
+    opacity: 0.8,
   },
 });

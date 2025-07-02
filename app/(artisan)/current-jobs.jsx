@@ -20,6 +20,7 @@ import {
   getArtisanCurrentJobs,
   debugArtisanApplications,
 } from "../../services/requestService";
+import { hasClientReviewedArtisan } from "../../services/reviewsService";
 
 export default function CurrentJobsScreen() {
   const router = useRouter();
@@ -53,7 +54,39 @@ export default function CurrentJobsScreen() {
       const result = await getArtisanCurrentJobs(user.$id);
 
       if (result.success) {
-        setCurrentJobs(result.data || []);
+        const jobs = result.data || [];
+        
+        // Fetch client reviews for completed jobs
+        const jobsWithReviews = await Promise.all(
+          jobs.map(async (job) => {
+            if (job.serviceRequest?.status === "completed" && job.serviceRequest?.user) {
+              try {
+                const clientId = typeof job.serviceRequest.user === 'string' 
+                  ? job.serviceRequest.user 
+                  : job.serviceRequest.user.$id;
+                
+                const reviewResult = await hasClientReviewedArtisan(
+                  clientId,
+                  user.$id,
+                  job.serviceRequest.$id
+                );
+                
+                if (reviewResult.hasReviewed && reviewResult.review) {
+                  return {
+                    ...job,
+                    clientReview: reviewResult.review
+                  };
+                }
+              } catch (error) {
+                console.error("Error fetching review for job:", job.serviceRequest.$id, error);
+              }
+            }
+            
+            return job;
+          })
+        );
+        
+        setCurrentJobs(jobsWithReviews);
       } else {
         throw new Error(result.error || "Failed to fetch current jobs");
       }

@@ -194,6 +194,18 @@ export const serviceApplicationStep1Schema = Yup.object().shape({
     .min(1, "At least one task"),
 });
 
+// Review validation schema
+export const reviewSchema = Yup.object().shape({
+  rating: Yup.number()
+    .required("Please select a rating")
+    .min(0.5, "Rating must be at least 0.5 stars")
+    .max(5, "Rating cannot exceed 5 stars"),
+  comment: Yup.string()
+    .required("Please write a comment")
+    .min(10, "Comment must be at least 10 characters")
+    .max(500, "Comment must be less than 500 characters"),
+});
+
 // Fonction pour obtenir le schéma approprié en fonction du type d'utilisateur
 export const getRegisterSchema = (userType) => {
   return userType === "artisan" ? artisanRegisterSchema : clientRegisterSchema;

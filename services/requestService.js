@@ -794,7 +794,7 @@ export async function chooseArtisan(
         senderUser: clientId,
         receiverUser: artisanId,
         type: "info",
-        messageContent: "the job is pre-begin",
+        messageContent: `Selected for job: ${serviceRequest.title}`,
         isSeen: true,
         jsonData: JSON.stringify({
           serviceRequestId: serviceRequestId,

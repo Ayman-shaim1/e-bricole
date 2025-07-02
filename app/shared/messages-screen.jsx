@@ -19,6 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import GoBackButton from "../../components/GoBackButton";
 import Avatar from "../../components/Avatar";
 import { useAuth } from "../../context/AuthContext";
+import { useBadge } from "../../context/BadgeContext";
 import { getMessagesBetweenUsers, sendMessage as sendMessageToDb, markConversationAsRead, markAllReceivedMessagesAsRead } from "../../services/messagesService";
 import { getUserById } from "../../services/userService";
 import { client } from "../../config/appwrite";
@@ -65,6 +66,7 @@ export default function MessagesScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
   const { user } = useAuth();
+  const { updateCurrentScreen, refreshBadgeCounts } = useBadge();
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
   const [message, setMessage] = useState("");
@@ -108,6 +110,8 @@ export default function MessagesScreen() {
       const result = await markAllReceivedMessagesAsRead(user.$id);
       if (result.success) {
         hasMarkedAsRead.current = true;
+        // Refresh badge counts to update navigation badges
+        refreshBadgeCounts();
       }
     } catch (error) {
       console.error("Error marking all messages as read:", error);
@@ -154,6 +158,8 @@ export default function MessagesScreen() {
         // Mark conversation as read
         if (transformedMessages.length > 0) {
           await markConversationAsRead(user.$id, conversation.otherUserId);
+          // Refresh badge counts to update navigation badges
+          refreshBadgeCounts();
         }
       }
     } catch (error) {
@@ -164,6 +170,9 @@ export default function MessagesScreen() {
   };
 
   useEffect(() => {
+    // Update current screen for badge management
+    updateCurrentScreen('messages');
+    
     loadMessages();
     loadOtherUserData();
     markAllAsReadOnEntry(); // Mark all received messages as read on first entry
@@ -218,6 +227,8 @@ export default function MessagesScreen() {
               // Mark as read if it's an incoming message
               if (senderUserId === conversation.otherUserId) {
                 markConversationAsRead(user.$id, conversation.otherUserId);
+                // Refresh badge counts to update navigation badges
+                refreshBadgeCounts();
               }
 
               // Auto-scroll to bottom

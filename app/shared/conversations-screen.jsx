@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import ConversationItem from "../../components/ConversationItem";
 import { useAuth } from "../../context/AuthContext";
+import { useBadge } from "../../context/BadgeContext";
 import { colors } from "../../constants/colors";
 import { useTheme } from "../../context/ThemeContext";
 import { useRouter } from "expo-router";
@@ -20,6 +21,7 @@ import { subscribeToMessages } from "../../services/realtimeService";
 
 export default function ConversationsScreen() {
   const { user } = useAuth();
+  const { updateCurrentScreen, refreshBadgeCounts } = useBadge();
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
   const router = useRouter();
@@ -48,6 +50,8 @@ export default function ConversationsScreen() {
       
       if (result.success) {
         setConversations(result.data);
+        // Refresh badge counts after loading conversations
+        refreshBadgeCounts();
       } else {
         setError(result.error);
         setConversations([]);
@@ -74,6 +78,9 @@ export default function ConversationsScreen() {
 
   // Setup
   useEffect(() => {
+    // Update current screen for badge management
+    updateCurrentScreen('conversations');
+    
     fetchConversations();
     
     if (user?.$id) {

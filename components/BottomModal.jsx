@@ -70,14 +70,20 @@ export default function BottomModal({
               transform: [{ translateY: dragY }],
             },
           ]}
-          {...panResponder.panHandlers}
         >
-          <View style={styles.line} />
-          <CloseButton style={styles.btnClose} onPress={onClose} />
+          {/* Handle zone with PanResponder */}
+          <View style={styles.handleZone} {...panResponder.panHandlers}>
+            <View style={styles.line} />
+            <CloseButton style={styles.btnClose} onPress={onClose} />
+          </View>
+          
+          {/* Scrollable content without PanResponder interference */}
           <SafeAreaView style={{ flex: 1 }}>
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 20 }}
+              bounces={true}
+              scrollEnabled={true}
             >
               {children}
             </ScrollView>
@@ -103,8 +109,13 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     overflow: "hidden",
   },
+  handleZone: {
+    paddingVertical: 10,
+    alignItems: "center",
+  },
   btnClose: {
     alignSelf: "flex-end",
+    marginTop: 5,
   },
   line: {
     height: 4,
@@ -112,6 +123,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray,
     alignSelf: "center",
     borderRadius: mystyles.borderRadius,
-    marginBottom: 10,
+    marginBottom: 5,
   },
 });

@@ -446,6 +446,38 @@ export async function getUserConversations(userId) {
 }
 
 /**
+ * Gets the total count of unread messages for a user
+ * @param {string} userId - The current user's ID
+ * @returns {Promise<{success: boolean, count: number, error?: string}>}
+ */
+export async function getUnreadMessagesCount(userId) {
+  try {
+    // Get all unread messages where current user is receiver
+    const unreadMessages = await databases.listDocuments(
+      settings.dataBaseId,
+      settings.messageId,
+      [
+        Query.equal("receiverUser", userId),
+        Query.equal("isSeen", false),
+        Query.limit(1000) // Limit to avoid performance issues
+      ]
+    );
+
+    return { 
+      success: true, 
+      count: unreadMessages.documents.length 
+    };
+  } catch (error) {
+    console.error("Error getting unread messages count:", error);
+    return {
+      success: false,
+      count: 0,
+      error: error.message,
+    };
+  }
+}
+
+/**
  * Validates if a user ID is in the correct format for Appwrite
  * @param {string} userId - The user ID to validate
  * @returns {boolean} True if valid, false otherwise

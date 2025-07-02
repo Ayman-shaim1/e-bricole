@@ -11,6 +11,7 @@ import ThemedView from "../../components/ThemedView";
 import StyledHeading from "../../components/StyledHeading";
 import StyledText from "../../components/StyledText";
 import { useAuth } from "../../context/AuthContext";
+import { useBadge } from "../../context/BadgeContext";
 import {
   getNotifications,
   getUnseenNotificationCount,
@@ -37,6 +38,7 @@ const formatDate = (dateString) => {
 
 export default function NotificationsScreen() {
   const { user } = useAuth();
+  const { updateCurrentScreen, refreshBadgeCounts } = useBadge();
   const router = useRouter();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +62,9 @@ export default function NotificationsScreen() {
     // Clear tracking sets
     setNewNotificationIds(new Set());
     setInitiallyUnseenIds(new Set());
+    
+    // Refresh badge counts to update navigation badges
+    refreshBadgeCounts();
     
     setMarkingAsSeen(false);
   };
@@ -85,6 +90,11 @@ export default function NotificationsScreen() {
     if (isInitialLoad) setLoading(false);
     setRefreshing(false);
   };
+
+  // Update current screen for badge management
+  useEffect(() => {
+    updateCurrentScreen('notifications');
+  }, [updateCurrentScreen]);
 
   // Initialize notifications on mount and mark as seen in database
   useEffect(() => {
@@ -114,6 +124,8 @@ export default function NotificationsScreen() {
               const result = await markAllNotificationsAsSeen(user.$id);
               if (result.success) {
                 setUnseenCount(0);
+                // Refresh badge counts to update navigation badges
+                refreshBadgeCounts();
               }
             }, 1000);
             
@@ -167,6 +179,8 @@ export default function NotificationsScreen() {
             await markAllNotificationsAsSeen(user.$id);
             // Update the unseen count but don't change visual appearance
             setUnseenCount(0);
+            // Refresh badge counts to update navigation badges
+            refreshBadgeCounts();
             console.log('New notification marked as seen in database after 1 second');
           } catch (error) {
             console.error('Error marking new notification as seen:', error);

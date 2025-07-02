@@ -20,6 +20,7 @@ import { ThemeProvider } from "../context/ThemeContext";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import SplashComponent from "./splash";
 import { NotificationProvider } from "../context/NotificationContext";
+import { BadgeProvider } from "../context/BadgeContext";
 SplashScreen.preventAutoHideAsync();
 
 // Inner component for handling route protection and redirection
@@ -77,7 +78,9 @@ export default function Layout() {
     <ThemeProvider>
       <AuthProvider>
         <NotificationProvider>
-          <RootLayoutNav />
+          <BadgeProvider>
+            <RootLayoutNav />
+          </BadgeProvider>
         </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>

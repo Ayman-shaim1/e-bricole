@@ -6,12 +6,20 @@ import { StyleSheet, View } from "react-native";
 import { colors } from "../../constants/colors";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
+import { useBadge } from "../../context/BadgeContext";
+import TabBadge from "../../components/TabBadge";
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function AppLayout() {
   const router = useRouter();
   const { getCurrentTheme } = useTheme();
   const theme = getCurrentTheme();
   const { isAuthenticated, user } = useAuth();
+  const { 
+    getNotificationBadgeCount, 
+    getMessageBadgeCount, 
+    updateCurrentScreen 
+  } = useBadge();
 
   useEffect(() => {
     // Redirect if not authenticated
@@ -35,14 +43,27 @@ export default function AppLayout() {
           fontFamily: 'Poppins-Regular',
         },
       }}
+      screenListeners={{
+        tabPress: (e) => {
+          // Update current screen when tab is pressed
+          const routeName = e.target?.split('-')[0] || '';
+          updateCurrentScreen(routeName);
+        },
+      }}
     >
       <Tabs.Screen
         name="dashboard"
         options={{
           title: "Dashboard",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid-outline" size={size} color={color} />
+            <View style={{ position: 'relative' }}>
+              <Ionicons name="grid-outline" size={size} color={color} />
+              <TabBadge count={getNotificationBadgeCount()} />
+            </View>
           ),
+        }}
+        listeners={{
+          focus: () => updateCurrentScreen('dashboard'),
         }}
       />
       <Tabs.Screen
@@ -53,6 +74,9 @@ export default function AppLayout() {
             <Ionicons name="briefcase-outline" size={size} color={color} />
           ),
         }}
+        listeners={{
+          focus: () => updateCurrentScreen('jobs'),
+        }}
       />
       <Tabs.Screen
         name="current-jobs"
@@ -62,14 +86,23 @@ export default function AppLayout() {
             <Ionicons name="checkmark-circle-outline" size={size} color={color} />
           ),
         }}
+        listeners={{
+          focus: () => updateCurrentScreen('current-jobs'),
+        }}
       />
       <Tabs.Screen
         name="messages"
         options={{
           title: "Messages",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbox-outline" size={size} color={color} />
+            <View style={{ position: 'relative' }}>
+              <Ionicons name="chatbox-outline" size={size} color={color} />
+              <TabBadge count={getMessageBadgeCount()} />
+            </View>
           ),
+        }}
+        listeners={{
+          focus: () => updateCurrentScreen('messages'),
         }}
       />
       <Tabs.Screen
@@ -79,6 +112,9 @@ export default function AppLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="settings-outline" size={size} color={color} />
           ),
+        }}
+        listeners={{
+          focus: () => updateCurrentScreen('settings'),
         }}
       />
     </Tabs>

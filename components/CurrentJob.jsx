@@ -9,6 +9,7 @@ import StyledLabel from "./StyledLabel";
 import StatusBadge from "./StatusBadge";
 import Avatar from "./Avatar";
 import ArtisanDisplayedJobAddress from "./ArtisanDisplayedJobAddress";
+import StarRating from "./StarRating";
 import { colors } from "../constants/colors";
 import { useTheme } from "../context/ThemeContext";
 import { formatDate } from "../utils/dateUtils";
@@ -111,6 +112,38 @@ export default function CurrentJob({ job }) {
             longitude={job.serviceRequest.longitude}
             textAddress={job.serviceRequest.textAddress}
           />
+        )}
+
+        {/* Client Review if exists and job is completed */}
+        {job.clientReview && job.serviceRequest.status === "completed" && (
+          <>
+            <View style={styles.reviewSection}>
+              <View style={styles.reviewHeader}>
+                <MaterialCommunityIcons
+                  name="star"
+                  size={16}
+                  color={colors.warning}
+                />
+                <StyledText
+                  text="Client Review"
+                  style={[styles.reviewTitle, { color: theme.textColor }]}
+                />
+              </View>
+              <View style={styles.reviewContent}>
+                <StarRating
+                  rating={job.clientReview.rating}
+                  readonly={true}
+                  size={18}
+                  label=""
+                />
+                <StyledText
+                  text={job.clientReview.comment}
+                  style={[styles.reviewComment, { color: theme.textColor }]}
+                  numberOfLines={2}
+                />
+              </View>
+            </View>
+          </>
         )}
 
         <View style={styles.divider} />
@@ -237,5 +270,33 @@ const styles = StyleSheet.create({
   },
   viewDetailsButton: {
     marginTop: 0,
+  },
+  reviewSection: {
+    marginVertical: 12,
+    backgroundColor: colors.warning + "05",
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.warning + "20",
+  },
+  reviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+  },
+  reviewTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  reviewContent: {
+    paddingHorizontal: 4,
+  },
+  reviewComment: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 6,
+    fontStyle: "italic",
+    opacity: 0.8,
   },
 }); 

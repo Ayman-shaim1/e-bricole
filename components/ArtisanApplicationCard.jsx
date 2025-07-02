@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
-  Modal,
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
@@ -14,6 +13,8 @@ import StyledHeading from "./StyledHeading";
 import StyledText from "./StyledText";
 import StyledLabel from "./StyledLabel";
 import Avatar from "./Avatar";
+import BottomModal from "./BottomModal";
+import StarRating from "./StarRating";
 import { formatDate, formatDateWithTime } from "../utils/dateUtils";
 import { colors } from "../constants/colors";
 import { useTheme } from "../context/ThemeContext";
@@ -23,14 +24,20 @@ import StyledButton from "./StyledButton";
 import { styles as mystyles } from "../constants/styles";
 import { getArtisanById } from "../services/userService";
 import { chooseArtisan } from "../services/requestService";
+import { getArtisanReviews } from "../services/reviewsService";
 
-export default function ArtisanApplicationCard({ application, onArtisanChosen, serviceRequestStatus }) {
+export default function ArtisanApplicationCard({
+  application,
+  onArtisanChosen,
+  serviceRequestStatus,
+}) {
   const router = useRouter();
   const { getCurrentTheme } = useTheme();
   const { user, isClient } = useAuth();
   const theme = getCurrentTheme();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [artisanData, setArtisanData] = useState(null);
+  const [artisanReviews, setArtisanReviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [choosing, setChoosing] = useState(false);
 
@@ -38,19 +45,36 @@ export default function ArtisanApplicationCard({ application, onArtisanChosen, s
     setShowProfileModal(true);
     setLoading(true);
 
-    const data = await getArtisanById(application?.artisan?.$id);
-    setArtisanData(data);
-    setLoading(false);
+    try {
+      // Fetch artisan data
+      const artisanResult = await getArtisanById(application?.artisan?.$id);
+      setArtisanData(artisanResult);
+
+      // Fetch artisan reviews
+      const reviewsResult = await getArtisanReviews(application?.artisan?.$id);
+      if (reviewsResult.success) {
+        setArtisanReviews(reviewsResult.data);
+      }
+    } catch (error) {
+      console.error("Error fetching artisan data:", error);
+    } finally {
+      setLoading(false);
+    }
   };
+
   const closeProfileModal = () => {
     setShowProfileModal(false);
     setArtisanData(null);
+    setArtisanReviews([]);
   };
 
   const handleChooseArtisan = async () => {
     // Check if the current user is a client
     if (!isClient()) {
-      Alert.alert("Error", "Only clients can choose artisans for service requests.");
+      Alert.alert(
+        "Error",
+        "Only clients can choose artisans for service requests."
+      );
       return;
     }
 
@@ -74,8 +98,12 @@ export default function ArtisanApplicationCard({ application, onArtisanChosen, s
           onPress: async () => {
             try {
               setChoosing(true);
-              const result = await chooseArtisan(application.$id, application.artisan.$id, user.$id);
-              
+              const result = await chooseArtisan(
+                application.$id,
+                application.artisan.$id,
+                user.$id
+              );
+
               if (result.success) {
                 Alert.alert(
                   "Success",
@@ -95,7 +123,10 @@ export default function ArtisanApplicationCard({ application, onArtisanChosen, s
                   ]
                 );
               } else {
-                Alert.alert("Error", result.error || "Failed to choose artisan");
+                Alert.alert(
+                  "Error",
+                  result.error || "Failed to choose artisan"
+                );
               }
             } catch (error) {
               console.error("Error choosing artisan:", error);
@@ -288,81 +319,78 @@ export default function ArtisanApplicationCard({ application, onArtisanChosen, s
             color="primary"
             style={styles.showProfileButton}
           />
-          {isClient() && application.status === "pending" && serviceRequestStatus === "in progress" && (
-            <StyledButton
-              text={choosing ? "Choosing..." : "Choose"}
-              onPress={handleChooseArtisan}
-              color="success"
-              style={styles.chooseButton}
-              disabled={choosing}
-            />
-          )}
+          {isClient() &&
+            application.status === "pending" &&
+            serviceRequestStatus === "in progress" && (
+              <StyledButton
+                text={choosing ? "Choosing..." : "Choose"}
+                onPress={handleChooseArtisan}
+                color="success"
+                style={styles.chooseButton}
+                disabled={choosing}
+              />
+            )}
         </View>
       </StyledCard>
 
       {/* Artisan Profile Modal */}
-      <Modal
+      <BottomModal
         visible={showProfileModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={closeProfileModal}
+        onClose={closeProfileModal}
+        height={800}
       >
-        <View style={styles.modalOverlay}>
-          <View
-            style={[styles.modalContent, { backgroundColor: theme.cardColor }]}
-          >
-            <View style={styles.modalHeader}>
-              <StyledHeading text="Artisan Profile" style={styles.modalTitle} />
-              <TouchableOpacity
-                onPress={closeProfileModal}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={24} color={theme.textColor} />
-              </TouchableOpacity>
+          <View style={styles.modalHeader}>
+            <StyledHeading text="Artisan Profile" style={styles.modalTitle} />
+            <TouchableOpacity
+              onPress={closeProfileModal}
+              style={styles.closeButton}
+            ></TouchableOpacity>
+          </View>
+
+          <View style={styles.profileHeaderSection}>
+            <View style={styles.profileHeaderBackground} />
+            <View style={styles.profileAvatarContainer}>
+              <Avatar
+                source={artisanData?.profileImage}
+                text={artisanData?.name}
+                size={"xl"}
+              />
+            </View>
+          </View>
+
+          <View style={styles.profileInfoContainer}>
+            <View style={styles.profileNameContainer}>
+              <StyledHeading
+                text={artisanData?.name}
+                style={styles.profileName}
+              />
+              <StyledText
+                text={artisanData?.profession || "Professional Artisan"}
+                style={styles.profileProfession}
+              />
             </View>
 
-            <View style={styles.profileHeaderSection}>
-              <View style={styles.profileHeaderBackground} />
-              <View style={styles.profileAvatarContainer}>
-                <Avatar
-                  source={artisanData?.profileImage}
-                  text={artisanData?.name}
-                  size={"xl"}
-                />
-              </View>
-            </View>
-
-            <View style={styles.profileInfoContainer}>
-              <View style={styles.profileNameContainer}>
-                <StyledHeading
-                  text={artisanData?.name}
-                  style={styles.profileName}
-                />
-              </View>
-
-              <ScrollView
-                style={styles.profileDetailsScroll}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.profileDetailsContent}
-              >
-                {/* Contact Information */}
-                <View style={styles.infoSection}>
-                  <View style={styles.sectionHeader}>
+            <View style={styles.profileDetailsContainer}>
+              {/* Contact Information Card */}
+              <StyledCard style={styles.infoCard}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardHeaderLeft}>
                     <Ionicons
                       name="person-outline"
                       size={20}
                       color={colors.primary}
                     />
-                    <StyledLabel
+                    <StyledHeading
                       text="Contact Information"
-                      style={styles.sectionTitle}
-                      color="primary"
+                      style={styles.cardTitle}
                     />
                   </View>
+                </View>
+                <View style={styles.cardContent}>
                   <View style={styles.infoRow}>
                     <Ionicons
                       name="mail-outline"
-                      size={16}
+                      size={18}
                       color={theme.textColor}
                     />
                     <StyledText
@@ -371,25 +399,28 @@ export default function ArtisanApplicationCard({ application, onArtisanChosen, s
                     />
                   </View>
                 </View>
+              </StyledCard>
 
-                {/* Professional Information */}
-                <View style={styles.infoSection}>
-                  <View style={styles.sectionHeader}>
+              {/* Professional Information Card */}
+              <StyledCard style={styles.infoCard}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardHeaderLeft}>
                     <MaterialCommunityIcons
                       name="briefcase-outline"
                       size={20}
                       color={colors.primary}
                     />
-                    <StyledLabel
+                    <StyledHeading
                       text="Professional Details"
-                      style={styles.sectionTitle}
-                      color="primary"
+                      style={styles.cardTitle}
                     />
                   </View>
+                </View>
+                <View style={styles.cardContent}>
                   <View style={styles.infoRow}>
                     <MaterialCommunityIcons
                       name="account-tie-outline"
-                      size={16}
+                      size={18}
                       color={theme.textColor}
                     />
                     <StyledText
@@ -400,112 +431,174 @@ export default function ArtisanApplicationCard({ application, onArtisanChosen, s
                   <View style={styles.infoRow}>
                     <MaterialCommunityIcons
                       name="clock-outline"
-                      size={16}
+                      size={18}
                       color={theme.textColor}
                     />
                     <StyledText
-                      text={`${
-                        artisanData?.experienceYears || 0
-                      } years of experience`}
+                      text={`${artisanData?.experienceYears || 0} years of experience`}
                       style={[styles.infoText, { color: theme.textColor }]}
                     />
                   </View>
                   <View style={styles.infoRow}>
                     <MaterialCommunityIcons
                       name="account-group-outline"
-                      size={16}
+                      size={18}
                       color={theme.textColor}
                     />
                     <StyledText
-                      text={
-                        artisanData?.isClient
-                          ? "Client Account"
-                          : "Professional Artisan"
-                      }
+                      text={artisanData?.isClient ? "Client Account" : "Professional Artisan"}
                       style={[styles.infoText, { color: theme.textColor }]}
                     />
                   </View>
                 </View>
+              </StyledCard>
 
-                {/* Education & Certifications */}
-                <View style={styles.infoSection}>
-                  <View style={styles.sectionHeader}>
-                    <MaterialCommunityIcons
-                      name="school-outline"
-                      size={20}
-                      color={colors.primary}
-                    />
-                    <StyledLabel
-                      text="Education & Certifications"
-                      style={styles.sectionTitle}
-                      color="primary"
-                    />
-                  </View>
-                  <View style={styles.educationItem}>
-                    <View style={styles.educationHeader}>
-                      <StyledText
-                        text={artisanData?.profession || "Not specified"}
-                        style={[
-                          styles.educationTitle,
-                          { color: theme.textColor },
-                        ]}
-                      />
-                    </View>
-                  </View>
-                </View>
-
-                {/* Skills */}
-                {artisanData?.skills && artisanData.skills.length > 0 && (
-                  <View style={styles.infoSection}>
-                    <View style={styles.sectionHeader}>
+              {/* Skills Card */}
+              {artisanData?.skills && artisanData.skills.length > 0 && (
+                <StyledCard style={styles.infoCard}>
+                  <View style={styles.cardHeader}>
+                    <View style={styles.cardHeaderLeft}>
                       <MaterialCommunityIcons
                         name="lightning-bolt-outline"
                         size={20}
                         color={colors.primary}
                       />
-                      <StyledLabel
+                      <StyledHeading
                         text="Skills & Expertise"
-                        style={styles.sectionTitle}
-                        color="primary"
+                        style={styles.cardTitle}
                       />
                     </View>
+                    <View style={styles.skillCount}>
+                      <StyledText
+                        text={`${artisanData.skills.length} skill${artisanData.skills.length !== 1 ? "s" : ""}`}
+                        style={styles.skillCountText}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.cardContent}>
                     <View style={styles.skillsContainer}>
                       {artisanData.skills.map((skill, index) => (
                         <View
                           key={index}
-                          style={[
-                            styles.skillBadge,
-                            { backgroundColor: colors.primary + "10" },
-                          ]}
+                          style={styles.skillBadge}
                         >
                           <StyledText
                             text={skill}
-                            style={[
-                              styles.skillText,
-                              { color: colors.primary },
-                            ]}
+                            style={styles.skillText}
                           />
                         </View>
                       ))}
                     </View>
                   </View>
-                )}
+                </StyledCard>
+              )}
 
-                {/* Loading state */}
-                {loading && (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={colors.primary} />
-                    <StyledText
-                      text="Loading profile..."
-                      style={[styles.loadingText, { color: theme.textColor }]}
-                    />
+              {/* Reviews Card */}
+              {artisanReviews && artisanReviews.length > 0 ? (
+                <StyledCard style={styles.infoCard}>
+                  <View style={styles.cardHeader}>
+                    <View style={styles.cardHeaderLeft}>
+                      <MaterialCommunityIcons
+                        name="star-outline"
+                        size={20}
+                        color={colors.primary}
+                      />
+                      <StyledHeading
+                        text="Reviews"
+                        style={styles.cardTitle}
+                      />
+                    </View>
+                    <View style={styles.reviewCount}>
+                      <StyledText
+                        text={`${artisanReviews.length} review${artisanReviews.length !== 1 ? "s" : ""}`}
+                        style={styles.reviewCountText}
+                      />
+                    </View>
                   </View>
-                )}
-              </ScrollView>
+                  <View style={styles.reviewsContainer}>
+                    {artisanReviews.map((review, index) => (
+                      <View key={review.$id} style={styles.reviewCard}>
+                        <View style={styles.reviewClientRow}>
+                          <Avatar
+                            source={review.client?.profileImage}
+                            text={review.client?.name || "Anonymous"}
+                            size="sm"
+                          />
+                          <StyledLabel
+                            text={review.client?.name || "Anonymous"}
+                            style={[styles.reviewClientName, { color: theme.textColor }]}
+                          />
+                        </View>
+                        <View style={styles.reviewRatingRow}>
+                          <StarRating
+                            rating={review.rating}
+                            readonly={true}
+                            size={14}
+                            label=""
+                            hideRating={true}
+                          />
+                        </View>
+                        <StyledLabel
+                          text={review.comment}
+                          style={[styles.reviewComment, { color: theme.textColor }]}
+                        />
+                        <View style={styles.reviewDivider} />
+                        <StyledLabel
+                          text={formatDate(review.$createdAt)}
+                          style={[styles.reviewDate, { color: theme.textColor }]}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                </StyledCard>
+              ) : !loading && (
+                <StyledCard style={styles.infoCard}>
+                  <View style={styles.cardHeader}>
+                    <View style={styles.cardHeaderLeft}>
+                      <MaterialCommunityIcons
+                        name="star-outline"
+                        size={20}
+                        color={colors.primary}
+                      />
+                      <StyledHeading
+                        text="Reviews"
+                        style={styles.cardTitle}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.cardContent}>
+                    <View style={styles.noReviewsContainer}>
+                      <MaterialCommunityIcons
+                        name="star-off-outline"
+                        size={48}
+                        color={colors.gray}
+                      />
+                      <StyledText
+                        text="No reviews yet"
+                        style={[styles.noReviewsText, { color: theme.textColor }]}
+                      />
+                      <StyledText
+                        text="This artisan hasn't received any reviews yet."
+                        style={[styles.noReviewsDescription, { color: theme.textColor }]}
+                      />
+                    </View>
+                  </View>
+                </StyledCard>
+              )}
+
+              {/* Loading state */}
+              {loading && (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <StyledText
+                    text="Loading profile..."
+                    style={[styles.loadingText, { color: theme.textColor }]}
+                  />
+                </View>
+              )}
             </View>
           </View>
-        </View>
-      </Modal>
+      </BottomModal>
     </>
   );
 }
@@ -625,19 +718,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   // Modal styles
-  modalOverlay: {
+  modalScrollView: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
+  },
+  modalScrollContent: {
+    flexGrow: 1,
   },
   modalContent: {
-    width: "95%",
-    height: "80%",
-    borderRadius: mystyles.borderRadius,
-    overflow: "hidden",
-    paddingHorizontal: mystyles.paddingHorizontal,
-    paddingVertical: 10,
+    paddingBottom: 20,
   },
   modalHeader: {
     flexDirection: "row",
@@ -651,9 +739,6 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: 5,
-  },
-  modalScroll: {
-    flex: 1,
   },
   profileHeaderSection: {
     position: "relative",
@@ -690,7 +775,6 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     borderRadius: mystyles.borderRadius,
-    marginHorizontal: 20,
     marginBottom: 20,
     padding: 15,
   },
@@ -730,7 +814,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   skillBadge: {
-    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 18,
   },
@@ -835,7 +918,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   profileInfoContainer: {
-    flex: 1,
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
@@ -844,32 +926,43 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: "500",
     marginTop: 5,
+    textAlign: "center",
   },
-  profileDetailsScroll: {
-    flex: 1,
+  profileDetailsContainer: {
     marginTop: 20,
   },
-  profileDetailsContent: {
-    paddingBottom: 30,
+  infoCard: {
+    marginBottom: 8,
+    borderRadius: 10,
   },
-  infoSection: {
-    marginBottom: 32,
-    paddingBottom: 24,
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(0, 0, 0, 0.06)",
   },
-  sectionHeader: {
+  cardHeaderLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 20,
+    gap: 8,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  cardContent: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   infoRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    marginBottom: 16,
-    paddingLeft: 4,
+    gap: 10,
+    marginBottom: 8,
+    paddingLeft: 0,
   },
   infoText: {
     fontSize: 15,
@@ -879,79 +972,104 @@ const styles = StyleSheet.create({
   skillsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
-    marginTop: 8,
+    gap: 8,
+    marginTop: 5,
   },
   skillBadge: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 18,
-  },
-  skillText: {
-    fontSize: 13,
-    fontWeight: "500",
-  },
-  educationCard: {
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: "rgba(0, 0, 0, 0.02)",
-    borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.04)",
-  },
-  educationHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  educationIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primary + "12",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 2,
-  },
-  educationContent: {
-    flex: 1,
-  },
-  educationTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    lineHeight: 22,
-    marginBottom: 4,
-  },
-  educationInstitution: {
-    fontSize: 14,
-    lineHeight: 20,
-    opacity: 0.8,
-  },
-  educationYearContainer: {
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingVertical: 4,
+    borderRadius: 12,
     backgroundColor: colors.primary + "15",
     borderWidth: 1,
     borderColor: colors.primary + "25",
   },
-  educationYear: {
+  skillText: {
     fontSize: 12,
     fontWeight: "600",
+    color: colors.primary,
   },
-  noEducationContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+  reviewsContainer: {
     gap: 12,
+  },
+  reviewCard: {
     padding: 16,
     borderRadius: 12,
     backgroundColor: "rgba(0, 0, 0, 0.02)",
     borderWidth: 1,
     borderColor: "rgba(0, 0, 0, 0.04)",
   },
-  noEducationText: {
-    fontSize: 14,
+  reviewClientRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  reviewClientName: {
+    fontSize: 13,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  reviewRatingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  reviewComment: {
+    fontSize: 13,
+    lineHeight: 18,
+    opacity: 0.8,
+    marginTop: 2,
+  },
+  reviewDivider: {
+    height: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.06)",
+    marginVertical: 6,
+  },
+  reviewDate: {
+    fontSize: 10,
+    opacity: 0.6,
     fontWeight: "500",
+  },
+  noReviewsContainer: {
+    alignItems: "center",
+    paddingVertical: 30,
+    gap: 12,
+  },
+  noReviewsText: {
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 5,
+  },
+  noReviewsDescription: {
+    fontSize: 14,
+    textAlign: "center",
     opacity: 0.7,
+    lineHeight: 20,
+  },
+  skillCount: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: colors.primary + "15",
+  },
+  skillCountText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  reviewCount: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: colors.primary + "15",
+  },
+  reviewCountText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  reviewItem: {
+    marginBottom: 12,
+    paddingBottom: 8,
   },
 });
