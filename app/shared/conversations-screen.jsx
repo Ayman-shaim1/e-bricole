@@ -17,7 +17,8 @@ import { useRouter } from "expo-router";
 import StyledTextInput from "../../components/StyledTextInput";
 import Divider from "../../components/Divider";
 import { getUserConversations } from "../../services/messagesService";
-import { subscribeToMessages } from "../../services/realtimeService";
+import { client } from "../../config/appwrite";
+import settings from "../../config/settings";
 
 export default function ConversationsScreen() {
   const { user } = useAuth();
@@ -31,6 +32,7 @@ export default function ConversationsScreen() {
   const [search, setSearch] = useState("");
   const [filteredConversations, setFilteredConversations] = useState([]);
   const [error, setError] = useState(null);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
   
   const realtimeUnsubscribe = useRef(null);
 
@@ -69,10 +71,67 @@ export default function ConversationsScreen() {
   const handleRealtimeUpdate = async (response) => {
     if (!response.payload || !user?.$id) return;
 
-    // Simply refresh conversations when any message update occurs
-    const result = await getUserConversations(user.$id);
-    if (result.success) {
-      setConversations(result.data);
+    const message = response.payload;
+    
+    // Debug logging
+    console.log('Conversations: Real-time message event received:', {
+      events: response.events,
+      senderUser: message.senderUser,
+      receiverUser: message.receiverUser,
+      messageContent: message.messageContent?.substring(0, 50) + '...',
+      currentUserId: user.$id
+    });
+    
+    // Extract user IDs from the message
+    const senderUserId = typeof message.senderUser === 'string' 
+      ? message.senderUser 
+      : message.senderUser?.$id;
+    const receiverUserId = typeof message.receiverUser === 'string' 
+      ? message.receiverUser 
+      : message.receiverUser?.$id;
+
+    // Check if this message involves the current user
+    const isRelevantToCurrentUser = (senderUserId === user.$id || receiverUserId === user.$id);
+    
+    if (!isRelevantToCurrentUser) {
+      console.log('Conversations: Message not relevant to current user, ignoring');
+      return; // Message not relevant to current user, ignore it
+    }
+
+    // Determine the other user (conversation partner)
+    const otherUserId = senderUserId === user.$id ? receiverUserId : senderUserId;
+    
+    // Check if we have events to determine if it's a new message or update
+    const isCreateEvent = response.events?.some(event => 
+      event.includes('documents.*.create') || 
+      event.includes('.create') ||
+      event.endsWith('.create')
+    );
+    
+    const isUpdateEvent = response.events?.some(event => 
+      event.includes('documents.*.update') || 
+      event.includes('.update') ||
+      event.endsWith('.update')
+    );
+
+    if (isCreateEvent || isUpdateEvent) {
+      console.log('Conversations: Updating conversations list due to relevant message event');
+      
+      // Update conversations intelligently - only refresh if needed
+      try {
+        const result = await getUserConversations(user.$id);
+        if (result.success) {
+          setConversations(result.data);
+          
+          // Refresh badge counts for new messages
+          if (isCreateEvent && receiverUserId === user.$id) {
+            console.log('Conversations: Refreshing badge counts for new incoming message');
+            refreshBadgeCounts();
+          }
+        }
+      } catch (error) {
+        console.error("Error updating conversations after real-time event:", error);
+      }
     }
   };
 
@@ -83,13 +142,50 @@ export default function ConversationsScreen() {
     
     fetchConversations();
     
+    // Setup direct real-time subscription with Appwrite
     if (user?.$id) {
-      realtimeUnsubscribe.current = subscribeToMessages(user.$id, handleRealtimeUpdate);
+      const channel = `databases.${settings.dataBaseId}.collections.${settings.messageId}.documents`;
+      
+      console.log('Conversations: Setting up real-time subscription for user:', user.$id);
+      
+      try {
+        const unsubscribe = client.subscribe(
+          channel,
+          (response) => {
+            console.log('Conversations: Real-time connection active, received response');
+            setRealtimeConnected(true);
+            handleRealtimeUpdate(response);
+          },
+          (error) => {
+            console.error("Conversations real-time subscription error:", error);
+            setRealtimeConnected(false);
+            
+            // Try to reconnect after a delay if there's an error
+            setTimeout(() => {
+              if (user?.$id) {
+                console.log('Conversations: Attempting to reconnect real-time subscription');
+                // The subscription will be recreated on next component update
+              }
+            }, 5000);
+          }
+        );
+
+        realtimeUnsubscribe.current = unsubscribe;
+        console.log('Conversations: Real-time subscription established successfully');
+      } catch (error) {
+        console.error('Conversations: Failed to establish real-time subscription:', error);
+      }
     }
 
     return () => {
       if (realtimeUnsubscribe.current) {
-        realtimeUnsubscribe.current();
+        console.log('Conversations: Cleaning up real-time subscription');
+        try {
+          realtimeUnsubscribe.current();
+        } catch (error) {
+          console.error('Conversations: Error cleaning up subscription:', error);
+        }
+        realtimeUnsubscribe.current = null;
       }
     };
   }, [user?.$id]);
@@ -136,7 +232,22 @@ export default function ConversationsScreen() {
       <View style={[styles.container, { backgroundColor: theme.backgroundColor }]}>
         <View style={styles.headerContainer}>
           <Text style={[styles.title, { color: theme.textColor }]}>Messages</Text>
-          <Text style={[styles.subtitle, { color: theme.textColorSecondary || theme.textColor + "80" }]}>Your conversations</Text>
+          <View style={styles.subtitleRow}>
+            <Text style={[styles.subtitle, { color: theme.textColorSecondary || theme.textColor + "80" }]}>Your conversations</Text>
+            {/* Real-time connection status indicator */}
+            <View style={[styles.connectionStatus, { 
+              backgroundColor: realtimeConnected ? colors.success + '20' : colors.error + '20' 
+            }]}>
+              <View style={[styles.connectionDot, { 
+                backgroundColor: realtimeConnected ? colors.success : colors.error 
+              }]} />
+              <Text style={[styles.connectionText, { 
+                color: realtimeConnected ? colors.success : colors.error 
+              }]}>
+                {realtimeConnected ? 'Live' : 'Offline'}
+              </Text>
+            </View>
+          </View>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -151,7 +262,22 @@ export default function ConversationsScreen() {
       <View style={[styles.container, { backgroundColor: theme.backgroundColor }]}>
         <View style={styles.headerContainer}>
           <Text style={[styles.title, { color: theme.textColor }]}>Messages</Text>
-          <Text style={[styles.subtitle, { color: theme.textColorSecondary || theme.textColor + "80" }]}>Error loading conversations</Text>
+          <View style={styles.subtitleRow}>
+            <Text style={[styles.subtitle, { color: theme.textColorSecondary || theme.textColor + "80" }]}>Error loading conversations</Text>
+            {/* Real-time connection status indicator */}
+            <View style={[styles.connectionStatus, { 
+              backgroundColor: realtimeConnected ? colors.success + '20' : colors.error + '20' 
+            }]}>
+              <View style={[styles.connectionDot, { 
+                backgroundColor: realtimeConnected ? colors.success : colors.error 
+              }]} />
+              <Text style={[styles.connectionText, { 
+                color: realtimeConnected ? colors.success : colors.error 
+              }]}>
+                {realtimeConnected ? 'Live' : 'Offline'}
+              </Text>
+            </View>
+          </View>
         </View>
         <View style={styles.emptyContainer}>
           <View style={[styles.emptyIcon, { backgroundColor: theme.cardColor || '#F5F5F5' }]}> 
@@ -172,9 +298,24 @@ export default function ConversationsScreen() {
     <View style={[styles.container, { backgroundColor: theme.backgroundColor }]}>
       <View style={styles.headerContainer}>
         <Text style={[styles.title, { color: theme.textColor }]}>Messages</Text>
-        <Text style={[styles.subtitle, { color: theme.textColorSecondary || theme.textColor + "80" }]}>
-          {conversations.length} conversation{conversations.length !== 1 ? "s" : ""}
-        </Text>
+        <View style={styles.subtitleRow}>
+          <Text style={[styles.subtitle, { color: theme.textColorSecondary || theme.textColor + "80" }]}>
+            {conversations.length} conversation{conversations.length !== 1 ? "s" : ""}
+          </Text>
+          {/* Real-time connection status indicator */}
+          <View style={[styles.connectionStatus, { 
+            backgroundColor: realtimeConnected ? colors.success + '20' : colors.error + '20' 
+          }]}>
+            <View style={[styles.connectionDot, { 
+              backgroundColor: realtimeConnected ? colors.success : colors.error 
+            }]} />
+            <Text style={[styles.connectionText, { 
+              color: realtimeConnected ? colors.success : colors.error 
+            }]}>
+              {realtimeConnected ? 'Live' : 'Offline'}
+            </Text>
+          </View>
+        </View>
       </View>
       <StyledTextInput
         value={search}
@@ -237,6 +378,10 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins-Bold",
     marginBottom: 6,
   },
+  subtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   subtitle: {
     fontSize: 14,
     fontFamily: "Poppins-Regular",
@@ -296,5 +441,23 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 8,
+  },
+  connectionStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  connectionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  connectionText: {
+    fontSize: 10,
+    fontFamily: "Poppins-Medium",
   },
 });

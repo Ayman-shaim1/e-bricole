@@ -746,7 +746,7 @@ export default function RequestDetailsScreen() {
                           color={colors.success} 
                         />
                         <StyledText 
-                          text={`Save ${task.price - proposedPrice} €`}
+                          text={`Save ${Number(task.price - proposedPrice).toFixed(2)} €`}
                           style={styles.savingsText}
                         />
                       </View>

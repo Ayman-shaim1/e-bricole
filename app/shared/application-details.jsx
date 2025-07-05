@@ -32,6 +32,7 @@ import {
 } from "../../services/requestService";
 import { getArtisanReviews } from "../../services/reviewsService";
 import StatusBadge from "../../components/StatusBadge";
+import { evaluateApplicationPrices } from "../../services/aiPredictionService";
 
 export default function ApplicationDetailsScreen() {
   const { applicationId } = useLocalSearchParams();
@@ -47,6 +48,8 @@ export default function ApplicationDetailsScreen() {
   const [applicationLoading, setApplicationLoading] = useState(true);
   const [error, setError] = useState(null);
   const [choosing, setChoosing] = useState(false);
+  const [priceEvaluations, setPriceEvaluations] = useState(null);
+  const [evaluationLoading, setEvaluationLoading] = useState(false);
 
   // Fetch application data
   const fetchApplication = async () => {
@@ -75,6 +78,40 @@ export default function ApplicationDetailsScreen() {
   useEffect(() => {
     fetchApplication();
   }, [applicationId]);
+
+  // Évaluer les prix proposés par rapport à l'IA
+  const evaluatePrices = async () => {
+    if (!application?.serviceRequest || !application?.serviceTaskProposals) return;
+
+    setEvaluationLoading(true);
+    try {
+      const applicationData = {
+        serviceTitle: application.serviceRequest.title,
+        serviceDescription: application.serviceRequest.description,
+        tasks: application.serviceTaskProposals.map(proposal => ({
+          title: proposal.serviceTask.title,
+          description: proposal.serviceTask.description,
+          proposedPrice: parseFloat(proposal.newPrice),
+        })),
+      };
+
+      const result = await evaluateApplicationPrices(applicationData);
+      if (result.success) {
+        setPriceEvaluations(result.data);
+      }
+    } catch (error) {
+      console.error("Error evaluating prices:", error);
+    } finally {
+      setEvaluationLoading(false);
+    }
+  };
+
+  // Charger les évaluations quand l'application est chargée
+  useEffect(() => {
+    if (application) {
+      evaluatePrices();
+    }
+  }, [application]);
 
   const openProfileModal = async () => {
     setShowProfileModal(true);
@@ -358,6 +395,59 @@ export default function ApplicationDetailsScreen() {
                       </>
                     )}
                   </View>
+                  {/* Badge d'évaluation AI sous les prix */}
+                  {priceEvaluations?.evaluations && (
+                    (() => {
+                      const evaluation = priceEvaluations.evaluations.find(
+                        e => e.taskTitle === proposal.serviceTask.title
+                      );
+                      if (evaluation && evaluation.evaluation.label !== "Unknown") {
+                        return (
+                          <View style={styles.aiEvaluationContainer}>
+                            <Ionicons 
+                              name="sparkles" 
+                              size={14} 
+                              color={evaluation.evaluation.color} 
+                            />
+                            <StyledText
+                              text="AI Price Analysis:"
+                              style={styles.aiLabel}
+                            />
+                                                         <View
+                               style={[
+                                 styles.modernEvaluationBadge,
+                                 { backgroundColor: evaluation.evaluation.backgroundColor }
+                               ]}
+                             >
+                               <StyledText
+                                 text={evaluation.evaluation.label}
+                                 style={[
+                                   styles.modernEvaluationText,
+                                   { color: evaluation.evaluation.color }
+                                 ]}
+                               />
+                             </View>
+                            {evaluation.predictedPrice && (
+                              <StyledText
+                                text={`(AI suggests: $${evaluation.predictedPrice.toFixed(2)})`}
+                                style={styles.aiPredictionText}
+                              />
+                            )}
+                          </View>
+                        );
+                      }
+                      return null;
+                    })()
+                  )}
+                  {evaluationLoading && (
+                    <View style={styles.aiEvaluationContainer}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      <StyledText
+                        text="AI analyzing price..."
+                        style={styles.aiLoadingText}
+                      />
+                    </View>
+                  )}
                 </View>
               ))}
             </View>
@@ -1065,5 +1155,48 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     lineHeight: 22,
     opacity: 0.8,
+  },
+  aiEvaluationContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.02)",
+    borderRadius: 8,
+    gap: 6,
+  },
+  aiLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#666",
+  },
+  modernEvaluationBadge: {
+    paddingHorizontal: 1,
+    paddingVertical: 0,
+    borderRadius: 3,
+    minHeight: 8,
+    minWidth: 15,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modernEvaluationText: {
+    fontSize: 6,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0,
+    transform: [{ scaleX: 0.3 }, { scaleY: 0.3 }],
+  },
+  aiPredictionText: {
+    fontSize: 11,
+    fontStyle: "italic",
+    color: "#888",
+    flex: 1,
+  },
+  aiLoadingText: {
+    fontSize: 12,
+    fontStyle: "italic",
+    color: colors.primary,
+    marginLeft: 4,
   },
 });
