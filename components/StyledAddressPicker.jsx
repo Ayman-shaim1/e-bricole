@@ -22,6 +22,7 @@ export default function StyledAddressPicker({
   isLoading,
   onPick,
   shouldPick = true,
+  onPress,
 }) {
   const router = useRouter();
   const { data, loading, error: rvError, reverseGeocode } = useReverseGeocode();
@@ -116,7 +117,7 @@ export default function StyledAddressPicker({
   return (
     <TouchableOpacity
       style={[styles.container, style]}
-      onPress={handleAddressPickerPress}
+      onPress={onPress || handleAddressPickerPress}
     >
       {useLabel && (
         <Ionicons
@@ -158,7 +159,7 @@ export default function StyledAddressPicker({
               }
               icon={MAP_MARKER}
               editable={editable}
-              onPress={handleAddressPickerPress}
+              onPress={onPress || handleAddressPickerPress}
               style={styles.inputText}
             />
           )}

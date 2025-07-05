@@ -1401,3 +1401,35 @@ export async function getCurrentJobDetails(artisanId, serviceRequestId) {
     };
   }
 }
+
+/**
+ * Gets the last 3 service requests for a specific client user
+ * @param {string} userId - The ID of the client user
+ * @returns {Promise<{success: boolean, data: Array, error: string|null}>}
+ */
+export async function getLastThreeRequests(userId) {
+  try {
+    const response = await databases.listDocuments(
+      settings.dataBaseId,
+      settings.serviceRequestsId,
+      [
+        Query.equal("user", userId),
+        Query.orderDesc("$createdAt"),
+        Query.limit(3)
+      ]
+    );
+    
+    return {
+      success: true,
+      data: response.documents,
+      error: null,
+    };
+  } catch (error) {
+    console.error("Error fetching last three requests:", error);
+    return {
+      success: false,
+      data: [],
+      error: error.message,
+    };
+  }
+}

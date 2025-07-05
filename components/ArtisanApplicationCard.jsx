@@ -325,21 +325,12 @@ export default function ArtisanApplicationCard({
                           />
                           <View
                             style={[
-                              styles.modernEvaluationBadge,
+                              styles.tinyEvaluationDot,
                               {
-                                backgroundColor:
-                                  evaluation.evaluation.backgroundColor,
+                                backgroundColor: evaluation.evaluation.color,
                               },
                             ]}
-                          >
-                            <StyledLabel
-                              text={evaluation.evaluation.label}
-                              style={[
-                                styles.modernEvaluationText,
-                                { color: evaluation.evaluation.color },
-                              ]}
-                            />
-                          </View>
+                          />
                           {evaluation.predictedPrice && (
                             <StyledText
                               text={`(AI suggests: $${evaluation.predictedPrice.toFixed(
@@ -1195,22 +1186,11 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#666",
   },
-  modernEvaluationBadge: {
-    paddingHorizontal: 1,
-    paddingVertical: 0,
+  tinyEvaluationDot: {
+    width: 6,
+    height: 6,
     borderRadius: 3,
-    minHeight: 8,
-    minWidth: 15,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modernEvaluationText: {
-    fontSize: 6,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0,
-    fontSize: 10,
-    transform: [{ scaleX: 0.3 }, { scaleY: 0.3 }],
+    marginHorizontal: 2,
   },
   aiPredictionText: {
     fontSize: 11,

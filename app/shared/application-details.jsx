@@ -260,6 +260,31 @@ export default function ApplicationDetailsScreen() {
         <StyledHeading text="Application Details" />
       </View>
 
+      {/* AI Price Analysis Legend */}
+      {application?.serviceTaskProposals?.length > 0 && (
+        <View style={styles.legendContainer}>
+          <StyledText text="AI Price Analysis:" style={styles.legendTitle} />
+          <View style={styles.legendRow}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#1565c0' }]} />
+              <StyledText text="Excellent" style={[styles.legendText, { color: theme.textColor }]} />
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#1b5e20' }]} />
+              <StyledText text="Good" style={[styles.legendText, { color: theme.textColor }]} />
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#cc5500' }]} />
+              <StyledText text="Bad" style={[styles.legendText, { color: theme.textColor }]} />
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#8b0000' }]} />
+              <StyledText text="Very Bad" style={[styles.legendText, { color: theme.textColor }]} />
+            </View>
+          </View>
+        </View>
+      )}
+
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -415,18 +440,10 @@ export default function ApplicationDetailsScreen() {
                             />
                                                          <View
                                style={[
-                                 styles.modernEvaluationBadge,
-                                 { backgroundColor: evaluation.evaluation.backgroundColor }
+                                 styles.tinyEvaluationDot,
+                                 { backgroundColor: evaluation.evaluation.color }
                                ]}
-                             >
-                               <StyledText
-                                 text={evaluation.evaluation.label}
-                                 style={[
-                                   styles.modernEvaluationText,
-                                   { color: evaluation.evaluation.color }
-                                 ]}
-                               />
-                             </View>
+                             />
                             {evaluation.predictedPrice && (
                               <StyledText
                                 text={`(AI suggests: $${evaluation.predictedPrice.toFixed(2)})`}
@@ -1171,21 +1188,11 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#666",
   },
-  modernEvaluationBadge: {
-    paddingHorizontal: 1,
-    paddingVertical: 0,
+  tinyEvaluationDot: {
+    width: 6,
+    height: 6,
     borderRadius: 3,
-    minHeight: 8,
-    minWidth: 15,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modernEvaluationText: {
-    fontSize: 6,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0,
-    transform: [{ scaleX: 0.3 }, { scaleY: 0.3 }],
+    marginHorizontal: 2,
   },
   aiPredictionText: {
     fontSize: 11,
@@ -1198,5 +1205,36 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     color: colors.primary,
     marginLeft: 4,
+  },
+  legendContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.03)',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
+  },
+  legendTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: colors.primary,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  legendDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  legendText: {
+    fontSize: 10,
+    fontWeight: '500',
   },
 });
